@@ -1,0 +1,234 @@
+:root {
+  --reviews-page-max: 1400px;
+  --reviews-side-pad: 24px;
+
+  --reviews-ink: rgba(17, 17, 17, 0.94);
+  --reviews-muted: rgba(17, 17, 17, 0.72);
+  --reviews-line: rgba(17, 17, 17, 0.1);
+  --reviews-shadow: 0 20px 56px rgba(17, 17, 17, 0.08);
+}
+
+/* Local background is intentionally removed.
+   The page now relies on the global theme/background system. */
+.reviewsPage {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 148px 0 80px;
+  color: var(--reviews-ink);
+  font-family: inherit;
+}
+
+.reviewsPage__container {
+  width: min(var(--reviews-page-max), calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.reviewsPage__hero {
+  padding-bottom: 34px;
+}
+
+.reviewsPage__eyebrow {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--reviews-muted);
+}
+
+[data-theme="dark"] .reviewsPage__eyebrow {
+  color: rgba(245, 239, 232, 0.72);
+}
+
+.reviewsPage__title {
+  margin: 0 0 14px;
+  font-family: inherit;
+  font-size: clamp(2.2rem, 4vw, 4rem);
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--reviews-ink);
+}
+
+[data-theme="dark"] .reviewsPage__title {
+  color: rgba(245, 239, 232, 0.95);
+}
+
+.reviewsPage__subtitle {
+  max-width: 48rem;
+  margin: 0;
+  font-size: 1.06rem;
+  line-height: 1.75;
+  color: var(--reviews-muted);
+}
+
+[data-theme="dark"] .reviewsPage__subtitle {
+  color: rgba(245, 239, 232, 0.78);
+}
+
+.reviewsPage__content {
+  padding-bottom: 8px;
+}
+
+.reviewsPage__status {
+  min-height: 1px;
+}
+
+.reviewsPage__state {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--reviews-muted);
+}
+
+[data-theme="dark"] .reviewsPage__state {
+  color: rgba(245, 239, 232, 0.76);
+}
+
+.reviewsPage__state--error {
+  color: #9f2d2d;
+}
+
+[data-theme="dark"] .reviewsPage__state--error {
+  color: #ffb3b3;
+}
+
+.reviewsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.reviewCard {
+  overflow: hidden;
+  border-radius: 26px;
+  border: 1px solid var(--reviews-line);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--reviews-shadow);
+}
+
+[data-theme="dark"] .reviewCard {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 15, 12, 0.54);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.22);
+}
+
+.reviewCard__media {
+  width: 100%;
+  background: rgba(17, 17, 17, 0.04);
+}
+
+[data-theme="dark"] .reviewCard__media {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.reviewCard__image,
+.reviewCard__video {
+  display: block;
+  width: 100%;
+  height: 420px;
+  object-fit: cover;
+}
+
+.reviewCard__body {
+  padding: 18px 18px 22px;
+}
+
+.reviewCard__title {
+  margin: 0 0 10px;
+  font-family: inherit;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--reviews-ink);
+}
+
+[data-theme="dark"] .reviewCard__title {
+  color: rgba(245, 239, 232, 0.95);
+}
+
+.reviewCard__caption {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: rgba(17, 17, 17, 0.76);
+}
+
+[data-theme="dark"] .reviewCard__caption {
+  color: rgba(245, 239, 232, 0.8);
+}
+
+@media (max-width: 1100px) {
+  .reviewsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reviewCard__image,
+  .reviewCard__video {
+    height: 380px;
+  }
+}
+
+@media (max-width: 760px) {
+  .reviewsPage {
+    padding: 128px 0 64px;
+  }
+
+  .reviewsPage__container {
+    width: min(var(--reviews-page-max), calc(100% - 32px));
+  }
+
+  .reviewsPage__hero {
+    padding-bottom: 28px;
+  }
+
+  .reviewsPage__title {
+    font-size: clamp(2rem, 9vw, 3rem);
+  }
+
+  .reviewsPage__subtitle {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .reviewsGrid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .reviewCard__image,
+  .reviewCard__video {
+    height: 340px;
+  }
+
+  .reviewCard__body {
+    padding: 16px 16px 18px;
+  }
+
+  .reviewCard__title {
+    font-size: 1.3rem;
+  }
+
+  .reviewCard__caption {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .reviewsPage__container {
+    width: min(var(--reviews-page-max), calc(100% - 24px));
+  }
+
+  .reviewCard__image,
+  .reviewCard__video {
+    height: 280px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reviewCard {
+    transition: none;
+  }
+}

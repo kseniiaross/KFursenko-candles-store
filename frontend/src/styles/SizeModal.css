@@ -1,0 +1,182 @@
+/* ======================================================
+   OVERLAY
+   ====================================================== */
+
+.sizeModalOverlay {
+
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(0,0,0,0.35);
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  z-index: 500;
+
+}
+
+
+/* ======================================================
+   MODAL CONTAINER
+   ====================================================== */
+
+.sizeModal {
+
+  position: relative;
+
+  width: 100%;
+  max-width: 420px;
+
+  padding: 36px 32px;
+
+  background: rgba(244,236,223,0.95);
+
+  border-radius: 14px;
+
+  box-shadow:
+    0 20px 60px rgba(0,0,0,0.25);
+
+  font-family: "Times New Roman", Times, serif;
+
+}
+
+
+/* ======================================================
+   CLOSE BUTTON
+   ====================================================== */
+
+.sizeModal__close {
+
+  position: absolute;
+  top: 14px;
+  right: 14px;
+
+  width: 32px;
+  height: 32px;
+
+  border: none;
+
+  background: transparent;
+
+  font-size: 22px;
+  line-height: 1;
+
+  cursor: pointer;
+
+  opacity: 0.6;
+
+  transition: opacity 150ms ease;
+
+}
+
+.sizeModal__close:hover {
+  opacity: 1;
+}
+
+
+/* ======================================================
+   HEADER
+   ====================================================== */
+
+.sizeModal__header {
+
+  text-align: center;
+
+  margin-bottom: 24px;
+
+}
+
+.sizeModal__title {
+
+  margin: 0;
+
+  font-size: 1.6rem;
+
+  letter-spacing: 0.05em;
+
+  text-transform: uppercase;
+
+}
+
+.sizeModal__product {
+
+  margin-top: 6px;
+
+  font-size: 0.95rem;
+
+  opacity: 0.65;
+
+}
+
+
+/* ======================================================
+   SIZE BUTTONS
+   ====================================================== */
+
+.sizeModal__sizes {
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+
+}
+
+
+.sizeModal__sizeButton {
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 14px 18px;
+
+  border-radius: 8px;
+
+  border: 1px solid rgba(0,0,0,0.1);
+
+  background: white;
+
+  font-family: "Times New Roman", Times, serif;
+
+  font-size: 0.95rem;
+
+  cursor: pointer;
+
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease;
+
+}
+
+.sizeModal__sizeButton:hover {
+
+  transform: translateY(-1px);
+
+  border-color: rgba(0,0,0,0.25);
+
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+
+}
+
+
+.sizeModal__size {
+
+  font-weight: 700;
+  letter-spacing: 0.05em;
+
+}
+
+.sizeModal__price {
+
+  opacity: 0.7;
+
+}

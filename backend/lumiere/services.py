@@ -1,0 +1,231 @@
+# backend/lumiere/services.py
+import logging
+from typing import Any, Dict, List, Optional
+
+import requests
+from django.conf import settings
+from django.db.models import Q
+
+from candles.models import Candle
+
+logger = logging.getLogger(__name__)
+
+# How many past messages we send to the model (keeps context without blowing token budget)
+HISTORY_WINDOW = 10
+
+
+def _t(locale: str, en: str, ru: str, es: str, fr: str) -> str:
+    if locale == "ru":
+        return ru
+    if locale == "es":
+        return es
+    if locale == "fr":
+        return fr
+    return en
+
+
+def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
+    q = (query or "").strip()
+    if not q:
+        return []
+
+    qs = (
+        Candle.objects.filter(Q(name__icontains=q) | Q(description__icontains=q))
+        .select_related("category")
+        .order_by("-created_at")[:limit]
+    )
+
+    result: List[Dict[str, Any]] = []
+    for c in qs:
+        result.append(
+            {
+                "id": c.id,
+                "name": c.name,
+                "slug": c.slug,
+                "price": str(c.price),
+                "in_stock": bool(c.in_stock),
+            }
+        )
+    return result
+
+
+def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
+    if not suggestions:
+        return "CATALOG SEARCH: No matching products found for this query."
+
+    lines = ["CATALOG SEARCH RESULTS (use these and only these to recommend):"]
+    for s in suggestions:
+        stock = "✓ In stock" if s["in_stock"] else "✗ Out of stock"
+        lines.append(f"  • {s['name']} — ${s['price']} — {stock} — slug: {s['slug']}")
+    return "\n".join(lines)
+
+
+def _build_instructions(locale: str, user_name: Optional[str]) -> str:
+    name_note = f"The customer's name is {user_name}. Use it naturally, not in every message." if user_name else "The customer hasn't shared their name yet."
+
+    return f"""You are Lumière — a sophisticated, warm sales consultant at a premium handmade candle boutique.
+You are NOT a generic chatbot. You are an expert who genuinely loves candles and knows everything about them.
+
+{name_note}
+Customer locale: {locale}. Always reply in that language.
+
+═══ YOUR EXPERTISE ═══
+You know deeply about:
+- Scent families: floral, woody, citrus, oriental, fresh, gourmand, green
+- Burn time, wax types (soy, beeswax, paraffin, coconut), wick materials
+- Mood & occasion pairing (relaxation, romance, focus, energy, grief, celebration)
+- Gifting (who is it for, what's their personality, what's the occasion)
+- Candle care (first burn, trimming wicks, avoiding tunneling)
+- Seasonal and home styling with candles
+
+═══ YOUR SALES APPROACH ═══
+1. DIAGNOSE before recommending. Ask 1 targeted question to understand:
+   - The occasion (gift vs. self-use? celebration, relaxation, daily ambiance?)
+   - Scent preference (light/fresh vs. rich/warm? any dislikes or allergies?)
+   - Context (living room, bedroom, bathroom, office? day or evening use?)
+   
+2. PAINT A PICTURE when recommending. Don't just say "this candle is nice."
+   Say: "This one opens with bergamot, then settles into warm sandalwood — 
+   perfect for winding down after a long day."
+
+3. GUIDE NATURALLY toward purchase:
+   - Mention stock scarcity when relevant ("This one sells out fast")
+   - Suggest complementary products when appropriate
+   - If something is out of stock, pivot to the best available alternative
+
+4. REMEMBER the conversation. Build on what the customer already told you.
+   Don't ask again what you've already learned.
+
+5. HANDLE objections warmly:
+   - "Too expensive" → focus on burn hours / cost per hour, gifting value
+   - "Not sure" → ask one more question to narrow it down
+   - "Just browsing" → invite them to share what mood they're in
+
+═══ HARD RULES ═══
+- ONLY recommend products from the CATALOG SEARCH RESULTS below
+- Never invent products, prices, or stock status
+- Keep replies focused: 2-5 sentences unless describing a scent profile
+- Ask maximum ONE clarifying question per reply
+- If catalog has no match, say so honestly and ask a question to find a better match
+- Never be pushy. Be the consultant customers wish every store had.
+"""
+
+
+def _extract_text_from_responses_api(payload: Dict[str, Any]) -> str:
+    output_text = payload.get("output_text")
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text.strip()
+
+    text_parts: List[str] = []
+    output = payload.get("output", [])
+
+    if isinstance(output, list):
+        for item in output:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "message":
+                content = item.get("content", [])
+                if isinstance(content, list):
+                    for c in content:
+                        if not isinstance(c, dict):
+                            continue
+                        if c.get("type") in ("output_text", "text"):
+                            t = c.get("text")
+                            if isinstance(t, str) and t.strip():
+                                text_parts.append(t.strip())
+
+    return "\n".join(text_parts).strip()
+
+
+def call_openai_reply(
+    *,
+    locale: str,
+    user_name: Optional[str],
+    user_text: str,
+    store_context: str,
+    history: Optional[List[Dict[str, str]]] = None,
+) -> str:
+    api_key = (getattr(settings, "OPENAI_API_KEY", "") or "").strip()
+    model = (getattr(settings, "OPENAI_MODEL", "") or "gpt-4.1-mini").strip()
+    timeout_s = int(getattr(settings, "OPENAI_TIMEOUT_SECONDS", 25))
+
+    if not api_key:
+        return _t(
+            locale,
+            "AI is not configured on the server yet (OPENAI_API_KEY missing).",
+            "AI пока не настроен на сервере (нет OPENAI_API_KEY).",
+            "La IA aún no está configurada en el servidor (falta OPENAI_API_KEY).",
+            "L'IA n'est pas encore configurée sur le serveur (OPENAI_API_KEY manquant).",
+        )
+
+    instructions = _build_instructions(locale, user_name)
+
+    # Build the full conversation input with history
+    # Format: [past messages...] + current store context + current user message
+    history_lines: List[str] = []
+    if history:
+        # Take last HISTORY_WINDOW messages
+        recent = history[-HISTORY_WINDOW:]
+        for msg in recent:
+            role_label = "Customer" if msg.get("role") == "user" else "Lumière"
+            history_lines.append(f"{role_label}: {msg.get('text', '').strip()}")
+
+    history_block = ""
+    if history_lines:
+        history_block = "CONVERSATION SO FAR:\n" + "\n".join(history_lines) + "\n\n"
+
+    full_input = (
+        f"{history_block}"
+        f"{store_context}\n\n"
+        f"Customer: {user_text}\n\n"
+        "Lumière:"
+    )
+
+    payload = {
+        "model": model,
+        "instructions": instructions,
+        "input": full_input,
+        "temperature": 0.75,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        resp = requests.post(
+            "https://api.openai.com/v1/responses",
+            headers=headers,
+            json=payload,
+            timeout=timeout_s,
+        )
+        resp.raise_for_status()
+
+        data = resp.json()
+        final_text = _extract_text_from_responses_api(data)
+
+        if not final_text:
+            final_text = _t(
+                locale,
+                "Sorry — I couldn't generate a reply. Try rephrasing your request.",
+                "Извини — я не смогла сформировать ответ. Попробуй перефразировать запрос.",
+                "Lo siento — no pude generar una respuesta. Intenta reformular tu solicitud.",
+                "Désolée — je n'ai pas pu générer de réponse. Essaie de reformuler ta demande.",
+            )
+
+        return final_text
+
+    except requests.HTTPError:
+        status_code = getattr(resp, "status_code", None)
+        body = ""
+        try:
+            body = resp.text[:1500]
+        except Exception:
+            body = "<no body>"
+        logger.exception("OpenAI HTTP error (%s): %s", status_code, body)
+        raise
+
+    except Exception:
+        logger.exception("OpenAI request failed (unexpected).")
+        raise

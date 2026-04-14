@@ -1,0 +1,12 @@
+Restore your account
+
+Hi {{ first_name|default:"there" }},
+
+To restore access to your KFursenko Candles account, click:
+
+{{ restore_url }}
+
+If you didn’t request this, ignore this email.
+
+— KFursenko Candles
+{{ site_url }}

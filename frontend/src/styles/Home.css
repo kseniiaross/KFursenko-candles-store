@@ -1,0 +1,159 @@
+.home {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  color: #ffffff;
+  font-family: inherit;
+}
+
+.home__media {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: #f3ecdf;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .home__media {
+  background: #120d0a;
+}
+
+.home__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center center;
+
+  /* FIX: убираем scale и will-change — они понижают качество рендеринга */
+  /* FIX: transform: none вместо scale(1.01) — scale создаёт отдельный compositing layer */
+  transform: translateZ(0);
+
+  /* FIX: убираем backface-visibility — не нужен для видео, только ухудшает */
+
+  opacity: 0;
+  transition: opacity 700ms ease-in-out;
+
+  /* FIX: will-change только на opacity, не на transform */
+  will-change: opacity;
+
+  /* FIX: принудительно высокое качество пикселей */
+  image-rendering: high-quality;
+  -webkit-transform: translateZ(0);
+}
+
+.home__video.is-visible {
+  opacity: 1;
+  /* FIX: убираем will-change после того как видео показалось — освобождаем GPU */
+  will-change: auto;
+}
+
+.home__overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.12),
+      rgba(0, 0, 0, 0.03) 24%,
+      rgba(0, 0, 0, 0.05) 72%,
+      rgba(0, 0, 0, 0.12)
+    );
+}
+
+[data-theme="dark"] .home__overlay {
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.24),
+      rgba(0, 0, 0, 0.12) 24%,
+      rgba(0, 0, 0, 0.16) 72%,
+      rgba(0, 0, 0, 0.24)
+    );
+}
+
+.home__content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.home__logoWrapper {
+  position: absolute;
+  top: 5.5vh;
+  left: 50%;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.home__logoLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  text-decoration: none;
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+.home__logoLink:hover {
+  transform: translateY(-2px);
+  opacity: 0.94;
+}
+
+.home__logoLink:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.96);
+  outline-offset: 4px;
+}
+
+.home__logo {
+  width: min(300px, 30vw);
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.12));
+}
+
+[data-theme="dark"] .home__logo {
+  filter:
+    brightness(0)
+    invert(1)
+    drop-shadow(0 10px 24px rgba(0, 0, 0, 0.28));
+}
+
+@media (max-width: 1100px) {
+  .home__logoWrapper { top: 6vh; }
+  .home__logo { width: min(250px, 34vw); }
+}
+
+@media (max-width: 900px) {
+  .home__logoWrapper { top: 7vh; }
+  .home__logo { width: min(220px, 38vw); }
+}
+
+@media (max-width: 640px) {
+  .home__logoWrapper { top: 8vh; }
+  .home__logo { width: min(180px, 42vw); }
+}
+
+@media (max-width: 420px) {
+  .home__logoWrapper { top: 9vh; }
+  .home__logo { width: min(160px, 48vw); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home__video {
+    transition: none;
+  }
+
+  .home__logoLink {
+    transition: none;
+  }
+}

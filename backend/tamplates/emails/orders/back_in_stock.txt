@@ -1,0 +1,13 @@
+Back in stock ✨ {{ product_name }}
+
+Hi {{ first_name|default:"there" }},
+
+Good news — {{ product_name }} is available again.
+
+Shop now:
+{{ product_url }}
+
+Tip: small batches sell out quickly.
+
+— KFursenko Candles
+{{ site_url }}

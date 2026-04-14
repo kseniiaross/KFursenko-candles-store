@@ -1,0 +1,426 @@
+.lumiereSrOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border: 0;
+  white-space: nowrap;
+}
+
+.lumiereFab {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9999;
+  width: 58px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(17, 17, 17, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 248, 241, 0.92);
+  color: #111111;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.lumiereFab:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 250, 245, 0.98);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.16);
+}
+
+.lumiereFab:focus-visible,
+.lumiereSelect:focus-visible,
+.lumiereClose:focus-visible,
+.lumiereInput:focus-visible,
+.lumiereSend:focus-visible,
+.lumiereCard:focus-visible,
+.lumiereToggle input:focus-visible + .lumiereToggle__icon {
+  outline: 3px solid rgba(17, 17, 17, 0.88);
+  outline-offset: 3px;
+}
+
+.lumiereFab__icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.lumierePanel {
+  position: fixed;
+  right: 18px;
+  bottom: 88px;
+  z-index: 9999;
+  width: min(400px, calc(100vw - 28px));
+  height: min(620px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 252, 247, 0.92);
+  color: #111111;
+  font-family: inherit;
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.lumiereHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid rgba(17, 17, 17, 0.08);
+  background: rgba(255, 248, 240, 0.72);
+}
+
+.lumiereHeader__left {
+  min-width: 0;
+}
+
+.lumiereHeader__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.lumiereField {
+  display: flex;
+  align-items: center;
+}
+
+.lumiereTitle {
+  margin: 0;
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+}
+
+.lumiereSub {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(17, 17, 17, 0.68);
+}
+
+.lumiereSelect {
+  min-height: 40px;
+  min-width: 64px;
+  padding: 0 10px;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111111;
+  font-family: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.lumiereToggle {
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+}
+
+.lumiereToggle input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lumiereToggle__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.lumiereClose {
+  width: 40px;
+  height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111111;
+  font-family: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lumiereBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  background: rgba(250, 247, 243, 0.86);
+}
+
+.lumiereMsg {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.lumiereMsg.is-user {
+  align-items: flex-end;
+}
+
+.lumiereMsg.is-assistant {
+  align-items: flex-start;
+}
+
+.lumiereBubble {
+  max-width: 88%;
+  padding: 12px 12px 10px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.lumiereMsg.is-user .lumiereBubble {
+  background: #171311;
+  color: #ffffff;
+  border-color: rgba(17, 17, 17, 0.2);
+}
+
+.lumiereText {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+.lumiereTime {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: rgba(17, 17, 17, 0.6);
+}
+
+.lumiereMsg.is-user .lumiereTime {
+  color: rgba(17, 17, 17, 0.64);
+}
+
+.lumiereTyping {
+  padding: 8px 2px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(17, 17, 17, 0.68);
+}
+
+.lumiereFooter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(17, 17, 17, 0.08);
+  background: rgba(255, 248, 240, 0.82);
+}
+
+.lumiereInput {
+  flex: 1;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #111111;
+  font-family: inherit;
+  font-size: 0.96rem;
+}
+
+.lumiereInput::placeholder {
+  color: rgba(17, 17, 17, 0.5);
+}
+
+.lumiereSend {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(17, 17, 17, 0.18);
+  border-radius: 14px;
+  background: #171311;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.lumiereSend:hover:not(:disabled) {
+  transform: translateY(-1px);
+  opacity: 0.96;
+}
+
+.lumiereSend:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lumiereSuggest {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.lumiereCard {
+  display: block;
+  padding: 10px;
+  border: 1px solid rgba(17, 17, 17, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #111111;
+  text-decoration: none;
+}
+
+.lumiereCard__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lumiereCard__name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.lumiereCard__price {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.lumiereCard__meta {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: rgba(17, 17, 17, 0.68);
+}
+
+@media (max-width: 640px) {
+  .lumiereFab {
+    right: 14px;
+    bottom: 14px;
+    width: 54px;
+    height: 54px;
+  }
+
+  .lumierePanel {
+    right: 14px;
+    left: 14px;
+    bottom: 78px;
+    width: auto;
+    height: min(70vh, 600px);
+    border-radius: 18px;
+  }
+
+  .lumiereHeader {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .lumiereHeader__right {
+    gap: 6px;
+  }
+
+  .lumiereTitle {
+    font-size: 1.12rem;
+  }
+
+  .lumiereSub {
+    font-size: 0.75rem;
+  }
+
+  .lumiereSelect,
+  .lumiereClose,
+  .lumiereToggle {
+    min-height: 38px;
+    height: 38px;
+  }
+
+  .lumiereBody {
+    padding: 12px;
+  }
+
+  .lumiereBubble {
+    max-width: 92%;
+  }
+
+  .lumiereFooter {
+    padding: 10px;
+  }
+
+  .lumiereInput {
+    min-height: 42px;
+    font-size: 0.92rem;
+  }
+
+  .lumiereSend {
+    min-height: 42px;
+    padding: 0 14px;
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .lumierePanel {
+    right: 10px;
+    left: 10px;
+    bottom: 74px;
+    height: min(72vh, 560px);
+  }
+
+  .lumiereHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lumiereHeader__right {
+    justify-content: flex-end;
+  }
+
+  .lumiereBubble {
+    max-width: 96%;
+  }
+
+  .lumiereCard__top {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

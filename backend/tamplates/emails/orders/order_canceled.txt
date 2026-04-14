@@ -1,0 +1,10 @@
+Order canceled
+Order #{{ order_number }}
+
+Hi {{ first_name|default:"there" }},
+
+Your order has been canceled.
+If you believe this is a mistake, contact us and we’ll look into it.
+
+— KFursenko Candles
+{{ support_email }}

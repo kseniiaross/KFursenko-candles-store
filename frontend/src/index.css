@@ -1,0 +1,92 @@
+/* =====================================================
+   GLOBAL LAYOUT
+   ===================================================== */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+/* =====================================================
+   THEME TOKENS
+   ===================================================== */
+
+:root {
+
+  /* COLORS */
+
+  --color-bg: #f6f1ea;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: rgba(17, 17, 17, 0.7);
+  --color-border: rgba(17, 17, 17, 0.12);
+
+  --color-surface: rgba(255, 255, 255, 0.6);
+  --color-surface-glass: rgba(244, 236, 223, 0.78);
+
+  /* GLOBAL FONT */
+
+  --font-primary: "Times New Roman", Times, serif;
+}
+
+[data-theme="dark"] {
+
+  --color-bg: #120d0a;
+  --color-text-primary: #f5efe8;
+  --color-text-secondary: rgba(245, 239, 232, 0.75);
+  --color-border: rgba(255, 255, 255, 0.18);
+
+  --color-surface: rgba(20, 16, 14, 0.6);
+  --color-surface-glass: rgba(20, 16, 14, 0.72);
+
+}
+
+/* =====================================================
+   BASE
+   ===================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  font-family: var(--font-primary);
+  line-height: 1.5;
+
+  overflow-x: hidden;
+
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =====================================================
+   GLOBAL ELEMENTS
+   ===================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}

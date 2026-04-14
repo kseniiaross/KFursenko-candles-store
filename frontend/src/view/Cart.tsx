@@ -1,0 +1,257 @@
+import React, { useMemo } from "react"
+import { Link, useNavigate } from "react-router-dom"
+import { useAppDispatch, useAppSelector } from "../store/hooks"
+import { removeFromCart, updateQty } from "../store/cartSlice"
+
+import "../styles/Cart.css"
+
+const money = (value: number): string =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(value)
+
+const Cart: React.FC = () => {
+
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+
+  const items = useAppSelector((state) => state.cart.items)
+  const isLoggedIn = useAppSelector((state) => state.auth.isLoggedIn)
+
+  const totalItems = useMemo(() => {
+    return items.reduce((sum, item) => sum + item.quantity, 0)
+  }, [items])
+
+  const totalAmount = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const price = item.price ?? 0
+      return sum + price * item.quantity
+    }, 0)
+  }, [items])
+
+  const handleCheckout = () => {
+
+    if (!items.length) return
+
+    if (!isLoggedIn) {
+      navigate("/login-choice?next=/checkout")
+      return
+    }
+
+    navigate("/checkout")
+
+  }
+
+  return (
+
+    <main className="cart">
+
+      <div className="cart__inner">
+
+        <header className="cart__header">
+          <h1 className="cart__title">SHOPPING CART</h1>
+          <p className="cart__subtitle">
+            Review your selected candles before checkout
+          </p>
+        </header>
+
+        {items.length === 0 ? (
+
+          <div className="cart__empty">
+
+            <p>Your cart is empty</p>
+
+            <Link to="/catalog" className="cart__emptyLink">
+              Continue Shopping
+            </Link>
+
+          </div>
+
+        ) : (
+
+          <>
+
+            <ul className="cart__list">
+
+              {items.map((item) => {
+
+                const name =
+                  item.name?.trim() || `Candle #${item.candle_id}`
+
+                const price = item.price ?? 0
+
+                const itemTotal = price * item.quantity
+
+                return (
+
+                  <li
+                    key={item.variant_id}
+                    className="cartItem"
+                  >
+
+                    <div className="cartItem__imageWrap">
+
+                      {item.image ? (
+
+                        <img
+                          src={item.image}
+                          alt={name}
+                          className="cartItem__image"
+                        />
+
+                      ) : (
+
+                        <div className="cartItem__image cartItem__image--empty"/>
+
+                      )}
+
+                    </div>
+
+                    <div className="cartItem__content">
+
+                      <div className="cartItem__topRow">
+
+                        <div>
+
+                          <h2 className="cartItem__name">
+                            {name}
+                          </h2>
+
+                          {item.size && (
+
+                            <p className="cartItem__meta">
+                              Size: {item.size}
+                            </p>
+
+                          )}
+
+                        </div>
+
+                        <button
+                          className="cartItem__remove"
+                          onClick={() =>
+                            dispatch(
+                              removeFromCart({
+                                variant_id: item.variant_id,
+                              })
+                            )
+                          }
+                        >
+                          Remove
+                        </button>
+
+                      </div>
+
+                      <div className="cartItem__bottomRow">
+
+                        <div className="cartItem__priceBlock">
+
+                          <span className="cartItem__priceLabel">
+                            Unit Price
+                          </span>
+
+                          <span className="cartItem__price">
+                            {money(price)}
+                          </span>
+
+                        </div>
+
+                        <div className="cartItem__qty">
+
+                          <button
+                            className="cartItem__qtyButton"
+                            onClick={() =>
+                              dispatch(
+                                updateQty({
+                                  variant_id: item.variant_id,
+                                  quantity: item.quantity - 1,
+                                })
+                              )
+                            }
+                          >
+                            −
+                          </button>
+
+                          <span className="cartItem__qtyValue">
+                            {item.quantity}
+                          </span>
+
+                          <button
+                            className="cartItem__qtyButton"
+                            onClick={() =>
+                              dispatch(
+                                updateQty({
+                                  variant_id: item.variant_id,
+                                  quantity: item.quantity + 1,
+                                })
+                              )
+                            }
+                          >
+                            +
+                          </button>
+
+                        </div>
+
+                        <div className="cartItem__lineTotalBlock">
+
+                          <span className="cartItem__priceLabel">
+                            Total
+                          </span>
+
+                          <span className="cartItem__lineTotal">
+                            {money(itemTotal)}
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  </li>
+
+                )
+
+              })}
+
+            </ul>
+
+            <section className="cart__footer">
+
+              <div className="cart__summary">
+
+                <div className="cart__summaryRow">
+                  <span>Items</span>
+                  <span>{totalItems}</span>
+                </div>
+
+                <div className="cart__summaryRow cart__summaryRow--total">
+                  <span>Total</span>
+                  <span>{money(totalAmount)}</span>
+                </div>
+
+              </div>
+
+              <button
+                className="cart__checkout"
+                onClick={handleCheckout}
+              >
+                CHECK OUT
+              </button>
+
+            </section>
+
+          </>
+
+        )}
+
+      </div>
+
+    </main>
+
+  )
+
+}
+
+export default Cart
