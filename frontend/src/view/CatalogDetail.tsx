@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getCandleBySlug, getCollectionScentsBySlug } from "../api/candles";
+import { addToCart as addToCartApi } from "../api/cart";
 import { useAppDispatch } from "../store/hooks";
-import { addToCart } from "../store/cartSlice";
+import { setCart } from "../store/cartSlice";
 
 import type { Candle, CandleVariant } from "../types/candle";
 
@@ -18,29 +19,45 @@ const CatalogDetail: React.FC = () => {
   const [activeImg, setActiveImg] = useState<string>("");
   const [variant, setVariant] = useState<CandleVariant | null>(null);
   const [scents, setScents] = useState<Candle[]>([]);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
+    let active = true;
+
     async function load() {
       if (!slug) return;
 
-      const data = await getCandleBySlug(slug);
-      setItem(data);
-      setActiveImg(data.image ?? "");
-
-      if (data.variants && data.variants.length > 0) {
-        setVariant(data.variants[0]);
-      }
-
-      // Load sibling scents from same sub-collection
       try {
-        const siblings = await getCollectionScentsBySlug(slug);
-        setScents(siblings);
+        const data = await getCandleBySlug(slug);
+        if (!active) return;
+
+        setItem(data);
+        setActiveImg(data.image ?? "");
+
+        if (data.variants && data.variants.length > 0) {
+          setVariant(data.variants[0]);
+        }
+
+        try {
+          const siblings = await getCollectionScentsBySlug(slug);
+          if (!active) return;
+          setScents(siblings);
+        } catch {
+          if (!active) return;
+          setScents([]);
+        }
       } catch {
+        if (!active) return;
+        setItem(null);
         setScents([]);
       }
     }
 
-    load();
+    void load();
+
+    return () => {
+      active = false;
+    };
   }, [slug]);
 
   const price = useMemo(() => {
@@ -48,19 +65,24 @@ const CatalogDetail: React.FC = () => {
     return Number(variant.price);
   }, [variant]);
 
-  const onAddToCart = () => {
-    if (!item || !variant) return;
-    dispatch(
-      addToCart({
+  const onAddToCart = async (): Promise<void> => {
+    if (!item || !variant || adding) return;
+
+    try {
+      setAdding(true);
+
+      const items = await addToCartApi({
         variant_id: variant.id,
-        candle_id: item.id,
-        name: item.name,
-        price: Number(variant.price),
-        size: variant.size,
-        image: activeImg || item.image || "",
         quantity: 1,
-      })
-    );
+        is_gift: false,
+      });
+
+      dispatch(setCart(items));
+    } catch (error) {
+      console.error("Failed to add item to cart:", error);
+    } finally {
+      setAdding(false);
+    }
   };
 
   if (!item) return null;
@@ -73,14 +95,11 @@ const CatalogDetail: React.FC = () => {
   return (
     <main className="catalogDetail">
       <div className="catalogDetail__inner">
-
         <Link to="/catalog" className="catalogDetail__back">
           ← Back to catalog
         </Link>
 
         <div className="catalogDetail__layout">
-
-          {/* LEFT — IMAGES */}
           <div className="catalogDetail__media">
             <div className="catalogDetail__mainImgWrap">
               <img
@@ -94,8 +113,11 @@ const CatalogDetail: React.FC = () => {
               {gallery.map((img) => (
                 <button
                   key={img}
+                  type="button"
                   onClick={() => setActiveImg(img)}
-                  className={`catalogDetail__thumb ${img === activeImg ? "is-active" : ""}`}
+                  className={`catalogDetail__thumb ${
+                    img === activeImg ? "is-active" : ""
+                  }`}
                 >
                   <img src={img} alt={item.name} />
                 </button>
@@ -103,29 +125,28 @@ const CatalogDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* RIGHT — INFO */}
           <div className="catalogDetail__info">
             <h1 className="catalogDetail__title">{item.name}</h1>
 
             <p className="catalogDetail__price">${price.toFixed(2)}</p>
 
-            {/* SCENT SELECTOR — siblings from same collection */}
             {scents.length > 0 && (
               <div className="catalogDetail__scentBlock">
                 <span className="catalogDetail__scentLabel">Scent</span>
+
                 <div className="catalogDetail__scentOptions">
-                  {/* Current scent */}
                   <button
+                    type="button"
                     className="catalogDetail__scentBtn is-active"
                     aria-current="true"
                   >
                     {item.name}
                   </button>
 
-                  {/* Sibling scents */}
                   {scents.map((s) => (
                     <button
                       key={s.id}
+                      type="button"
                       className="catalogDetail__scentBtn"
                       onClick={() => navigate(`/catalog/${s.slug}`)}
                     >
@@ -136,16 +157,19 @@ const CatalogDetail: React.FC = () => {
               </div>
             )}
 
-            {/* SIZE SELECTOR */}
             {item.variants && item.variants.length > 0 && (
               <div className="catalogDetail__sizeBlock">
                 <span className="catalogDetail__sizeLabel">Size</span>
+
                 <div className="catalogDetail__sizeOptions">
                   {item.variants.map((v) => (
                     <button
                       key={v.id}
+                      type="button"
                       onClick={() => setVariant(v)}
-                      className={`catalogDetail__sizeBtn ${variant?.id === v.id ? "is-active" : ""}`}
+                      className={`catalogDetail__sizeBtn ${
+                        variant?.id === v.id ? "is-active" : ""
+                      }`}
                     >
                       {v.size}
                     </button>
@@ -156,11 +180,17 @@ const CatalogDetail: React.FC = () => {
 
             <p className="catalogDetail__desc">{item.description}</p>
 
-            <button className="catalogDetail__btn" onClick={onAddToCart}>
-              Add to cart
+            <button
+              type="button"
+              className="catalogDetail__btn"
+              onClick={() => {
+                void onAddToCart();
+              }}
+              disabled={!variant || adding}
+            >
+              {adding ? "Adding..." : "Add to cart"}
             </button>
           </div>
-
         </div>
       </div>
     </main>
