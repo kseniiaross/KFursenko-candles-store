@@ -1,4 +1,3 @@
-# backend/lumiere/services.py
 import logging
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
@@ -31,11 +30,6 @@ def _format_price(value: Decimal | None) -> str:
 
 
 def _get_active_variants(candle: Candle) -> List[CandleVariant]:
-    """
-    Return active variants for a candle.
-
-    Uses prefetched variants if available; otherwise falls back to a query.
-    """
     prefetched = getattr(candle, "prefetched_active_variants", None)
     if prefetched is not None:
         return list(prefetched)
@@ -44,12 +38,6 @@ def _get_active_variants(candle: Candle) -> List[CandleVariant]:
 
 
 def _get_display_price(candle: Candle) -> str:
-    """
-    Price priority:
-    1. Lowest active variant price
-    2. Candle.price fallback
-    3. Empty string if nothing is available
-    """
     variants = _get_active_variants(candle)
 
     priced_variants = [variant for variant in variants if variant.price is not None]
@@ -64,12 +52,6 @@ def _get_display_price(candle: Candle) -> str:
 
 
 def _is_candle_available(candle: Candle) -> bool:
-    """
-    Availability priority:
-    1. If candle is explicitly sold out -> False
-    2. If there are active variants -> True if any active variant has stock_qty > 0
-    3. Otherwise fall back to candle.in_stock or candle.stock_qty
-    """
     if candle.is_sold_out:
         return False
 
@@ -169,6 +151,11 @@ You are NOT a generic chatbot. You are an expert who genuinely loves candles and
 {name_note}
 Customer locale: {locale}. Always reply in that language.
 
+═══ STORE POLICIES YOU MUST KNOW ═══
+- Customers can mark an item as a gift during checkout.
+- Gift wrapping is complimentary and does not add any extra charge.
+- If a customer asks whether something can be a gift, tell them they can select the gift option in the cart or during checkout at no extra cost.
+
 ═══ YOUR EXPERTISE ═══
 You know deeply about:
 - Scent families: floral, woody, citrus, oriental, fresh, gourmand, green
@@ -203,7 +190,7 @@ You know deeply about:
 
 ═══ HARD RULES ═══
 - ONLY recommend products from the CATALOG SEARCH RESULTS below
-- Never invent products, prices, or stock status
+- Never invent products, prices, stock status, or store policies
 - Keep replies focused: 2-5 sentences unless describing a scent profile
 - Ask maximum ONE clarifying question per reply
 - If catalog has no match, say so honestly and ask a question to find a better match

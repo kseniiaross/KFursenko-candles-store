@@ -112,6 +112,7 @@ class OrderItem(models.Model):
     product_name = models.CharField(max_length=255)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
+    is_gift = models.BooleanField(default=False)
 
     def line_total(self):
         return (self.unit_price or Decimal("0.00")) * Decimal(self.quantity or 0)

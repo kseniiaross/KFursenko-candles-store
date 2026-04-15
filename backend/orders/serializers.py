@@ -1,4 +1,3 @@
-# backend/orders/serializers.py
 from decimal import Decimal
 
 from django.db import transaction
@@ -14,7 +13,14 @@ class OrderItemReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ("id", "candle_id", "candle_name", "unit_price", "quantity")
+        fields = (
+            "id",
+            "candle_id",
+            "candle_name",
+            "unit_price",
+            "quantity",
+            "is_gift",
+        )
 
 
 class OrderReadSerializer(serializers.ModelSerializer):
@@ -47,6 +53,7 @@ class OrderReadSerializer(serializers.ModelSerializer):
 class OrderItemCreateSerializer(serializers.Serializer):
     candle_id = serializers.IntegerField()
     quantity = serializers.IntegerField(min_value=1, max_value=999)
+    is_gift = serializers.BooleanField(required=False, default=False)
 
 
 class ShippingSerializer(serializers.Serializer):
@@ -77,19 +84,26 @@ class OrderCreateSerializer(serializers.Serializer):
         items_data = validated_data["items"]
         ship = validated_data["shipping"]
 
-        merged: dict[int, int] = {}
-        for i in items_data:
-            cid = int(i["candle_id"])
-            qty = int(i["quantity"])
-            merged[cid] = merged.get(cid, 0) + qty
+        merged: dict[int, dict[str, int | bool]] = {}
+
+        for item in items_data:
+            cid = int(item["candle_id"])
+            qty = int(item["quantity"])
+            is_gift = bool(item.get("is_gift", False))
+
+            if cid not in merged:
+                merged[cid] = {"quantity": 0, "is_gift": False}
+
+            merged[cid]["quantity"] = int(merged[cid]["quantity"]) + qty
+            merged[cid]["is_gift"] = bool(merged[cid]["is_gift"]) or is_gift
 
         candle_ids = list(merged.keys())
         candles = Candle.objects.select_for_update().filter(id__in=candle_ids)
         candle_map = {c.id: c for c in candles}
 
         if len(candle_map) != len(candle_ids):
-            missing = sorted(set(candle_ids) - set(candle_map.keys()))
-            raise serializers.ValidationError({"items": f"Some candle_id do not exist: {missing}"})
+          missing = sorted(set(candle_ids) - set(candle_map.keys()))
+          raise serializers.ValidationError({"items": f"Some candle_id do not exist: {missing}"})
 
         order = Order.objects.create(
             user=user,
@@ -110,11 +124,15 @@ class OrderCreateSerializer(serializers.Serializer):
 
         subtotal = Decimal("0.00")
 
-        for cid, qty in merged.items():
+        for cid, payload in merged.items():
             candle = candle_map[cid]
+            qty = int(payload["quantity"])
+            is_gift = bool(payload["is_gift"])
 
             if candle.stock_qty < qty:
-                raise serializers.ValidationError({"items": f"Not enough stock for: {candle.name} (id={cid})"})
+                raise serializers.ValidationError(
+                    {"items": f"Not enough stock for: {candle.name} (id={cid})"}
+                )
 
             candle.stock_qty -= qty
             candle.save(update_fields=["stock_qty"])
@@ -125,6 +143,7 @@ class OrderCreateSerializer(serializers.Serializer):
                 product_name=candle.name,
                 unit_price=candle.price,
                 quantity=qty,
+                is_gift=is_gift,
             )
 
             subtotal += candle.price * qty

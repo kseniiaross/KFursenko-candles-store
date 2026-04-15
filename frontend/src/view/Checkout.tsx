@@ -16,11 +16,13 @@ import { PROFILE_STORAGE_KEY } from "./Profile";
 
 type CartLine = {
   candle_id: number;
+  variant_id?: number;
   name?: string;
   price?: number;
   image?: string;
   size?: string;
   quantity: number;
+  isGift?: boolean;
 };
 
 type ShippingForm = {
@@ -67,7 +69,9 @@ function loadProfileFromStorage(): SavedProfile | null {
 
 const SHIPPING_AMOUNT = 15;
 
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY as string | undefined;
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY as
+  | string
+  | undefined;
 const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 
 function CheckoutPaymentBlock({ orderId }: { orderId: number }) {
@@ -86,10 +90,12 @@ function CheckoutPaymentBlock({ orderId }: { orderId: number }) {
       const returnUrl = `${window.location.origin}/payment/success?order=${encodeURIComponent(
         String(orderId)
       )}`;
+
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: { return_url: returnUrl },
       });
+
       if (result.error) {
         setPaymentError(result.error.message ?? "Payment failed. Please try again.");
       }
@@ -145,7 +151,6 @@ const Checkout: React.FC = () => {
   const [total, setTotal] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // ── Pre-fill from saved profile ──
   const savedProfile = useMemo(() => loadProfileFromStorage(), []);
 
   const [form, setForm] = useState<ShippingForm>({
@@ -171,11 +176,18 @@ const Checkout: React.FC = () => {
   }, [isLoggedIn, navigate]);
 
   const subtotal = useMemo(() => {
-    return cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * item.quantity, 0);
+    return cartItems.reduce(
+      (sum, item) => sum + (Number(item.price) || 0) * item.quantity,
+      0
+    );
   }, [cartItems]);
 
   const itemCount = useMemo(() => {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cartItems]);
+
+  const hasGiftItems = useMemo(() => {
+    return cartItems.some((item) => Boolean(item.isGift));
   }, [cartItems]);
 
   const onFieldChange =
@@ -197,6 +209,7 @@ const Checkout: React.FC = () => {
 
   const stripeOptions = useMemo(() => {
     if (!clientSecret) return undefined;
+
     return {
       clientSecret,
       appearance: { theme: "stripe" as const },
@@ -219,11 +232,12 @@ const Checkout: React.FC = () => {
           candle_id: item.candle_id,
           quantity: item.quantity,
           size: item.size,
+          is_gift: Boolean(item.isGift),
         })),
         shipping: {
           full_name: form.full_name.trim(),
-          address_line1: form.address_line1.trim(),
-          address_line2: form.address_line2.trim(),
+          line1: form.address_line1.trim(),
+          line2: form.address_line2.trim(),
           city: form.city.trim(),
           state: form.state.trim(),
           postal_code: form.postal_code.trim(),
@@ -233,12 +247,16 @@ const Checkout: React.FC = () => {
       };
 
       const orderResponse = await api.post("/orders/", orderPayload);
+
       const createdOrderId =
         isRecord(orderResponse.data) && typeof orderResponse.data.id === "number"
           ? orderResponse.data.id
           : null;
 
-      if (!createdOrderId) throw new Error("Order id was not returned from backend.");
+      if (!createdOrderId) {
+        throw new Error("Order id was not returned from backend.");
+      }
+
       setOrderId(createdOrderId);
 
       const intentResponse = await api.post("/orders/create-intent/", {
@@ -255,8 +273,12 @@ const Checkout: React.FC = () => {
 
       setClientSecret(clientSecretValue);
 
-      const taxAmount = isRecord(intentResponse.data) ? intentResponse.data.tax_amount : null;
-      const totalAmount = isRecord(intentResponse.data) ? intentResponse.data.total_amount : null;
+      const taxAmount = isRecord(intentResponse.data)
+        ? intentResponse.data.tax_amount
+        : null;
+      const totalAmount = isRecord(intentResponse.data)
+        ? intentResponse.data.total_amount
+        : null;
 
       if (typeof taxAmount === "number") setTax(taxAmount);
       if (typeof totalAmount === "number") setTotal(totalAmount);
@@ -280,7 +302,9 @@ const Checkout: React.FC = () => {
         </div>
 
         <header className="checkout__header">
-          <h1 id={headingId} className="checkout__title">Place your order</h1>
+          <h1 id={headingId} className="checkout__title">
+            Place your order
+          </h1>
           <p className="checkout__subtitle">
             Review your items, enter your shipping details, and continue to secure payment.
           </p>
@@ -306,14 +330,17 @@ const Checkout: React.FC = () => {
         </div>
 
         <div className="checkout__grid">
-          {/* ── Order summary ── */}
           <section className="checkout__summary" aria-labelledby={summaryId}>
-            <h2 id={summaryId} className="checkout__sectionTitle">Order summary</h2>
+            <h2 id={summaryId} className="checkout__sectionTitle">
+              Order summary
+            </h2>
 
             {cartItems.length === 0 ? (
               <div className="checkout__empty">
                 <p className="checkout__emptyText">Your cart is empty.</p>
-                <Link to="/catalog" className="checkout__inlineLink">Go to catalog</Link>
+                <Link to="/catalog" className="checkout__inlineLink">
+                  Go to catalog
+                </Link>
               </div>
             ) : (
               <>
@@ -330,15 +357,32 @@ const Checkout: React.FC = () => {
                           className="checkoutItem__image"
                         />
                       ) : (
-                        <div className="checkoutItem__image checkoutItem__image--empty" aria-hidden="true" />
+                        <div
+                          className="checkoutItem__image checkoutItem__image--empty"
+                          aria-hidden="true"
+                        />
                       )}
+
                       <div className="checkoutItem__info">
                         <h3 className="checkoutItem__name">
                           {item.name ?? `Candle #${item.candle_id}`}
                         </h3>
-                        {item.size && <p className="checkoutItem__meta">Size: {item.size}</p>}
-                        <p className="checkoutItem__meta">Quantity: {item.quantity}</p>
+
+                        {item.size && (
+                          <p className="checkoutItem__meta">Size: {item.size}</p>
+                        )}
+
+                        <p className="checkoutItem__meta">
+                          Quantity: {item.quantity}
+                        </p>
+
+                        {item.isGift && (
+                          <p className="checkoutItem__meta">
+                            Gift option: Yes — Free
+                          </p>
+                        )}
                       </div>
+
                       <div className="checkoutItem__lineTotal">
                         {money((Number(item.price) || 0) * item.quantity)}
                       </div>
@@ -348,27 +392,49 @@ const Checkout: React.FC = () => {
 
                 <div className="checkout__totals" aria-label="Order totals">
                   <div className="checkout__totalRow">
-                    <span>Items</span><span>{itemCount}</span>
+                    <span>Items</span>
+                    <span>{itemCount}</span>
                   </div>
+
                   <div className="checkout__totalRow">
-                    <span>Subtotal</span><span>{money(subtotal)}</span>
+                    <span>Subtotal</span>
+                    <span>{money(subtotal)}</span>
                   </div>
+
+                  {hasGiftItems && (
+                    <div className="checkout__totalRow">
+                      <span>Gift wrapping</span>
+                      <span>Free</span>
+                    </div>
+                  )}
+
                   <div className="checkout__totalRow">
-                    <span>Shipping</span><span>{money(SHIPPING_AMOUNT)}</span>
+                    <span>Shipping</span>
+                    <span>{money(SHIPPING_AMOUNT)}</span>
                   </div>
+
                   <div className="checkout__totalRow">
-                    <span>Tax</span><span>{tax === null ? "—" : money(tax)}</span>
+                    <span>Tax</span>
+                    <span>{tax === null ? "—" : money(tax)}</span>
                   </div>
+
                   <div className="checkout__totalRow checkout__totalRow--grand">
                     <span>Total</span>
-                    <span>{total === null ? money(subtotal + SHIPPING_AMOUNT) : money(total)}</span>
+                    <span>
+                      {total === null ? money(subtotal + SHIPPING_AMOUNT) : money(total)}
+                    </span>
                   </div>
                 </div>
+
+                {hasGiftItems && (
+                  <p className="checkout__giftNote">
+                    Gift wrapping is complimentary. No extra fee is charged.
+                  </p>
+                )}
               </>
             )}
           </section>
 
-          {/* ── Shipping / Payment ── */}
           <section className="checkout__formPanel" aria-labelledby={shippingId}>
             <h2 id={shippingId} className="checkout__sectionTitle">
               {showPayment ? "Payment" : "Shipping details"}
@@ -383,7 +449,10 @@ const Checkout: React.FC = () => {
             {!showPayment ? (
               <form
                 className="checkoutForm"
-                onSubmit={(e) => { e.preventDefault(); void createOrderAndIntent(); }}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void createOrderAndIntent();
+                }}
                 noValidate
               >
                 <div className="checkoutForm__group">
@@ -437,7 +506,9 @@ const Checkout: React.FC = () => {
                   </div>
 
                   <div className="checkoutForm__group">
-                    <label className="checkoutForm__label" htmlFor="checkout-city">City</label>
+                    <label className="checkoutForm__label" htmlFor="checkout-city">
+                      City
+                    </label>
                     <input
                       id="checkout-city"
                       className="checkoutForm__input"
@@ -454,7 +525,9 @@ const Checkout: React.FC = () => {
 
                 <div className="checkoutForm__row">
                   <div className="checkoutForm__group">
-                    <label className="checkoutForm__label" htmlFor="checkout-state">State</label>
+                    <label className="checkoutForm__label" htmlFor="checkout-state">
+                      State
+                    </label>
                     <input
                       id="checkout-state"
                       className="checkoutForm__input"
