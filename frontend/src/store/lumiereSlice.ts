@@ -1,7 +1,29 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
+
 import { lumiereReply } from "../services/lumiere";
-import type { Locale, LumiereMessage, LumiereSuggestion, LumiereReplyResult } from "../types/lumiere";
-import type { RootState } from "./index";
+import type {
+  Locale,
+  LumiereHistoryMessage,
+  LumiereMessage,
+  LumierePersistedState,
+  LumiereReplyResult,
+  LumiereStatus,
+} from "../types/lumiere";
+
+const SESSION_STORAGE_KEY = "lumiere_session_v1";
+
+type EnsureGreetingPayload = {
+  isLoggedIn: boolean;
+  firstName: string | null;
+};
+
+type SendLumiereMessagePayload = {
+  text: string;
+  locale: Locale;
+  userName: string | null;
+  history: LumiereHistoryMessage[];
+  page?: string;
+};
 
 type LumiereState = {
   isOpen: boolean;
@@ -9,227 +31,277 @@ type LumiereState = {
   speak: boolean;
   userName: string | null;
   messages: LumiereMessage[];
-  status: "idle" | "loading" | "error";
-  error: string | null;
+  status: LumiereStatus;
 };
+
+function isBrowser(): boolean {
+  return typeof window !== "undefined";
+}
+
+function createMessageId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `lumiere-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createMessage(
+  role: "assistant" | "user",
+  text: string,
+  suggestions?: LumiereReplyResult["suggestions"]
+): LumiereMessage {
+  return {
+    id: createMessageId(),
+    role,
+    text,
+    createdAt: Date.now(),
+    suggestions,
+  };
+}
+
+function getGreetingText(locale: Locale, firstName: string | null): string {
+  const safeName = firstName?.trim() || null;
+
+  if (locale === "ru") {
+    return safeName
+      ? `Здравствуйте, ${safeName}. Я Lumière. Помогу подобрать свечу, аромат или подарок.`
+      : "Здравствуйте. Я Lumière. Помогу подобрать свечу, аромат или подарок.";
+  }
+
+  if (locale === "es") {
+    return safeName
+      ? `Hola, ${safeName}. Soy Lumière. Puedo ayudarte a elegir una vela, un aroma o un regalo.`
+      : "Hola. Soy Lumière. Puedo ayudarte a elegir una vela, un aroma o un regalo.";
+  }
+
+  if (locale === "fr") {
+    return safeName
+      ? `Bonjour, ${safeName}. Je suis Lumière. Je peux vous aider à choisir une bougie, un parfum ou un cadeau.`
+      : "Bonjour. Je suis Lumière. Je peux vous aider à choisir une bougie, un parfum ou un cadeau.";
+  }
+
+  return safeName
+    ? `Hello, ${safeName}. I’m Lumière. I can help you choose a candle, scent, or gift.`
+    : "Hello. I’m Lumière. I can help you choose a candle, scent, or gift.";
+}
+
+function readPersistedState(): LumierePersistedState | null {
+  if (!isBrowser()) return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<LumierePersistedState>;
+
+    const locale = parsed.locale;
+    const speak = parsed.speak;
+    const userName = parsed.userName;
+    const messages = parsed.messages;
+
+    const localeIsValid =
+      locale === "en" || locale === "ru" || locale === "es" || locale === "fr";
+
+    if (!localeIsValid) return null;
+    if (typeof speak !== "boolean") return null;
+    if (!(typeof userName === "string" || userName === null)) return null;
+    if (!Array.isArray(messages)) return null;
+
+    const normalizedMessages: LumiereMessage[] = messages
+      .filter((message): message is LumiereMessage => {
+        return (
+          typeof message === "object" &&
+          message !== null &&
+          (message.role === "user" || message.role === "assistant") &&
+          typeof message.text === "string" &&
+          typeof message.createdAt === "number" &&
+          typeof message.id === "string"
+        );
+      })
+      .map((message) => ({
+        id: message.id,
+        role: message.role,
+        text: message.text,
+        createdAt: message.createdAt,
+        suggestions: Array.isArray(message.suggestions)
+          ? message.suggestions
+          : undefined,
+      }));
+
+    return {
+      locale,
+      speak,
+      userName,
+      messages: normalizedMessages,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePersistedState(state: LumiereState): void {
+  if (!isBrowser()) return;
+
+  const data: LumierePersistedState = {
+    locale: state.locale,
+    speak: state.speak,
+    userName: state.userName,
+    messages: state.messages,
+  };
+
+  try {
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Silent fail: storage can be unavailable in some environments.
+  }
+}
+
+function clearPersistedState(): void {
+  if (!isBrowser()) return;
+
+  try {
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // Silent fail
+  }
+}
+
+const persisted = readPersistedState();
 
 const initialState: LumiereState = {
   isOpen: false,
-  locale: "en",
-  speak: false,
-  userName: null,
-  messages: [],
+  locale: persisted?.locale ?? "en",
+  speak: persisted?.speak ?? false,
+  userName: persisted?.userName ?? null,
+  messages: persisted?.messages ?? [],
   status: "idle",
-  error: null,
 };
-
-// How many messages we send as history context (keep token usage reasonable)
-const HISTORY_WINDOW = 10;
-
-function uid(prefix = "m"): string {
-  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now()}`;
-}
-
-// ─── Localized strings ───────────────────────────────────────────────────────
-
-function buildGreeting(locale: Locale, namePart: string): string {
-  switch (locale) {
-    case "ru":
-      return `Bonjour${namePart}! Я Lumière ✨ Ваш персональный консультант по свечам. Расскажите — вы ищете что-то для себя или в подарок?`;
-    case "es":
-      return `Bonjour${namePart}! Soy Lumière ✨ Tu consultora personal de velas. ¿Buscas algo para ti o es un regalo?`;
-    case "fr":
-      return `Bonjour${namePart}! Je suis Lumière ✨ Votre consultante personnelle en bougies. Cherchez-vous quelque chose pour vous ou pour offrir?`;
-    default:
-      return `Bonjour${namePart}! I'm Lumière ✨ Your personal candle consultant. Are you looking for something for yourself, or is this a gift?`;
-  }
-}
-
-function buildNameQuestion(locale: Locale): string {
-  switch (locale) {
-    case "ru":
-      return "Как к вам обращаться?";
-    case "es":
-      return "¿Cómo te llamas?";
-    case "fr":
-      return "Comment puis-je vous appeler?";
-    default:
-      return "What's your name? I'd love to make this more personal.";
-  }
-}
-
-function buildErrorMessage(locale: Locale): string {
-  switch (locale) {
-    case "ru":
-      return "Извини, что-то пошло не так. Попробуй ещё раз.";
-    case "es":
-      return "Lo siento, algo salió mal. Por favor, inténtalo de nuevo.";
-    case "fr":
-      return "Désolée, quelque chose s'est mal passé. Veuillez réessayer.";
-    default:
-      return "Sorry, something went wrong. Please try again.";
-  }
-}
-
-// ─── Thunk ───────────────────────────────────────────────────────────────────
 
 export const sendLumiereMessage = createAsyncThunk<
   LumiereReplyResult,
-  { text: string; page?: string },
-  { state: RootState; rejectValue: string }
->("lumiere/send", async ({ text, page = "" }, thunkApi) => {
+  SendLumiereMessagePayload,
+  { rejectValue: string }
+>("lumiere/sendLumiereMessage", async (payload, thunkApi) => {
   try {
-    const { locale, userName, messages } = thunkApi.getState().lumiere;
-
-    // Build history from recent messages (exclude system/greeting noise, keep real conversation)
-    const history = messages
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .slice(-HISTORY_WINDOW)
-      .map((m) => ({ role: m.role, text: m.text }));
-
-    const result = await lumiereReply({
-      text,
-      locale,
-      userName,
-      page,
-      history,
+    return await lumiereReply({
+      text: payload.text,
+      locale: payload.locale,
+      userName: payload.userName,
+      page: payload.page,
+      history: payload.history,
     });
-
-    return result;
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Failed to get assistant reply.";
-    return thunkApi.rejectWithValue(msg);
+  } catch {
+    return thunkApi.rejectWithValue("Request failed");
   }
 });
-
-// ─── Slice ───────────────────────────────────────────────────────────────────
 
 const lumiereSlice = createSlice({
   name: "lumiere",
   initialState,
   reducers: {
-    open: (state) => { state.isOpen = true; },
-    close: (state) => { state.isOpen = false; },
-    toggle: (state) => { state.isOpen = !state.isOpen; },
+    toggle(state) {
+      state.isOpen = !state.isOpen;
+    },
 
-    setLocale: (state, action: PayloadAction<Locale>) => {
+    close(state) {
+      state.isOpen = false;
+    },
+
+    open(state) {
+      state.isOpen = true;
+    },
+
+    setLocale(state, action: PayloadAction<Locale>) {
       state.locale = action.payload;
+      writePersistedState(state);
     },
-    setSpeak: (state, action: PayloadAction<boolean>) => {
+
+    setSpeak(state, action: PayloadAction<boolean>) {
       state.speak = action.payload;
-    },
-    setUserName: (state, action: PayloadAction<string | null>) => {
-      const v = (action.payload ?? "").trim();
-      state.userName = v ? v : null;
+      writePersistedState(state);
     },
 
-    addUserMessage: (state, action: PayloadAction<string>) => {
-      const text = action.payload.trim();
-      if (!text) return;
-      state.messages.push({
-        id: uid("u"),
-        role: "user",
-        text,
-        createdAt: Date.now(),
-      });
+    setUserName(state, action: PayloadAction<string | null>) {
+      state.userName = action.payload;
+      writePersistedState(state);
     },
 
-    addAssistantMessage: (
-      state,
-      action: PayloadAction<{ text: string; suggestions?: LumiereSuggestion[] }>
-    ) => {
-      const text = action.payload.text.trim();
-      if (!text) return;
-      state.messages.push({
-        id: uid("a"),
-        role: "assistant",
-        text,
-        suggestions: action.payload.suggestions,
-        createdAt: Date.now(),
-      });
+    addUserMessage(state, action: PayloadAction<string>) {
+      state.messages.push(createMessage("user", action.payload));
+      writePersistedState(state);
     },
 
-    ensureGreeting: (
-      state,
-      action: PayloadAction<{ isLoggedIn: boolean; firstName: string | null }>
-    ) => {
+    ensureGreeting(state, action: PayloadAction<EnsureGreetingPayload>) {
       if (state.messages.length > 0) return;
 
-      const { isLoggedIn, firstName } = action.payload;
+      const firstName =
+        action.payload.isLoggedIn && action.payload.firstName
+          ? action.payload.firstName
+          : null;
 
-      if (isLoggedIn && firstName?.trim()) {
-        state.userName = firstName.trim();
+      state.messages.push(
+        createMessage("assistant", getGreetingText(state.locale, firstName))
+      );
+
+      if (firstName && !state.userName) {
+        state.userName = firstName;
       }
 
-      const namePart = state.userName ? `, ${state.userName}` : "";
-
-      state.messages.push({
-        id: uid("a"),
-        role: "assistant",
-        text: buildGreeting(state.locale, namePart),
-        createdAt: Date.now(),
-      });
-
-      // Ask for name only for guests who haven't introduced themselves
-      if (!isLoggedIn && !state.userName) {
-        state.messages.push({
-          id: uid("a"),
-          role: "assistant",
-          text: buildNameQuestion(state.locale),
-          createdAt: Date.now(),
-        });
-      }
+      writePersistedState(state);
     },
 
-    clearChat: (state) => {
+    clearConversation(state) {
       state.messages = [];
       state.status = "idle";
-      state.error = null;
+      clearPersistedState();
     },
   },
-
   extraReducers: (builder) => {
     builder
       .addCase(sendLumiereMessage.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(sendLumiereMessage.fulfilled, (state, action) => {
         state.status = "idle";
-        state.error = null;
-        state.messages.push({
-          id: uid("a"),
-          role: "assistant",
-          text: action.payload.text,
-          suggestions: action.payload.suggestions,
-          createdAt: Date.now(),
-        });
+        state.messages.push(
+          createMessage(
+            "assistant",
+            action.payload.text,
+            action.payload.suggestions
+          )
+        );
+        writePersistedState(state);
       })
-      .addCase(sendLumiereMessage.rejected, (state, action) => {
-        state.status = "error";
-        state.error = action.payload ?? "Failed to get assistant reply.";
-        // Show error inline in chat so user sees it
-        state.messages.push({
-          id: uid("err"),
-          role: "assistant",
-          text: buildErrorMessage(state.locale),
-          createdAt: Date.now(),
-        });
+      .addCase(sendLumiereMessage.rejected, (state) => {
+        state.status = "failed";
+        state.messages.push(
+          createMessage(
+            "assistant",
+            state.locale === "ru"
+              ? "Извини, я не смогла ответить прямо сейчас. Попробуй ещё раз."
+              : state.locale === "es"
+              ? "Lo siento, no pude responder ahora mismo. Inténtalo de nuevo."
+              : state.locale === "fr"
+              ? "Désolée, je n’ai pas pu répondre pour le moment. Réessayez."
+              : "Sorry, I couldn’t reply right now. Please try again."
+          )
+        );
+        writePersistedState(state);
       });
   },
 });
 
 export const {
-  open,
+  addUserMessage,
+  clearConversation,
   close,
-  toggle,
+  ensureGreeting,
+  open,
   setLocale,
   setSpeak,
   setUserName,
-  addUserMessage,
-  addAssistantMessage,
-  ensureGreeting,
-  clearChat,
+  toggle,
 } = lumiereSlice.actions;
 
 export default lumiereSlice.reducer;

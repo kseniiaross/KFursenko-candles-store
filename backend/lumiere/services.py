@@ -10,7 +10,6 @@ from candles.models import Candle
 
 logger = logging.getLogger(__name__)
 
-# How many past messages we send to the model (keeps context without blowing token budget)
 HISTORY_WINDOW = 10
 
 
@@ -24,6 +23,33 @@ def _t(locale: str, en: str, ru: str, es: str, fr: str) -> str:
     return en
 
 
+def _serialize_candle(candle: Candle) -> Dict[str, Any]:
+    return {
+        "id": candle.id,
+        "name": candle.name,
+        "slug": candle.slug,
+        "price": str(candle.price),
+        "in_stock": bool(candle.in_stock),
+    }
+
+
+def get_candle_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    slug = (slug or "").strip()
+    if not slug:
+        return None
+
+    candle = (
+        Candle.objects.filter(slug=slug)
+        .select_related("category")
+        .first()
+    )
+
+    if not candle:
+        return None
+
+    return _serialize_candle(candle)
+
+
 def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
     q = (query or "").strip()
     if not q:
@@ -35,18 +61,7 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
         .order_by("-created_at")[:limit]
     )
 
-    result: List[Dict[str, Any]] = []
-    for c in qs:
-        result.append(
-            {
-                "id": c.id,
-                "name": c.name,
-                "slug": c.slug,
-                "price": str(c.price),
-                "in_stock": bool(c.in_stock),
-            }
-        )
-    return result
+    return [_serialize_candle(c) for c in qs]
 
 
 def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
@@ -61,7 +76,11 @@ def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
 
 
 def _build_instructions(locale: str, user_name: Optional[str]) -> str:
-    name_note = f"The customer's name is {user_name}. Use it naturally, not in every message." if user_name else "The customer hasn't shared their name yet."
+    name_note = (
+        f"The customer's name is {user_name}. Use it naturally, not in every message."
+        if user_name
+        else "The customer hasn't shared their name yet."
+    )
 
     return f"""You are Lumière — a sophisticated, warm sales consultant at a premium handmade candle boutique.
 You are NOT a generic chatbot. You are an expert who genuinely loves candles and knows everything about them.
@@ -83,9 +102,9 @@ You know deeply about:
    - The occasion (gift vs. self-use? celebration, relaxation, daily ambiance?)
    - Scent preference (light/fresh vs. rich/warm? any dislikes or allergies?)
    - Context (living room, bedroom, bathroom, office? day or evening use?)
-   
+
 2. PAINT A PICTURE when recommending. Don't just say "this candle is nice."
-   Say: "This one opens with bergamot, then settles into warm sandalwood — 
+   Say: "This one opens with bergamot, then settles into warm sandalwood —
    perfect for winding down after a long day."
 
 3. GUIDE NATURALLY toward purchase:
@@ -160,11 +179,8 @@ def call_openai_reply(
 
     instructions = _build_instructions(locale, user_name)
 
-    # Build the full conversation input with history
-    # Format: [past messages...] + current store context + current user message
     history_lines: List[str] = []
     if history:
-        # Take last HISTORY_WINDOW messages
         recent = history[-HISTORY_WINDOW:]
         for msg in recent:
             role_label = "Customer" if msg.get("role") == "user" else "Lumière"

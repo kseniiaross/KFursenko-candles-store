@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   addUserMessage,
+  clearConversation,
   close,
   ensureGreeting,
   sendLumiereMessage,
@@ -13,7 +14,7 @@ import {
   toggle,
 } from "../store/lumiereSlice";
 
-import type { Locale, LumiereMessage } from "../types/lumiere";
+import type { Locale, LumiereHistoryMessage, LumiereMessage } from "../types/lumiere";
 
 import "../styles/LumiereWidget.css";
 
@@ -25,7 +26,6 @@ function speakText(text: string, locale: Locale): void {
 
   const utterance = new SpeechSynthesisUtterance(text);
 
-  // Set a better language hint for screen-reader-like speech output.
   if (locale === "ru") utterance.lang = "ru-RU";
   else if (locale === "es") utterance.lang = "es-ES";
   else if (locale === "fr") utterance.lang = "fr-FR";
@@ -36,6 +36,7 @@ function speakText(text: string, locale: Locale): void {
 
 function formatTime(timestamp: number, locale: Locale): string {
   const date = new Date(timestamp);
+
   const localeMap: Record<Locale, string> = {
     en: "en-US",
     ru: "ru-RU",
@@ -47,6 +48,13 @@ function formatTime(timestamp: number, locale: Locale): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function buildHistory(messages: LumiereMessage[]): LumiereHistoryMessage[] {
+  return messages.map((message) => ({
+    role: message.role,
+    text: message.text,
+  }));
 }
 
 const LumiereWidget: React.FC = () => {
@@ -91,6 +99,7 @@ const LumiereWidget: React.FC = () => {
         input: "Введите сообщение",
         placeholder: "Спроси про аромат, доставку, уход…",
         send: "Отправить",
+        clear: "Новый чат",
         typing: "Lumière печатает…",
         suggestedProducts: "Рекомендованные товары",
         inStock: "В наличии",
@@ -110,6 +119,7 @@ const LumiereWidget: React.FC = () => {
         input: "Escribe un mensaje",
         placeholder: "Pregunta sobre aroma, envío, cuidado…",
         send: "Enviar",
+        clear: "Nuevo chat",
         typing: "Lumière está escribiendo…",
         suggestedProducts: "Productos sugeridos",
         inStock: "Disponible",
@@ -129,6 +139,7 @@ const LumiereWidget: React.FC = () => {
         input: "Saisir un message",
         placeholder: "Demandez un parfum, la livraison, l’entretien…",
         send: "Envoyer",
+        clear: "Nouveau chat",
         typing: "Lumière écrit…",
         suggestedProducts: "Produits suggérés",
         inStock: "En stock",
@@ -147,6 +158,7 @@ const LumiereWidget: React.FC = () => {
       input: "Enter message",
       placeholder: "Ask about scent, shipping, care…",
       send: "Send",
+      clear: "New chat",
       typing: "Lumière is typing…",
       suggestedProducts: "Suggested products",
       inStock: "In stock",
@@ -157,13 +169,16 @@ const LumiereWidget: React.FC = () => {
 
   useEffect(() => {
     if (!isOpen) return;
+
     dispatch(ensureGreeting({ isLoggedIn, firstName }));
   }, [dispatch, isOpen, isLoggedIn, firstName]);
 
   useEffect(() => {
     if (!isOpen) return;
+
     const listElement = listRef.current;
     if (!listElement) return;
+
     listElement.scrollTop = listElement.scrollHeight;
   }, [isOpen, messages.length, status]);
 
@@ -196,19 +211,35 @@ const LumiereWidget: React.FC = () => {
   const onSend = async (): Promise<void> => {
     const text = input.trim();
 
-    if (!text) return;
+    if (!text || status === "loading") return;
+
+    const currentHistory = buildHistory(messages);
 
     setInput("");
     dispatch(addUserMessage(text));
 
-    // If guest user types a short single-word name, we can store it as a friendly guest name.
+    let effectiveUserName = userName;
+
     if (!isLoggedIn && !userName) {
       if (text.length >= 2 && text.length <= 40 && !text.includes(" ")) {
+        effectiveUserName = text;
         dispatch(setUserName(text));
       }
     }
 
-    const result = await dispatch(sendLumiereMessage({ text }));
+    const nextHistory: LumiereHistoryMessage[] = [
+      ...currentHistory,
+      { role: "user", text },
+    ];
+
+    const result = await dispatch(
+      sendLumiereMessage({
+        text,
+        locale,
+        userName: effectiveUserName,
+        history: nextHistory,
+      })
+    );
 
     if (sendLumiereMessage.fulfilled.match(result) && speak) {
       speakText(result.payload.text, locale);
@@ -224,6 +255,11 @@ const LumiereWidget: React.FC = () => {
 
   const onLocaleChange = (value: Locale): void => {
     dispatch(setLocale(value));
+  };
+
+  const onClearConversation = (): void => {
+    dispatch(clearConversation());
+    setInput("");
   };
 
   return (
@@ -295,6 +331,14 @@ const LumiereWidget: React.FC = () => {
 
               <button
                 type="button"
+                className="lumiereClear"
+                onClick={onClearConversation}
+              >
+                {localizedText.clear}
+              </button>
+
+              <button
+                type="button"
                 className="lumiereClose"
                 onClick={() => dispatch(close())}
                 aria-label={localizedText.close}
@@ -353,7 +397,9 @@ const LumiereWidget: React.FC = () => {
                   ) : null}
                 </div>
 
-                <div className="lumiereTime">{formatTime(message.createdAt, locale)}</div>
+                <div className="lumiereTime">
+                  {formatTime(message.createdAt, locale)}
+                </div>
               </div>
             ))}
 
@@ -388,7 +434,7 @@ const LumiereWidget: React.FC = () => {
               onClick={() => {
                 void onSend();
               }}
-              disabled={!input.trim()}
+              disabled={!input.trim() || status === "loading"}
             >
               {localizedText.send}
             </button>
