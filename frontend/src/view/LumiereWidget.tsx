@@ -330,7 +330,7 @@ const LumiereWidget: React.FC = () => {
                       {message.suggestions.map((product) => (
                         <Link
                           key={product.id}
-                          to={`/product/${product.slug}`}
+                          to={`/catalog/${product.slug}`}
                           className="lumiereCard"
                           aria-label={localizedText.openProduct.replace(
                             "{{name}}",
