@@ -383,7 +383,9 @@ const LumiereWidget: React.FC = () => {
                         >
                           <div className="lumiereCard__top">
                             <div className="lumiereCard__name">{product.name}</div>
-                            <div className="lumiereCard__price">${product.price}</div>
+                            <div className="lumiereCard__price">
+                              {product.price ? `From $${product.price}` : "See product"}
+                            </div>
                           </div>
 
                           <div className="lumiereCard__meta">

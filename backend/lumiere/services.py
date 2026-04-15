@@ -1,12 +1,13 @@
 # backend/lumiere/services.py
 import logging
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 import requests
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 
-from candles.models import Candle
+from candles.models import Candle, CandleVariant
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +24,72 @@ def _t(locale: str, en: str, ru: str, es: str, fr: str) -> str:
     return en
 
 
+def _format_price(value: Decimal | None) -> str:
+    if value is None:
+        return ""
+    return f"{value:.2f}"
+
+
+def _get_active_variants(candle: Candle) -> List[CandleVariant]:
+    """
+    Return active variants for a candle.
+
+    Uses prefetched variants if available; otherwise falls back to a query.
+    """
+    prefetched = getattr(candle, "prefetched_active_variants", None)
+    if prefetched is not None:
+        return list(prefetched)
+
+    return list(candle.variants.filter(is_active=True).order_by("price", "id"))
+
+
+def _get_display_price(candle: Candle) -> str:
+    """
+    Price priority:
+    1. Lowest active variant price
+    2. Candle.price fallback
+    3. Empty string if nothing is available
+    """
+    variants = _get_active_variants(candle)
+
+    priced_variants = [variant for variant in variants if variant.price is not None]
+    if priced_variants:
+        lowest_price = min(variant.price for variant in priced_variants)
+        return _format_price(lowest_price)
+
+    if candle.price is not None:
+        return _format_price(candle.price)
+
+    return ""
+
+
+def _is_candle_available(candle: Candle) -> bool:
+    """
+    Availability priority:
+    1. If candle is explicitly sold out -> False
+    2. If there are active variants -> True if any active variant has stock_qty > 0
+    3. Otherwise fall back to candle.in_stock or candle.stock_qty
+    """
+    if candle.is_sold_out:
+        return False
+
+    variants = _get_active_variants(candle)
+    if variants:
+        return any(variant.stock_qty > 0 for variant in variants)
+
+    if candle.stock_qty > 0:
+        return True
+
+    return bool(candle.in_stock)
+
+
 def _serialize_candle(candle: Candle) -> Dict[str, Any]:
     return {
         "id": candle.id,
         "name": candle.name,
         "slug": candle.slug,
-        "price": str(candle.price),
-        "in_stock": bool(candle.in_stock),
+        "price": _get_display_price(candle),
+        "in_stock": _is_candle_available(candle),
     }
 
 
@@ -41,6 +101,13 @@ def get_candle_by_slug(slug: str) -> Optional[Dict[str, Any]]:
     candle = (
         Candle.objects.filter(slug=slug)
         .select_related("category")
+        .prefetch_related(
+            Prefetch(
+                "variants",
+                queryset=CandleVariant.objects.filter(is_active=True).order_by("price", "id"),
+                to_attr="prefetched_active_variants",
+            )
+        )
         .first()
     )
 
@@ -58,10 +125,17 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
     qs = (
         Candle.objects.filter(Q(name__icontains=q) | Q(description__icontains=q))
         .select_related("category")
+        .prefetch_related(
+            Prefetch(
+                "variants",
+                queryset=CandleVariant.objects.filter(is_active=True).order_by("price", "id"),
+                to_attr="prefetched_active_variants",
+            )
+        )
         .order_by("-created_at")[:limit]
     )
 
-    return [_serialize_candle(c) for c in qs]
+    return [_serialize_candle(candle) for candle in qs]
 
 
 def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
@@ -69,9 +143,16 @@ def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
         return "CATALOG SEARCH: No matching products found for this query."
 
     lines = ["CATALOG SEARCH RESULTS (use these and only these to recommend):"]
-    for s in suggestions:
-        stock = "✓ In stock" if s["in_stock"] else "✗ Out of stock"
-        lines.append(f"  • {s['name']} — ${s['price']} — {stock} — slug: {s['slug']}")
+    for suggestion in suggestions:
+        stock = "✓ In stock" if suggestion["in_stock"] else "✗ Out of stock"
+        price_text = (
+            f"From ${suggestion['price']}"
+            if suggestion["price"]
+            else "Price unavailable"
+        )
+        lines.append(
+            f"  • {suggestion['name']} — {price_text} — {stock} — slug: {suggestion['slug']}"
+        )
     return "\n".join(lines)
 
 
@@ -145,13 +226,13 @@ def _extract_text_from_responses_api(payload: Dict[str, Any]) -> str:
             if item.get("type") == "message":
                 content = item.get("content", [])
                 if isinstance(content, list):
-                    for c in content:
-                        if not isinstance(c, dict):
+                    for chunk in content:
+                        if not isinstance(chunk, dict):
                             continue
-                        if c.get("type") in ("output_text", "text"):
-                            t = c.get("text")
-                            if isinstance(t, str) and t.strip():
-                                text_parts.append(t.strip())
+                        if chunk.get("type") in ("output_text", "text"):
+                            text = chunk.get("text")
+                            if isinstance(text, str) and text.strip():
+                                text_parts.append(text.strip())
 
     return "\n".join(text_parts).strip()
 
@@ -182,9 +263,9 @@ def call_openai_reply(
     history_lines: List[str] = []
     if history:
         recent = history[-HISTORY_WINDOW:]
-        for msg in recent:
-            role_label = "Customer" if msg.get("role") == "user" else "Lumière"
-            history_lines.append(f"{role_label}: {msg.get('text', '').strip()}")
+        for message in recent:
+            role_label = "Customer" if message.get("role") == "user" else "Lumière"
+            history_lines.append(f"{role_label}: {message.get('text', '').strip()}")
 
     history_block = ""
     if history_lines:
@@ -210,15 +291,15 @@ def call_openai_reply(
     }
 
     try:
-        resp = requests.post(
+        response = requests.post(
             "https://api.openai.com/v1/responses",
             headers=headers,
             json=payload,
             timeout=timeout_s,
         )
-        resp.raise_for_status()
+        response.raise_for_status()
 
-        data = resp.json()
+        data = response.json()
         final_text = _extract_text_from_responses_api(data)
 
         if not final_text:
@@ -233,10 +314,10 @@ def call_openai_reply(
         return final_text
 
     except requests.HTTPError:
-        status_code = getattr(resp, "status_code", None)
+        status_code = getattr(response, "status_code", None)
         body = ""
         try:
-            body = resp.text[:1500]
+            body = response.text[:1500]
         except Exception:
             body = "<no body>"
         logger.exception("OpenAI HTTP error (%s): %s", status_code, body)
