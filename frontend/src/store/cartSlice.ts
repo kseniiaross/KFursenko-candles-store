@@ -20,21 +20,33 @@ type CartState = {
 const GUEST_CART_STORAGE_KEY = "guest_cart_items";
 
 function loadGuestCart(): CartLine[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") {
+    return [];
+  }
 
   try {
     const raw = localStorage.getItem(GUEST_CART_STORAGE_KEY);
-    if (!raw) return [];
 
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!raw) {
+      return [];
+    }
+
+    const parsed: unknown = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed as CartLine[];
   } catch {
     return [];
   }
 }
 
 function saveGuestCart(items: CartLine[]): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(items));
@@ -43,8 +55,14 @@ function saveGuestCart(items: CartLine[]): void {
   }
 }
 
+export function getGuestCartStorage(): CartLine[] {
+  return loadGuestCart();
+}
+
 export function clearGuestCartStorage(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     localStorage.removeItem(GUEST_CART_STORAGE_KEY);
@@ -57,8 +75,8 @@ const initialState: CartState = {
   items: loadGuestCart(),
 };
 
-function findIndex(items: CartLine[], variant_id: number) {
-  return items.findIndex((x) => x.variant_id === variant_id);
+function findIndex(items: CartLine[], variant_id: number): number {
+  return items.findIndex((item) => item.variant_id === variant_id);
 }
 
 const cartSlice = createSlice({
@@ -73,7 +91,7 @@ const cartSlice = createSlice({
     addToCart: (state, action: PayloadAction<CartLine>) => {
       const { variant_id } = action.payload;
       const idx = findIndex(state.items, variant_id);
-      const qty = action.payload.quantity ?? 1;
+      const qty = Math.max(1, action.payload.quantity ?? 1);
 
       if (idx === -1) {
         state.items.push({
@@ -97,10 +115,12 @@ const cartSlice = createSlice({
     ) => {
       const idx = findIndex(state.items, action.payload.variant_id);
 
-      if (idx !== -1) {
-        state.items[idx].quantity = Math.max(1, action.payload.quantity);
-        saveGuestCart(state.items);
+      if (idx === -1) {
+        return;
       }
+
+      state.items[idx].quantity = Math.max(1, action.payload.quantity);
+      saveGuestCart(state.items);
     },
 
     setGiftOption: (
@@ -112,10 +132,12 @@ const cartSlice = createSlice({
     ) => {
       const idx = findIndex(state.items, action.payload.variant_id);
 
-      if (idx !== -1) {
-        state.items[idx].isGift = action.payload.isGift;
-        saveGuestCart(state.items);
+      if (idx === -1) {
+        return;
       }
+
+      state.items[idx].isGift = action.payload.isGift;
+      saveGuestCart(state.items);
     },
 
     removeFromCart: (
@@ -125,8 +147,9 @@ const cartSlice = createSlice({
       }>
     ) => {
       state.items = state.items.filter(
-        (x) => x.variant_id !== action.payload.variant_id
+        (item) => item.variant_id !== action.payload.variant_id
       );
+
       saveGuestCart(state.items);
     },
 

@@ -54,7 +54,7 @@ const App: React.FC = () => {
   );
 
   useHydrateCart();
-
+  
   useEffect(() => {
     const token = getAccessToken();
 

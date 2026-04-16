@@ -1,7 +1,11 @@
 import { useEffect } from "react";
+import { getMyCart, mergeCart } from "../api/cart";
+import {
+  clearGuestCartStorage,
+  getGuestCartStorage,
+  setCart,
+} from "../store/cartSlice";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { setCart } from "../store/cartSlice";
-import { getMyCart } from "../api/cart";
 import { getAccessToken } from "../utils/token";
 
 export function useHydrateCart(): void {
@@ -11,20 +15,41 @@ export function useHydrateCart(): void {
   useEffect(() => {
     let cancelled = false;
 
-    async function hydrate() {
+    async function hydrate(): Promise<void> {
       const token = getAccessToken();
+      const guestItems = getGuestCartStorage();
 
       if (!token && !isLoggedIn) {
+        if (!cancelled && guestItems.length > 0) {
+          dispatch(setCart(guestItems));
+        }
         return;
       }
 
       try {
-        const items = await getMyCart();
+        if (guestItems.length > 0) {
+          await mergeCart({
+            items: guestItems.map((item) => ({
+              variant_id: item.variant_id,
+              quantity: item.quantity,
+              is_gift: Boolean(item.isGift),
+            })),
+          });
+
+          clearGuestCartStorage();
+        }
+
+        const serverItems = await getMyCart();
+
         if (!cancelled) {
-          dispatch(setCart(items));
+          dispatch(setCart(serverItems));
         }
       } catch (error) {
         console.error("Failed to hydrate cart:", error);
+
+        if (!cancelled && guestItems.length > 0) {
+          dispatch(setCart(guestItems));
+        }
       }
     }
 
