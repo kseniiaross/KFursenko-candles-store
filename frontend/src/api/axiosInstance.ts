@@ -1,4 +1,3 @@
-// src/api/axiosInstance.ts
 import axios, { AxiosHeaders } from "axios";
 import type { InternalAxiosRequestConfig } from "axios";
 
