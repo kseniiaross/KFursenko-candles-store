@@ -1,38 +1,38 @@
 import React, { useCallback, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
-import Header from "./view/Header";
-import Footer from "./view/Footer";
+import Header from "./pages/Header";
+import Footer from "./pages/Footer";
 import SizeModal from "./components/SizeModal";
 import PrivateRoute from "./components/PrivateRoute";
 
-import Home from "./view/Home";
-import Catalog from "./view/Catalog";
-import CatalogDetail from "./view/CatalogDetail";
-import Cart from "./view/Cart";
-import Checkout from "./view/Checkout";
-import PaymentSuccess from "./view/PaymentSuccess";
-import PaymentCancel from "./view/PaymentCancel";
-import Orders from "./view/Orders";
+import Home from "./pages/Home";
+import Catalog from "./pages/Catalog";
+import CatalogDetail from "./pages/CatalogDetail";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
+import Orders from "./pages/Orders";
 
-import LoginChoice from "./view/LoginChoice";
-import Login from "./view/Login";
-import Register from "./view/Register";
-import Profile from "./view/Profile";
+import LoginChoice from "./pages/LoginChoice";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Profile from "./pages/Profile";
 
-import StoryMission from "./view/StoryMission";
-import Contacts from "./view/Contacts";
-import Gallery from "./view/Gallery";
-import Reviews from "./view/Reviews";
+import StoryMission from "./pages/StoryMission";
+import Contacts from "./pages/Contacts";
+import Gallery from "./pages/Gallery";
+import Reviews from "./pages/Reviews";
 
-import RecommendationQuiz from "./view/RecommendationQuiz";
-import RecommendationResult from "./view/RecommendationResult";
+import RecommendationQuiz from "./pages/RecommendationQuiz";
+import RecommendationResult from "./pages/RecommendationResult";
 
-import LumiereWidget from "./view/LumiereWidget";
+import LumiereWidget from "./pages/LumiereWidget";
 
-import Delivery from "./view/CustomerCare/Delivery";
-import Payments from "./view/CustomerCare/Payments";
-import Policy from "./view/CustomerCare/Policy";
+import Delivery from "./pages/CustomerCare/Delivery";
+import Payments from "./pages/CustomerCare/Payments";
+import Policy from "./pages/CustomerCare/Policy";
 
 import { clearAuthStorage, getAccessToken } from "./utils/token";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
@@ -54,7 +54,7 @@ const App: React.FC = () => {
   );
 
   useHydrateCart();
-  
+
   useEffect(() => {
     const token = getAccessToken();
 

@@ -120,14 +120,6 @@ const Catalog: React.FC = () => {
                 Discover handcrafted candles curated for every mood and season.
               </p>
             </div>
-
-            <Link
-              className="catalog__cartLink"
-              to="/cart"
-              aria-label={t("catalog.goToCart")}
-            >
-              {t("catalog.shoppingCart")}
-            </Link>
           </div>
 
           <form

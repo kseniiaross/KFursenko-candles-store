@@ -1,99 +1,95 @@
-/* FULL FILE REWRITE */
+import React, { useState } from "react";
+import { addToCart as addToCartApi } from "../api/cart";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { setCart } from "../store/cartSlice";
+import { closeSizeModal } from "../store/modalSlice";
 
-import React from "react"
-import { useAppDispatch, useAppSelector } from "../store/hooks"
-import { closeSizeModal } from "../store/modalSlice"
-import { addToCart } from "../store/cartSlice"
-
-import "../styles/SizeModal.css"
+import "../styles/SizeModal.css";
 
 const SizeModal: React.FC = () => {
+  const dispatch = useAppDispatch();
 
-  const dispatch = useAppDispatch()
+  const { candle, isOpen } = useAppSelector((state) => state.modal);
+  const [addingVariantId, setAddingVariantId] = useState<number | null>(null);
 
-  const { candle, isOpen } = useAppSelector(state => state.modal)
+  if (!isOpen || !candle) return null;
 
-  if (!isOpen || !candle) return null
+  const handleClose = (): void => {
+    dispatch(closeSizeModal());
+  };
 
-  const handleAdd = (variant: any) => {
+  const handleAdd = async (
+    variant: {
+      id: number;
+      size: string;
+      price: string | number;
+    }
+  ): Promise<void> => {
+    try {
+      setAddingVariantId(variant.id);
 
-    dispatch(
-      addToCart({
+      const items = await addToCartApi({
         variant_id: variant.id,
-        candle_id: candle.id,
-        name: candle.name,
-        price: Number(variant.price),
-        size: variant.size,
-        image: candle.image ?? "",
         quantity: 1,
-      })
-    )
+        is_gift: false,
+      });
 
-    dispatch(closeSizeModal())
-  }
+      dispatch(setCart(items));
+      dispatch(closeSizeModal());
+    } catch (error) {
+      console.error("Failed to add item to cart from size modal:", error);
+    } finally {
+      setAddingVariantId(null);
+    }
+  };
 
   return (
-
-    <div
-      className="sizeModalOverlay"
-      onClick={() => dispatch(closeSizeModal())}
-    >
-
+    <div className="sizeModalOverlay" onClick={handleClose}>
       <div
         className="sizeModal"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
-
         <button
+          type="button"
           className="sizeModal__close"
-          onClick={() => dispatch(closeSizeModal())}
+          onClick={handleClose}
           aria-label="Close modal"
         >
           ×
         </button>
 
         <div className="sizeModal__header">
+          <h2 className="sizeModal__title">Select Size</h2>
 
-          <h2 className="sizeModal__title">
-            Select Size
-          </h2>
-
-          <p className="sizeModal__product">
-            {candle.name}
-          </p>
-
+          <p className="sizeModal__product">{candle.name}</p>
         </div>
 
         <div className="sizeModal__sizes">
+          {candle.variants?.map((variant) => {
+            const isAdding = addingVariantId === variant.id;
 
-          {candle.variants?.map((variant) => (
+            return (
+              <button
+                key={variant.id}
+                type="button"
+                className="sizeModal__sizeButton"
+                onClick={() => {
+                  void handleAdd(variant);
+                }}
+                disabled={isAdding}
+              >
+                <span className="sizeModal__size">{variant.size}</span>
 
-            <button
-              key={variant.id}
-              className="sizeModal__sizeButton"
-              onClick={() => handleAdd(variant)}
-            >
-
-              <span className="sizeModal__size">
-                {variant.size}
-              </span>
-
-              <span className="sizeModal__price">
-                ${variant.price}
-              </span>
-
-            </button>
-
-          ))}
-
+                <span className="sizeModal__price">
+                  {isAdding ? "Adding..." : `$${variant.price}`}
+                </span>
+              </button>
+            );
+          })}
         </div>
-
       </div>
-
     </div>
+  );
+};
 
-  )
-
-}
-
-export default SizeModal
+export default SizeModal;
