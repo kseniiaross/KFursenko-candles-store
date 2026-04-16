@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setCart } from "../store/cartSlice";
 import { getMyCart } from "../api/cart";
+import { getAccessToken } from "../utils/token";
 
 export function useHydrateCart(): void {
   const dispatch = useAppDispatch();
@@ -11,8 +12,9 @@ export function useHydrateCart(): void {
     let cancelled = false;
 
     async function hydrate() {
-      if (!isLoggedIn) {
-        dispatch(setCart([]));
+      const token = getAccessToken();
+
+      if (!token && !isLoggedIn) {
         return;
       }
 

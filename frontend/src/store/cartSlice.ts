@@ -17,8 +17,44 @@ type CartState = {
   items: CartLine[];
 };
 
+const GUEST_CART_STORAGE_KEY = "guest_cart_items";
+
+function loadGuestCart(): CartLine[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = localStorage.getItem(GUEST_CART_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveGuestCart(items: CartLine[]): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+export function clearGuestCartStorage(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+  } catch {
+    // ignore storage failures
+  }
+}
+
 const initialState: CartState = {
-  items: [],
+  items: loadGuestCart(),
 };
 
 function findIndex(items: CartLine[], variant_id: number) {
@@ -31,6 +67,7 @@ const cartSlice = createSlice({
   reducers: {
     setCart: (state, action: PayloadAction<CartLine[]>) => {
       state.items = action.payload ?? [];
+      saveGuestCart(state.items);
     },
 
     addToCart: (state, action: PayloadAction<CartLine>) => {
@@ -47,6 +84,8 @@ const cartSlice = createSlice({
       } else {
         state.items[idx].quantity += qty;
       }
+
+      saveGuestCart(state.items);
     },
 
     updateQty: (
@@ -60,6 +99,7 @@ const cartSlice = createSlice({
 
       if (idx !== -1) {
         state.items[idx].quantity = Math.max(1, action.payload.quantity);
+        saveGuestCart(state.items);
       }
     },
 
@@ -74,6 +114,7 @@ const cartSlice = createSlice({
 
       if (idx !== -1) {
         state.items[idx].isGift = action.payload.isGift;
+        saveGuestCart(state.items);
       }
     },
 
@@ -86,10 +127,12 @@ const cartSlice = createSlice({
       state.items = state.items.filter(
         (x) => x.variant_id !== action.payload.variant_id
       );
+      saveGuestCart(state.items);
     },
 
     clearCart: (state) => {
       state.items = [];
+      clearGuestCartStorage();
     },
   },
 });
