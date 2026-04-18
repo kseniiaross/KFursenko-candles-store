@@ -244,6 +244,36 @@
 
 /* ========== TABLET ========== */
 
+@media (max-width: 1400px) {
+  .catalogDetail__layout {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 0.85fr);
+    gap: 28px;
+  }
+
+  .catalogDetail__info {
+    padding: 24px;
+  }
+
+  .catalogDetail__title {
+    font-size: 2.35rem;
+  }
+
+  .catalogDetail__scentOptions {
+    gap: 6px;
+  }
+
+  .catalogDetail__scentBtn,
+  .catalogDetail__sizeBtn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+  }
+
+  .catalogDetail__desc {
+    line-height: 1.7;
+    font-size: 0.98rem;
+  }
+}
+
 @media (max-width: 980px) {
   .catalogDetail {
     padding-top: calc(var(--header-height) - 8px);
