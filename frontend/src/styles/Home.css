@@ -20,7 +20,7 @@
   background: #120d0a;
 }
 
-.home__video {
+.home__image {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -28,17 +28,16 @@
   display: block;
   object-fit: cover;
   object-position: center center;
-  transform: translateZ(0);
   opacity: 0;
-  transition: opacity 700ms ease-in-out;
-  will-change: opacity;
-  image-rendering: high-quality;
+  animation: fadeInImage 0.8s ease forwards;
+  transform: translateZ(0);
   -webkit-transform: translateZ(0);
 }
 
-.home__video.is-visible {
-  opacity: 1;
-  will-change: auto;
+@keyframes fadeInImage {
+  to {
+    opacity: 1;
+  }
 }
 
 .home__overlay {
@@ -47,9 +46,9 @@
   background:
     linear-gradient(
       to bottom,
-      rgba(0, 0, 0, 0.12),
-      rgba(0, 0, 0, 0.03) 24%,
-      rgba(0, 0, 0, 0.05) 72%,
+      rgba(0, 0, 0, 0.08),
+      rgba(0, 0, 0, 0.02) 30%,
+      rgba(0, 0, 0, 0.06) 75%,
       rgba(0, 0, 0, 0.12)
     );
 }
@@ -118,28 +117,49 @@
 }
 
 @media (max-width: 1100px) {
-  .home__logoWrapper { top: 6vh; }
-  .home__logo { width: min(250px, 34vw); }
+  .home__logoWrapper {
+    top: 6vh;
+  }
+
+  .home__logo {
+    width: min(250px, 34vw);
+  }
 }
 
 @media (max-width: 900px) {
-  .home__logoWrapper { top: 7vh; }
-  .home__logo { width: min(220px, 38vw); }
+  .home__logoWrapper {
+    top: 7vh;
+  }
+
+  .home__logo {
+    width: min(220px, 38vw);
+  }
 }
 
 @media (max-width: 640px) {
-  .home__logoWrapper { top: 8vh; }
-  .home__logo { width: min(180px, 42vw); }
+  .home__logoWrapper {
+    top: 8vh;
+  }
+
+  .home__logo {
+    width: min(180px, 42vw);
+  }
 }
 
 @media (max-width: 420px) {
-  .home__logoWrapper { top: 9vh; }
-  .home__logo { width: min(160px, 48vw); }
+  .home__logoWrapper {
+    top: 9vh;
+  }
+
+  .home__logo {
+    width: min(160px, 48vw);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home__video {
-    transition: none;
+  .home__image {
+    animation: none;
+    opacity: 1;
   }
 
   .home__logoLink {
