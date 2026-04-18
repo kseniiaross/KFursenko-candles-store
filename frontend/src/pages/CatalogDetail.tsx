@@ -95,33 +95,35 @@ const CatalogDetail: React.FC = () => {
   return (
     <main className="catalogDetail">
       <div className="catalogDetail__inner">
-        <Link to="/catalog" className="catalogDetail__back">
-          ← Back to catalog
-        </Link>
-
         <div className="catalogDetail__layout">
-          <div className="catalogDetail__media">
-            <div className="catalogDetail__mainImgWrap">
-              <img
-                src={activeImg}
-                className="catalogDetail__mainImg"
-                alt={item.name}
-              />
-            </div>
+          <div className="catalogDetail__mediaColumn">
+            <Link to="/catalog" className="catalogDetail__back">
+              ← Back to catalog
+            </Link>
 
-            <div className="catalogDetail__thumbs">
-              {gallery.map((img) => (
-                <button
-                  key={img}
-                  type="button"
-                  onClick={() => setActiveImg(img)}
-                  className={`catalogDetail__thumb ${
-                    img === activeImg ? "is-active" : ""
-                  }`}
-                >
-                  <img src={img} alt={item.name} />
-                </button>
-              ))}
+            <div className="catalogDetail__media">
+              <div className="catalogDetail__mainImgWrap">
+                <img
+                  src={activeImg}
+                  className="catalogDetail__mainImg"
+                  alt={item.name}
+                />
+              </div>
+
+              <div className="catalogDetail__thumbs">
+                {gallery.map((img) => (
+                  <button
+                    key={img}
+                    type="button"
+                    onClick={() => setActiveImg(img)}
+                    className={`catalogDetail__thumb ${
+                      img === activeImg ? "is-active" : ""
+                    }`}
+                  >
+                    <img src={img} alt={item.name} />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
