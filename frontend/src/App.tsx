@@ -34,7 +34,7 @@ import LumiereWidget from "./pages/LumiereWidget";
 import Delivery from "./pages/CustomerCare/Delivery";
 import Payments from "./pages/CustomerCare/Payments";
 import Policy from "./pages/CustomerCare/Policy";
-import Support from "./pages/Support";
+import Support from "./pages/CustomerCare/Support";
 
 import { clearAuthStorage, getAccessToken } from "./utils/token";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
