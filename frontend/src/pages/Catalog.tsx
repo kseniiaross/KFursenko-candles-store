@@ -185,11 +185,6 @@ const Catalog: React.FC = () => {
 
         {!loading && !error ? (
           <>
-            <div className="catalog__meta" aria-label={t("catalog.metaLabel")}>
-              <span className="catalog__count">
-                {t("catalog.itemsCount", { count: candles.length })}
-              </span>
-            </div>
 
             <section
               className="catalog__grid"
