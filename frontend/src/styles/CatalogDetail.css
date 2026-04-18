@@ -29,8 +29,8 @@
 
 .catalogDetail__mediaTopRow {
   position: absolute;
-  top: -4px;
-  left: -110px;
+  top: -6px;
+  left: calc(-1 * clamp(16px, 3vw, 40px));
   z-index: 30;
   display: flex;
   align-items: center;
