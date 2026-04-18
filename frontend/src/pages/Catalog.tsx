@@ -115,10 +115,6 @@ const Catalog: React.FC = () => {
               <h1 id="catalog-title" className="catalog__title">
                 {t("catalog.title")}
               </h1>
-
-              <p className="catalog__subtitle">
-                Discover handcrafted candles curated for every mood and season.
-              </p>
             </div>
           </div>
 
