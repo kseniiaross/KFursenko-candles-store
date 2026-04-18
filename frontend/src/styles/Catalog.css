@@ -13,7 +13,7 @@
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  padding-top: calc(var(--header-offset) - 128px);
+  padding-top: calc(var(--header-offset) - 170px);
   padding-right: var(--catalog-side-padding);
   padding-bottom: 110px;
   padding-left: var(--catalog-side-padding);
@@ -32,7 +32,7 @@
    ====================================================== */
 
 .catalog__header {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .catalog__topRow {
@@ -50,18 +50,18 @@
 .catalog__title {
   margin: 0;
   font-family: "Times New Roman", Times, serif;
-  font-size: clamp(2.4rem, 4vw, 4.2rem);
+  font-size: clamp(2rem, 3.2vw, 3.2rem);
   font-weight: 700;
-  line-height: 0.96;
+  line-height: 0.98;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .catalog__subtitle {
-  margin: 10px 0 0;
-  max-width: 52rem;
-  font-size: 1rem;
-  line-height: 1.6;
+  margin: 6px 0 0;
+  max-width: 46rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
   color: var(--app-text-muted);
 }
 
@@ -263,7 +263,7 @@
 .catalogCard__media {
   position: relative;
   width: 100%;
-  aspect-ratio: 0.92 / 1.08;
+  aspect-ratio: 0.95 / 1;
   background: var(--app-surface-strong);
   overflow: hidden;
 }
@@ -390,7 +390,7 @@
 
 @media (max-width: 980px) {
   .catalog {
-    padding-top: calc(var(--header-offset) - 72px);
+    padding-top: calc(var(--header-offset) - 110px);
   }
 
   .catalog__topRow {
@@ -423,7 +423,7 @@
 
 @media (max-width: 640px) {
   .catalog {
-    padding-top: calc(var(--header-offset) - 52px);
+    padding-top: calc(var(--header-offset) - 70px);
     padding-right: 16px;
     padding-bottom: 88px;
     padding-left: 16px;
@@ -443,7 +443,7 @@
   }
 
   .catalog__title {
-    font-size: 2rem;
+    font-size: 1.75rem;
     line-height: 1;
   }
 
