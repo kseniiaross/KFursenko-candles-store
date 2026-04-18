@@ -84,8 +84,8 @@ const Support: React.FC = () => {
 
                 <div className="cc-callout">
                   <p className="cc-callout__text">
-                    We aim to respond to support requests within 1–3 business
-                    days.
+                    We aim to respond to support requests within 1 business
+                    day.
                   </p>
 
                   <ul className="cc-bullets">
@@ -103,9 +103,14 @@ const Support: React.FC = () => {
             </div>
 
             <p className="cc-panel__fine">
-              For urgent order-related concerns, please contact support as soon
-              as possible and include all relevant details in your message.
-            </p>
+                For urgent order-related concerns, please contact support as soon
+                as possible and include all relevant details in your message.
+                <br />
+                Contact email:{" "}
+                <a href="mailto:k.fursenko.hc@gmail.com">
+                    k.fursenko.hc@gmail.com
+                </a>
+                </p>
           </div>
         </div>
       </section>
