@@ -52,29 +52,26 @@ const App: React.FC = () => {
 
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
   const firstName = useAppSelector(
-    (state) => (state.auth?.user?.first_name ?? null) as string | null
+    (state) => state.auth?.user?.first_name ?? null
   );
 
   useHydrateCart();
 
   useEffect(() => {
     const token = getAccessToken();
-
-    if (!token) return;
-    if (firstName) return;
+    if (!token || firstName) return;
 
     let isMounted = true;
 
-    const loadProfile = async (): Promise<void> => {
+    const loadProfile = async () => {
       try {
         const user = await getProfile(token);
-
-        if (!isMounted) return;
-        dispatch(setUser(user));
+        if (isMounted) dispatch(setUser(user));
       } catch {
-        if (!isMounted) return;
-        clearAuthStorage();
-        dispatch(logout());
+        if (isMounted) {
+          clearAuthStorage();
+          dispatch(logout());
+        }
       }
     };
 
@@ -138,10 +135,7 @@ const App: React.FC = () => {
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/reviews" element={<Reviews />} />
 
-          <Route
-            path="/recommendation-quiz"
-            element={<RecommendationQuiz />}
-          />
+          <Route path="/recommendation-quiz" element={<RecommendationQuiz />} />
           <Route
             path="/recommendation-result"
             element={<RecommendationResult />}
