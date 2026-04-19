@@ -48,31 +48,40 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     if (typeof cartState.totalQuantity === "number") return cartState.totalQuantity;
     if (typeof cartState.count === "number") return cartState.count;
     if (!Array.isArray(cartState.items)) return 0;
+
     return cartState.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
   });
 
-  const menuButtonId = useId();
   const menuDialogId = useId();
   const menuTitleId = useId();
-  const accountButtonId = useId();
+
+  const menuDesktopButtonId = useId();
+  const menuMobileButtonId = useId();
+
+  const accountDesktopButtonId = useId();
+  const accountDesktopMenuId = useId();
   const accountMobileButtonId = useId();
-  const accountMenuId = useId();
   const accountMobileMenuId = useId();
-  const languageButtonId = useId();
-  const languageMenuId = useId();
+
+  const languageDesktopButtonId = useId();
+  const languageDesktopMenuId = useId();
+  const languageMobileButtonId = useId();
+  const languageMobileMenuId = useId();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
 
-  // Separate refs for desktop and mobile account dropdowns
   const accountDesktopRef = useRef<HTMLDivElement | null>(null);
   const accountMobileRef = useRef<HTMLDivElement | null>(null);
 
-  const languageRef = useRef<HTMLDivElement | null>(null);
+  const languageDesktopRef = useRef<HTMLDivElement | null>(null);
+  const languageMobileRef = useRef<HTMLDivElement | null>(null);
+
   const menuDialogRef = useRef<HTMLDivElement | null>(null);
   const menuCloseButtonRef = useRef<HTMLButtonElement | null>(null);
-  const menuTriggerButtonRef = useRef<HTMLButtonElement | null>(null);
+  const menuDesktopTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuMobileTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const loginChoiceWithNext = useCallback((next: string): string => {
     return `${LOGIN_CHOICE_PATH}?next=${encodeURIComponent(next)}`;
@@ -80,6 +89,7 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
 
   const accountLabel = useMemo(() => {
     if (!isLoggedIn) return t("common.goToMyAccount");
+
     const normalizedFirstName = firstName?.trim();
     return normalizedFirstName || t("common.goToMyAccount");
   }, [firstName, isLoggedIn, t]);
@@ -89,13 +99,15 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     [theme]
   );
 
-  const themeAriaLabel = useMemo(
-    () =>
-      theme === "light"
-        ? "Current mode: light. Activate to switch to dark mode."
-        : "Current mode: dark. Activate to switch to light mode.",
-    [theme]
-  );
+  const themeAriaLabel = useMemo(() => {
+    return theme === "light"
+      ? "Current mode: light. Activate to switch to dark mode."
+      : "Current mode: dark. Activate to switch to light mode.";
+  }, [theme]);
+
+  const currentLanguageCode = useMemo(() => {
+    return i18n.resolvedLanguage?.split("-")[0] ?? i18n.language.split("-")[0];
+  }, [i18n.language, i18n.resolvedLanguage]);
 
   const links = useMemo(
     () => ({
@@ -140,6 +152,14 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
   const toggleLanguage = useCallback(() => setIsLanguageOpen((prev) => !prev), []);
   const closeLanguage = useCallback(() => setIsLanguageOpen(false), []);
 
+  const focusVisibleMenuTrigger = useCallback(() => {
+    if (typeof window !== "undefined" && window.innerWidth <= 600) {
+      menuMobileTriggerRef.current?.focus();
+      return;
+    }
+    menuDesktopTriggerRef.current?.focus();
+  }, []);
+
   const handleLogout = useCallback(() => {
     clearAuthStorage();
     closeAccount();
@@ -155,49 +175,72 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     [i18n, closeLanguage]
   );
 
-  const handleMenuNavigation = useCallback(() => closeMenu(), [closeMenu]);
+  const handleMenuNavigation = useCallback(() => {
+    closeMenu();
+  }, [closeMenu]);
 
-  // Close account dropdown when clicking outside — checks BOTH desktop and mobile refs
   useEffect(() => {
     if (!isAccountOpen) return;
+
     const handleClickOutside = (event: PointerEvent) => {
       const target = event.target as Node;
       const inDesktop = accountDesktopRef.current?.contains(target);
       const inMobile = accountMobileRef.current?.contains(target);
+
       if (!inDesktop && !inMobile) {
         closeAccount();
       }
     };
+
     document.addEventListener("pointerdown", handleClickOutside);
     return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, [closeAccount, isAccountOpen]);
 
   useEffect(() => {
+    if (!isLanguageOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (languageRef.current && !languageRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inDesktop = languageDesktopRef.current?.contains(target);
+      const inMobile = languageMobileRef.current?.contains(target);
+
+      if (!inDesktop && !inMobile) {
         closeLanguage();
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [closeLanguage]);
+  }, [closeLanguage, isLanguageOpen]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+
       if (isAccountOpen) closeAccount();
       if (isLanguageOpen) closeLanguage();
+
       if (isMenuOpen) {
         closeMenu();
-        menuTriggerButtonRef.current?.focus();
+        focusVisibleMenuTrigger();
       }
     };
+
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [closeAccount, closeLanguage, closeMenu, isAccountOpen, isLanguageOpen, isMenuOpen]);
+  }, [
+    closeAccount,
+    closeLanguage,
+    closeMenu,
+    focusVisibleMenuTrigger,
+    isAccountOpen,
+    isLanguageOpen,
+    isMenuOpen,
+  ]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
+
     menuCloseButtonRef.current?.focus();
 
     const handleFocusTrap = (event: KeyboardEvent) => {
@@ -211,9 +254,11 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
 
       const focusable = Array.from(focusableElements);
       if (focusable.length === 0) return;
+
       const firstFocusable = focusable[0];
       const lastFocusable = focusable[focusable.length - 1];
       const activeElement = document.activeElement;
+
       if (event.shiftKey && activeElement === firstFocusable) {
         event.preventDefault();
         lastFocusable.focus();
@@ -222,11 +267,11 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
         firstFocusable.focus();
       }
     };
+
     document.addEventListener("keydown", handleFocusTrap);
     return () => document.removeEventListener("keydown", handleFocusTrap);
   }, [isMenuOpen]);
 
-  // ─── Account dropdown JSX — reused in desktop and mobile with different refs ───
   const renderAccountDropdown = (
     ref: React.RefObject<HTMLDivElement | null>,
     buttonId: string,
@@ -272,6 +317,7 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
             >
               {t("common.profile")}
             </Link>
+
             <Link
               to="/orders"
               className="header__dropdownItem"
@@ -280,6 +326,7 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
             >
               {t("common.orders")}
             </Link>
+
             <button
               type="button"
               className="header__dropdownItem header__dropdownItem--button"
@@ -294,32 +341,92 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     );
   };
 
-  // ─── Nav row — menu button + account ───
-  const renderNavRow = (
+  const renderLanguageBox = (
     ref: React.RefObject<HTMLDivElement | null>,
     buttonId: string,
     menuId: string
   ) => (
-    <>
+    <div className="header__languageBox" ref={ref}>
       <button
-        id={menuButtonId}
-        ref={menuTriggerButtonRef}
+        id={buttonId}
         type="button"
-        className="header__navTextButton"
-        onClick={openMenu}
-        aria-expanded={isMenuOpen}
-        aria-controls={menuDialogId}
-        aria-haspopup="dialog"
+        className="header__navTextButton header__langButton"
+        onClick={toggleLanguage}
+        aria-expanded={isLanguageOpen}
+        aria-controls={menuId}
+        aria-haspopup="menu"
+        aria-label={`Language selector. Current language: ${currentLanguageCode}`}
       >
-        {t("common.menu")}
+        {t("common.language")}
       </button>
 
-      {renderAccountDropdown(ref, buttonId, menuId)}
+      {isLanguageOpen && (
+        <div
+          id={menuId}
+          className="header__dropdown header__dropdown--language"
+          role="menu"
+          aria-labelledby={buttonId}
+        >
+          {LANGUAGES.map((lang) => {
+            const isActive = currentLanguageCode === lang.code;
+
+            return (
+              <button
+                key={lang.code}
+                type="button"
+                className={`header__dropdownItem header__dropdownItem--button${
+                  isActive ? " header__dropdownItem--active" : ""
+                }`}
+                role="menuitemradio"
+                aria-checked={isActive}
+                onClick={() => handleLanguageSelect(lang.code)}
+              >
+                {lang.label}
+                {isActive && (
+                  <span className="header__langCheck" aria-hidden="true">
+                    ✓
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderMenuButton = (
+    ref: React.RefObject<HTMLButtonElement | null>,
+    buttonId: string
+  ) => (
+    <button
+      id={buttonId}
+      ref={ref}
+      type="button"
+      className="header__navTextButton"
+      onClick={openMenu}
+      aria-expanded={isMenuOpen}
+      aria-controls={menuDialogId}
+      aria-haspopup="dialog"
+    >
+      {t("common.menu")}
+    </button>
+  );
+
+  const renderNavRow = (
+    accountRef: React.RefObject<HTMLDivElement | null>,
+    accountButtonId: string,
+    accountMenuId: string,
+    menuButtonRef: React.RefObject<HTMLButtonElement | null>,
+    menuButtonId: string
+  ) => (
+    <>
+      {renderMenuButton(menuButtonRef, menuButtonId)}
+      {renderAccountDropdown(accountRef, accountButtonId, accountMenuId)}
     </>
   );
 
-  // ─── Controls row — theme + language + cart ───
-  const controlsRow = (
+  const desktopControlsRow = (
     <>
       <button
         type="button"
@@ -333,47 +440,46 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
         <span className="header__chipText">{currentModeLabel}</span>
       </button>
 
-      <div className="header__languageBox" ref={languageRef}>
-        <button
-          id={languageButtonId}
-          type="button"
-          className="header__navTextButton header__langButton"
-          onClick={toggleLanguage}
-          aria-expanded={isLanguageOpen}
-          aria-controls={languageMenuId}
-          aria-haspopup="menu"
-          aria-label={`Language selector. Current language: ${i18n.language}`}
-        >
-          {t("common.language")}
-        </button>
+      {renderLanguageBox(
+        languageDesktopRef,
+        languageDesktopButtonId,
+        languageDesktopMenuId
+      )}
 
-        {isLanguageOpen && (
-          <div
-            id={languageMenuId}
-            className="header__dropdown header__dropdown--language"
-            role="menu"
-            aria-labelledby={languageButtonId}
-          >
-            {LANGUAGES.map((lang) => (
-              <button
-                key={lang.code}
-                type="button"
-                className={`header__dropdownItem header__dropdownItem--button${
-                  i18n.language === lang.code ? " header__dropdownItem--active" : ""
-                }`}
-                role="menuitemradio"
-                aria-checked={i18n.language === lang.code}
-                onClick={() => handleLanguageSelect(lang.code)}
-              >
-                {lang.label}
-                {i18n.language === lang.code && (
-                  <span className="header__langCheck" aria-hidden="true">✓</span>
-                )}
-              </button>
-            ))}
-          </div>
+      <Link
+        to="/cart"
+        className="header__cartLink"
+        aria-label={`Shopping cart${cartCount > 0 ? `, ${cartCount} items` : ", empty"}`}
+      >
+        <span className="header__chipText">{t("catalog.shoppingCart")}</span>
+        {cartCount > 0 && (
+          <span className="header__cartCount" aria-hidden="true">
+            {cartCount > 99 ? "99+" : cartCount}
+          </span>
         )}
-      </div>
+      </Link>
+    </>
+  );
+
+  const mobileControlsRow = (
+    <>
+      <button
+        type="button"
+        className="header__themeToggle"
+        onClick={toggleTheme}
+        aria-label={themeAriaLabel}
+        aria-pressed={theme === "dark"}
+        title={themeAriaLabel}
+      >
+        <span className="header__themeDot" aria-hidden="true" />
+        <span className="header__chipText">{currentModeLabel}</span>
+      </button>
+
+      {renderLanguageBox(
+        languageMobileRef,
+        languageMobileButtonId,
+        languageMobileMenuId
+      )}
 
       <Link
         to="/cart"
@@ -394,28 +500,24 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     <>
       <header className="header" aria-label="Site header">
         <div className="header__inner">
-
-          {/* ── DESKTOP LAYOUT ──
-              Left: logo + nav buttons
-              Right: theme + language + cart
-          */}
           <div className="header__left header__desktopLeft">
             <Link to="/" className="header__logoLink" aria-label="Go to home page">
               <img className="header__logoImg" src={logo} alt="KFursenko Candles" />
             </Link>
-            {renderNavRow(accountDesktopRef, accountButtonId, accountMenuId)}
+
+            {renderNavRow(
+              accountDesktopRef,
+              accountDesktopButtonId,
+              accountDesktopMenuId,
+              menuDesktopTriggerRef,
+              menuDesktopButtonId
+            )}
           </div>
 
           <div className="header__right header__desktopRight">
-            {controlsRow}
+            {desktopControlsRow}
           </div>
 
-          {/* ── MOBILE LAYOUT ──
-              Logo on left spanning full height.
-              Two rows on the right:
-                Row 1: Menu | Account
-                Row 2: Light | Language | Cart
-          */}
           <div className="header__mobileLogo">
             <Link to="/" className="header__logoLink" aria-label="Go to home page">
               <img className="header__logoImg" src={logo} alt="KFursenko Candles" />
@@ -424,13 +526,17 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
 
           <div className="header__mobileRows">
             <div className="header__mobileRow1">
-              {renderNavRow(accountMobileRef, accountMobileButtonId, accountMobileMenuId)}
+              {renderNavRow(
+                accountMobileRef,
+                accountMobileButtonId,
+                accountMobileMenuId,
+                menuMobileTriggerRef,
+                menuMobileButtonId
+              )}
             </div>
-            <div className="header__mobileRow2">
-              {controlsRow}
-            </div>
-          </div>
 
+            <div className="header__mobileRow2">{mobileControlsRow}</div>
+          </div>
         </div>
       </header>
 
@@ -470,31 +576,54 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
               <div className="menu__column">
                 <h3 className="menu__department">{t("header.candles")}</h3>
                 {links.candles.map((linkItem) => (
-                  <Link key={linkItem.label} to={linkItem.to} className="menu__link" onClick={handleMenuNavigation}>
+                  <Link
+                    key={linkItem.label}
+                    to={linkItem.to}
+                    className="menu__link"
+                    onClick={handleMenuNavigation}
+                  >
                     {linkItem.label}
                   </Link>
                 ))}
               </div>
+
               <div className="menu__column">
                 <h3 className="menu__department">{t("header.offers")}</h3>
                 {links.offers.map((linkItem) => (
-                  <Link key={linkItem.label} to={linkItem.to} className="menu__link" onClick={handleMenuNavigation}>
+                  <Link
+                    key={linkItem.label}
+                    to={linkItem.to}
+                    className="menu__link"
+                    onClick={handleMenuNavigation}
+                  >
                     {linkItem.label}
                   </Link>
                 ))}
               </div>
+
               <div className="menu__column">
                 <h3 className="menu__department">{t("header.orders")}</h3>
                 {links.orders.map((linkItem) => (
-                  <Link key={linkItem.label} to={linkItem.to} className="menu__link" onClick={handleMenuNavigation}>
+                  <Link
+                    key={linkItem.label}
+                    to={linkItem.to}
+                    className="menu__link"
+                    onClick={handleMenuNavigation}
+                  >
                     {linkItem.label}
                   </Link>
                 ))}
               </div>
+
               <div className="menu__column">
                 <h3 className="menu__department">{t("header.about")}</h3>
                 {links.about.map((linkItem) => (
-                  <Link key={linkItem.label} to={linkItem.to} className="menu__link" onClick={handleMenuNavigation}>
+                  <Link
+                    key={linkItem.label}
+                    to={linkItem.to}
+                    className="menu__link"
+                    onClick={handleMenuNavigation}
+                  >
                     {linkItem.label}
                   </Link>
                 ))}
