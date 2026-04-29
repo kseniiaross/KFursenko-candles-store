@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { Candle, Category, CandleBadge } from "../types/candle";
@@ -7,7 +7,7 @@ import { useAppDispatch } from "../store/hooks";
 import { openSizeModal } from "../store/modalSlice";
 import "../styles/Catalog.css";
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_BATCH = 8;
 
 function normalizeBadges(badges?: CandleBadge[]): CandleBadge[] {
   if (!Array.isArray(badges)) return [];
@@ -20,19 +20,16 @@ const Catalog: React.FC = () => {
   const { categorySlug } = useParams<{ categorySlug?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [candles, setCandles] = useState<Candle[]>([]);
+  const [visibleCount, setVisibleCount] = useState<number>(ITEMS_PER_BATCH);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
   const q = searchParams.get("q") ?? "";
   const categoryParam = searchParams.get("category") ?? "";
-  const pageParam = searchParams.get("page") ?? "1";
-
-  const page = useMemo(() => {
-    const value = Number(pageParam);
-    return Number.isFinite(value) && value > 0 ? value : 1;
-  }, [pageParam]);
 
   const categoryId = useMemo(() => {
     const numericValue = Number(categoryParam);
@@ -48,6 +45,7 @@ const Catalog: React.FC = () => {
       try {
         setLoading(true);
         setError("");
+        setVisibleCount(ITEMS_PER_BATCH);
 
         const categoriesData = await listCategories();
         if (!active) return;
@@ -81,16 +79,41 @@ const Catalog: React.FC = () => {
     };
   }, [q, categoryId, categorySlug, t]);
 
-  const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(candles.length / ITEMS_PER_PAGE));
-  }, [candles.length]);
-
-  const safePage = Math.min(page, totalPages);
-
   const visibleCandles = useMemo(() => {
-    const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
-    return candles.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [candles, safePage]);
+    return candles.slice(0, visibleCount);
+  }, [candles, visibleCount]);
+
+  const hasMoreCandles = visibleCount < candles.length;
+
+  useEffect(() => {
+    if (!hasMoreCandles || loading || error) return;
+
+    const target = loadMoreRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
+
+        if (firstEntry?.isIntersecting) {
+          setVisibleCount((current) =>
+            Math.min(current + ITEMS_PER_BATCH, candles.length)
+          );
+        }
+      },
+      {
+        root: null,
+        rootMargin: "240px",
+        threshold: 0,
+      }
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [candles.length, error, hasMoreCandles, loading]);
 
   const updateParams = (updater: (next: URLSearchParams) => void): void => {
     const next = new URLSearchParams(searchParams);
@@ -107,8 +130,6 @@ const Catalog: React.FC = () => {
       } else {
         next.delete("q");
       }
-
-      next.delete("page");
     });
   };
 
@@ -119,8 +140,6 @@ const Catalog: React.FC = () => {
       } else {
         next.delete("category");
       }
-
-      next.delete("page");
     });
   };
 
@@ -128,17 +147,6 @@ const Catalog: React.FC = () => {
     updateParams((next) => {
       next.delete("q");
       next.delete("category");
-      next.delete("page");
-    });
-  };
-
-  const setPage = (nextPage: number): void => {
-    updateParams((next) => {
-      if (nextPage <= 1) {
-        next.delete("page");
-      } else {
-        next.set("page", String(nextPage));
-      }
     });
   };
 
@@ -329,30 +337,12 @@ const Catalog: React.FC = () => {
               })}
             </section>
 
-            {totalPages > 1 ? (
-              <nav className="catalog__pagination" aria-label="Catalog pagination">
-                <button
-                  type="button"
-                  className="catalog__pageBtn"
-                  onClick={() => setPage(safePage - 1)}
-                  disabled={safePage === 1}
-                >
-                  Prev
-                </button>
-
-                <div className="catalog__pageInfo">
-                  {safePage} / {totalPages}
-                </div>
-
-                <button
-                  type="button"
-                  className="catalog__pageBtn"
-                  onClick={() => setPage(safePage + 1)}
-                  disabled={safePage === totalPages}
-                >
-                  Next
-                </button>
-              </nav>
+            {hasMoreCandles ? (
+              <div
+                ref={loadMoreRef}
+                className="catalog__loadMoreTrigger"
+                aria-hidden="true"
+              />
             ) : null}
           </>
         ) : null}
