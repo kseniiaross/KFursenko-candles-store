@@ -8,6 +8,23 @@ Live link: https://www.kfcandle.com
 
 ---
 
+## Preview
+
+### Homepage
+![Homepage](./assets/home.png)
+
+### Product Catalog
+![Catalog](./assets/catalog.png)
+
+### Product Detail
+![Product](./assets/product.png)
+
+### AI Recommendation System
+![AI](./assets/ai.png)
+
+### Cart & Checkout
+![Cart](./assets/cart.png)сфеф
+
 ## Product Experience
 
 The platform is designed around real user behavior and expectations in modern e-commerce:
