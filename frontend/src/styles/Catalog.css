@@ -104,10 +104,9 @@
 .catalog__grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  height: calc(100vh - 220px);
   gap: var(--catalog-grid-gap-y) var(--catalog-grid-gap-x);
   margin-top: 20px;
+
 }
 
 /* ======================================================
