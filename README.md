@@ -23,7 +23,7 @@ Live link: https://www.kfcandle.com
 ![AI](./assets/preview/ai.png)
 
 ### Cart & Checkout
-![Cart](./assets/preview/cart.png)сфеф
+![Cart](./assets/preview/cart.png)
 
 ## Product Experience
 
