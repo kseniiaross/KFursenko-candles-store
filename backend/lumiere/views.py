@@ -1,12 +1,17 @@
 import logging
 import re
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import permissions, status, throttling
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .serializers import LumiereReplyInSerializer, LumiereReplyOutSerializer
-from .services import search_candles, get_candle_by_slug, build_store_context, call_openai_reply
+from .services import (
+    build_store_context,
+    call_openai_reply,
+    get_candle_by_slug,
+    search_candles,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +22,15 @@ _CATALOG_URL_RE = re.compile(
 
 
 def extract_slug_from_text(text: str) -> str | None:
-    """Return the first candle slug found in a URL inside the user message, or None."""
-    match = _CATALOG_URL_RE.search(text)
-    if match:
-        return match.group(1)
-    return None
+    """Return the first candle slug found in a catalog URL."""
+    if not text:
+        return None
+
+    match = _CATALOG_URL_RE.search(text.strip())
+    if not match:
+        return None
+
+    return match.group(1).strip().lower()
 
 
 class LumiereAnonThrottle(throttling.AnonRateThrottle):
@@ -47,13 +56,31 @@ class LumiereReplyView(APIView):
         user_name = (data.get("userName") or "").strip() or None
         history = data.get("history", [])
 
-        # If user sent a catalog URL — look up that exact candle by slug
         slug = extract_slug_from_text(text)
+
+        logger.warning("LUMIERE TEXT: %s", text)
+        logger.warning("LUMIERE EXTRACTED SLUG: %s", slug)
+
         if slug:
             candle = get_candle_by_slug(slug)
-            suggestions = [candle] if candle else search_candles(text, limit=6)
+
+            logger.warning("LUMIERE CANDLE BY SLUG: %s", candle)
+
+            if candle:
+                suggestions = [candle]
+            else:
+                clean_query = slug.replace("-", " ")
+                suggestions = search_candles(clean_query, limit=6)
+
+                logger.warning(
+                    "LUMIERE FALLBACK SEARCH QUERY: %s | RESULTS: %s",
+                    clean_query,
+                    suggestions,
+                )
         else:
             suggestions = search_candles(text, limit=6)
+
+        logger.warning("LUMIERE FINAL SUGGESTIONS: %s", suggestions)
 
         store_context = build_store_context(suggestions)
 
@@ -78,6 +105,7 @@ class LumiereReplyView(APIView):
             )
 
         out = {"text": answer_text}
+
         if suggestions:
             out["suggestions"] = suggestions
 
