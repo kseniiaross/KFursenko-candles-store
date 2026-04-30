@@ -2,7 +2,7 @@
   --catalog-max-width: 1360px;
   --catalog-side-padding: 24px;
   --catalog-grid-gap-x: 20px;
-  --catalog-grid-gap-y: 32px;
+  --catalog-grid-gap-y: 24px;
   --catalog-clear-width: 104px;
 }
 
@@ -14,7 +14,7 @@
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 0 var(--catalog-side-padding) 110px;
+  padding: 0 var(--catalog-side-padding) 80px;
   font-family: "Times New Roman", Times, serif;
   background: transparent;
   color: var(--app-text);
@@ -30,14 +30,14 @@
    ====================================================== */
 
 .catalog__header {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .catalog__topRow {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .catalog__headingGroup {
@@ -73,9 +73,9 @@
 }
 
 .catalog__label {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   padding-left: 0;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: 0.16em;
@@ -85,14 +85,14 @@
 
 .catalog__searchLine {
   width: 100%;
-  height: 42px;
-  padding: 0 0 8px 0;
+  height: 38px;
+  padding: 0 0 7px 0;
   border: none;
   border-bottom: 1px solid rgba(17, 17, 17, 0.34);
   background: transparent;
   color: var(--app-text);
   font-family: "Times New Roman", Times, serif;
-  font-size: 1.8rem;
+  font-size: 1.55rem;
   line-height: 1.1;
   transition: border-color 180ms ease, opacity 180ms ease;
   appearance: none;
@@ -138,14 +138,14 @@
 
 .catalog__categoryInline {
   width: 100%;
-  height: 42px;
-  padding: 0 18px 8px 0;
+  height: 38px;
+  padding: 0 18px 7px 0;
   border: none;
   border-bottom: 1px solid rgba(17, 17, 17, 0.34);
   background: transparent;
   color: var(--app-text);
   font-family: "Times New Roman", Times, serif;
-  font-size: 1.25rem;
+  font-size: 1.12rem;
   line-height: 1.1;
   cursor: pointer;
   transition: border-color 180ms ease, opacity 180ms ease;
@@ -164,13 +164,13 @@
 
 .catalog__clearInline {
   align-self: end;
-  height: 42px;
+  height: 38px;
   padding: 0;
   border: none;
   background: transparent;
   color: var(--app-text);
   font-family: "Times New Roman", Times, serif;
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -237,7 +237,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--catalog-grid-gap-y) var(--catalog-grid-gap-x);
   align-items: start;
-  margin-top: 24px;
+  margin-top: 20px;
 }
 
 /* ======================================================
@@ -247,7 +247,7 @@
 .catalogCard {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .catalogCard__link {
@@ -259,7 +259,7 @@
 .catalogCard__media {
   position: relative;
   width: 100%;
-  height: 240px;
+  height: 200px;
   overflow: hidden;
   background: #f5f3ef;
 }
@@ -275,11 +275,11 @@
 
 .catalogCard__badges {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 10px;
+  left: 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .badge {
@@ -287,11 +287,11 @@
   align-items: center;
   width: fit-content;
   max-width: 100%;
-  padding: 5px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: rgba(17, 17, 17, 0.94);
   color: #ffffff;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1.2;
@@ -309,14 +309,14 @@
 .catalogCard__body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .catalogCard__metaRow {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   color: inherit;
   text-decoration: none;
 }
@@ -325,9 +325,9 @@
   margin: 0;
   min-width: 0;
   font-family: "Times New Roman", Times, serif;
-  font-size: 1rem;
+  font-size: 0.94rem;
   font-weight: 700;
-  line-height: 1.14;
+  line-height: 1.1;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -335,9 +335,9 @@
 .catalogCard__price {
   flex-shrink: 0;
   padding-top: 1px;
-  font-size: 0.96rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .catalogCard__actions {
@@ -347,12 +347,12 @@
 
 .catalogCard__btn {
   width: 100%;
-  min-height: 42px;
+  min-height: 34px;
   border: 1px solid var(--app-border);
   background: var(--app-surface);
   color: var(--app-text);
   font-family: "Times New Roman", Times, serif;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -387,64 +387,126 @@
 }
 
 /* ======================================================
-   TABLET
+   LARGE DESKTOP
+   ====================================================== */
+
+@media (min-width: 1400px) {
+  .catalog__inner {
+    max-width: 1280px;
+  }
+
+  .catalogCard__media {
+    height: 205px;
+  }
+}
+
+/* ======================================================
+   LAPTOP / SMALL DESKTOP
    ====================================================== */
 
 @media (max-width: 1200px) {
+  :root {
+    --catalog-side-padding: 22px;
+    --catalog-grid-gap-x: 16px;
+    --catalog-grid-gap-y: 20px;
+  }
+
+  .catalog {
+    padding-bottom: 70px;
+  }
+
   .catalog__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 24px 18px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .catalog__filters {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) auto;
     gap: 16px;
   }
 
+  .catalog__title {
+    font-size: 2.4rem;
+  }
+
   .catalog__searchLine {
-    font-size: 1.55rem;
+    font-size: 1.4rem;
   }
 
   .catalog__categoryInline {
-    font-size: 1.12rem;
+    font-size: 1rem;
   }
 
   .catalogCard__media {
-    height: 230px;
-  }
-}
-
-
-@media (max-width: 1100px) {
-  .catalog__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 20px 16px;
+    height: 170px;
   }
 
-  .catalogCard__media {
-    height: 200px;
+  .catalogCard__name {
+    font-size: 0.86rem;
   }
 
-  .catalogCard {
-    gap: 8px;
-  }
-
-  .catalogCard__body {
-    gap: 8px;
+  .catalogCard__price {
+    font-size: 0.82rem;
   }
 
   .catalogCard__btn {
-    min-height: 38px;
+    min-height: 32px;
+    font-size: 0.64rem;
   }
 }
 
+@media (max-width: 1100px) {
+  :root {
+    --catalog-grid-gap-x: 14px;
+    --catalog-grid-gap-y: 18px;
+  }
+
+  .catalog__topRow {
+    margin-bottom: 10px;
+  }
+
+  .catalog__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 18px;
+  }
+
+  .catalogCard__media {
+    height: 150px;
+  }
+
+  .catalogCard {
+    gap: 5px;
+  }
+
+  .catalogCard__body {
+    gap: 5px;
+  }
+
+  .catalogCard__btn {
+    min-height: 30px;
+  }
+}
+
+/* ======================================================
+   TABLET
+   ====================================================== */
+
 @media (max-width: 980px) {
+  .catalog__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .catalogCard__media {
+    height: 210px;
+  }
+}
+
+@media (max-width: 760px) {
   .catalog__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .catalogCard__media {
-    height: 280px;
+    height: 240px;
   }
 }
 
@@ -453,8 +515,12 @@
    ====================================================== */
 
 @media (max-width: 640px) {
+  :root {
+    --catalog-side-padding: 16px;
+  }
+
   .catalog {
-    padding: 0 16px 88px;
+    padding-bottom: 88px;
   }
 
   .catalog__header {
@@ -523,6 +589,7 @@
   .catalogCard__btn {
     width: 100%;
     min-height: 46px;
+    font-size: 0.78rem;
     justify-content: center;
   }
 }
