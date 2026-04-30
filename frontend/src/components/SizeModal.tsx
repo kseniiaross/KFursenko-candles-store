@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { addToCart as addToCartApi } from "../api/cart";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { setCart } from "../store/cartSlice";
+import { addToCart, setCart } from "../store/cartSlice";
 import { closeSizeModal } from "../store/modalSlice";
 
 import "../styles/SizeModal.css";
@@ -10,6 +10,8 @@ const SizeModal: React.FC = () => {
   const dispatch = useAppDispatch();
 
   const { candle, isOpen } = useAppSelector((state) => state.modal);
+  const isLoggedIn = useAppSelector((state) => state.auth.isLoggedIn);
+
   const [addingVariantId, setAddingVariantId] = useState<number | null>(null);
 
   if (!isOpen || !candle) return null;
@@ -18,15 +20,31 @@ const SizeModal: React.FC = () => {
     dispatch(closeSizeModal());
   };
 
-  const handleAdd = async (
-    variant: {
-      id: number;
-      size: string;
-      price: string | number;
-    }
-  ): Promise<void> => {
+  const handleAdd = async (variant: {
+    id: number;
+    size: string;
+    price: string | number;
+  }): Promise<void> => {
     try {
       setAddingVariantId(variant.id);
+
+      if (!isLoggedIn) {
+        dispatch(
+          addToCart({
+            variant_id: variant.id,
+            candle_id: candle.id,
+            name: candle.name,
+            price: Number(variant.price) || 0,
+            image: candle.image ?? undefined,
+            size: variant.size,
+            quantity: 1,
+            isGift: false,
+          })
+        );
+
+        dispatch(closeSizeModal());
+        return;
+      }
 
       const items = await addToCartApi({
         variant_id: variant.id,
@@ -45,10 +63,7 @@ const SizeModal: React.FC = () => {
 
   return (
     <div className="sizeModalOverlay" onClick={handleClose}>
-      <div
-        className="sizeModal"
-        onClick={(event) => event.stopPropagation()}
-      >
+      <div className="sizeModal" onClick={(event) => event.stopPropagation()}>
         <button
           type="button"
           className="sizeModal__close"
@@ -60,7 +75,6 @@ const SizeModal: React.FC = () => {
 
         <div className="sizeModal__header">
           <h2 className="sizeModal__title">Select Size</h2>
-
           <p className="sizeModal__product">{candle.name}</p>
         </div>
 

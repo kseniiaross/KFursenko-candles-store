@@ -1,6 +1,7 @@
 import logging
 import re
 from decimal import Decimal
+from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -12,6 +13,22 @@ from candles.models import Candle, CandleVariant
 logger = logging.getLogger(__name__)
 
 HISTORY_WINDOW = 10
+
+
+PRODUCT_URL_RE = re.compile(
+    r"(?:https?://)?(?:www\.)?kfcandle\.com/catalog/(?:item/)?(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)",
+    re.IGNORECASE,
+)
+
+NOISE_PHRASES_RE = re.compile(
+    r"\b("
+    r"tell me about|what about|show me|find me|find|search for|search|"
+    r"do you have|have you got|i want|i need|i am looking for|i'm looking for|"
+    r"can you tell me about|can you show me|please|pls|about|candle|candles|"
+    r"this|that|item|product|the"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 def _t(locale: str, en: str, ru: str, es: str, fr: str) -> str:
@@ -106,6 +123,89 @@ def _base_candle_queryset():
     )
 
 
+def _normalize_text(value: str) -> str:
+    text = (value or "").lower().strip()
+
+    text = re.sub(r"https?://\S+", " ", text)
+    text = text.replace("/catalog/item/", " ")
+    text = text.replace("/catalog/", " ")
+
+    text = NOISE_PHRASES_RE.sub(" ", text)
+    text = re.sub(r"[^a-z0-9\s\-_]+", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
+def _extract_slug_candidates(query: str) -> List[str]:
+    raw = (query or "").strip()
+    candidates: List[str] = []
+
+    for match in PRODUCT_URL_RE.finditer(raw):
+        slug = match.group("slug").strip().lower()
+        if slug:
+            candidates.append(slug)
+
+    generic_matches = re.findall(
+        r"/catalog/(?:item/)?([a-z0-9]+(?:-[a-z0-9]+)*)",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    for slug in generic_matches:
+        clean_slug = slug.strip().lower()
+        if clean_slug:
+            candidates.append(clean_slug)
+
+    normalized = _normalize_text(raw)
+    if normalized:
+        candidates.append(normalized.replace(" ", "-"))
+
+    unique: List[str] = []
+    for item in candidates:
+        if item and item not in unique:
+            unique.append(item)
+
+    return unique
+
+
+def _similarity(left: str, right: str) -> float:
+    return SequenceMatcher(None, left.lower(), right.lower()).ratio()
+
+
+def _find_best_fuzzy_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
+    normalized = _normalize_text(query)
+    if not normalized:
+        return []
+
+    query_slug = normalized.replace(" ", "-")
+
+    candles = list(_base_candle_queryset().all())
+    scored: List[tuple[float, Candle]] = []
+
+    for candle in candles:
+        name = candle.name or ""
+        slug = candle.slug or ""
+
+        score = max(
+            _similarity(normalized, name),
+            _similarity(query_slug, slug),
+            _similarity(normalized, slug.replace("-", " ")),
+        )
+
+        if normalized in name.lower() or normalized in slug.replace("-", " ").lower():
+            score += 0.35
+
+        if query_slug in slug.lower():
+            score += 0.35
+
+        if score >= 0.55:
+            scored.append((score, candle))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+
+    return [_serialize_candle(candle) for _, candle in scored[:limit]]
+
+
 def get_candle_by_slug(slug: str) -> Optional[Dict[str, Any]]:
     clean_slug = (slug or "").strip().lower()
     if not clean_slug:
@@ -128,32 +228,39 @@ def get_candle_by_slug(slug: str) -> Optional[Dict[str, Any]]:
 
 
 def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
-    q = (query or "").strip()
-    if not q:
+    raw_query = (query or "").strip()
+    if not raw_query:
         return []
 
-    normalized_query = q.lower()
-    cleaned_query = re.sub(r"https?://\S+", " ", normalized_query)
-    cleaned_query = cleaned_query.replace("/catalog/item/", " ")
-    cleaned_query = cleaned_query.replace("/catalog/", " ")
-    cleaned_query = re.sub(r"[^a-z0-9\s\-_]+", " ", cleaned_query)
+    slug_candidates = _extract_slug_candidates(raw_query)
+
+    for slug in slug_candidates:
+        candle = get_candle_by_slug(slug)
+        if candle:
+            return [candle]
+
+    cleaned_query = _normalize_text(raw_query)
+    if not cleaned_query:
+        return []
 
     parts = [part for part in re.split(r"[\s\-_\/]+", cleaned_query) if len(part) >= 2]
     phrase = " ".join(parts)
+    phrase_slug = phrase.replace(" ", "-")
 
     search_filter = (
-        Q(name__icontains=q)
-        | Q(slug__icontains=q)
-        | Q(short_description__icontains=q)
-        | Q(description__icontains=q)
-        | Q(fragrance_family__icontains=q)
-        | Q(intensity__icontains=q)
+        Q(name__icontains=cleaned_query)
+        | Q(slug__icontains=cleaned_query)
+        | Q(slug__icontains=phrase_slug)
+        | Q(short_description__icontains=cleaned_query)
+        | Q(description__icontains=cleaned_query)
+        | Q(fragrance_family__icontains=cleaned_query)
+        | Q(intensity__icontains=cleaned_query)
     )
 
     if phrase:
         search_filter |= (
             Q(name__icontains=phrase)
-            | Q(slug__icontains=phrase.replace(" ", "-"))
+            | Q(slug__icontains=phrase_slug)
             | Q(short_description__icontains=phrase)
             | Q(description__icontains=phrase)
             | Q(fragrance_family__icontains=phrase)
@@ -168,6 +275,13 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
             | Q(description__icontains=part)
             | Q(fragrance_family__icontains=part)
             | Q(intensity__icontains=part)
+            | Q(top_notes__icontains=part)
+            | Q(heart_notes__icontains=part)
+            | Q(base_notes__icontains=part)
+            | Q(mood_tags__icontains=part)
+            | Q(use_case_tags__icontains=part)
+            | Q(ideal_spaces__icontains=part)
+            | Q(season_tags__icontains=part)
         )
 
     qs = (
@@ -177,7 +291,12 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
         .order_by("-created_at")[:limit]
     )
 
-    return [_serialize_candle(candle) for candle in qs]
+    results = [_serialize_candle(candle) for candle in qs]
+
+    if results:
+        return results
+
+    return _find_best_fuzzy_candles(raw_query, limit=limit)
 
 
 def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
