@@ -11,19 +11,19 @@ Live link: https://www.kfcandle.com
 ## Preview
 
 ### Homepage
-![Homepage](./assets/preview/home.jpg)
+![Homepage](./assets/images/preview/home.jpg)
 
 ### Product Catalog
 ![Catalog](./assets/preview/catalog.jpg)
 
 ### Product Detail
-![Product](./assets/preview/product.jpg)
+![Product](./assets/images/preview/product.jpg)
 
 ### AI-powered assistant
-![AI](./assets/preview/ai.jpg)
+![AI](./assets/images/preview/ai.jpg)
 
 ### Cart & Checkout
-![Cart](./assets/preview/cart.jpg)
+![Cart](./assets/images/preview/cart.jpg)
 
 ## Product Experience
 
@@ -136,7 +136,7 @@ The result is not a demo application, but a functional foundation for a commerci
 ## Author
 
 Kseniia Rostovskaia  
-Frontend Developer
+Full-Stack Developer | React, TypeScript, Django | AI Integration
 
 Portfolio: https://kseniiaross.dev  
 LinkedIn: https://www.linkedin.com/in/kseniia-rostovskaia
