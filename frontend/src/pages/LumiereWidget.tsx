@@ -22,32 +22,101 @@ import type {
 
 import "../styles/LumiereWidget.css";
 
+const SPEECH_LANG: Record<Locale, string> = {
+  en: "en-US",
+  ru: "ru-RU",
+  es: "es-ES",
+  fr: "fr-FR",
+};
+
+const PREFERRED_VOICE_KEYWORDS: Record<Locale, string[]> = {
+  en: ["samantha", "google us english", "microsoft aria", "alex"],
+  ru: ["milena", "yuri", "google русский", "microsoft svetlana"],
+  es: ["monica", "google español", "microsoft elvira"],
+  fr: ["amelie", "thomas", "google français", "microsoft denise"],
+};
+
 function stopSpeaking(): void {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
   window.speechSynthesis.cancel();
+}
+
+function cleanSpeechText(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/`(.*?)`/g, "$1")
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[•●◆▪️]/g, ". ")
+    .replace(/[✨🕯️🎁💡🔥]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitSpeechText(text: string): string[] {
+  const parts = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [text];
+
+  return parts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function getBestVoice(locale: Locale): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return null;
+  }
+
+  const voices = window.speechSynthesis.getVoices();
+  const lang = SPEECH_LANG[locale].toLowerCase();
+  const preferredKeywords = PREFERRED_VOICE_KEYWORDS[locale];
+
+  for (const keyword of preferredKeywords) {
+    const preferredVoice = voices.find((voice) =>
+      voice.name.toLowerCase().includes(keyword)
+    );
+
+    if (preferredVoice) return preferredVoice;
+  }
+
+  return (
+    voices.find((voice) => voice.lang.toLowerCase() === lang) ??
+    voices.find((voice) =>
+      voice.lang.toLowerCase().startsWith(lang.slice(0, 2))
+    ) ??
+    null
+  );
 }
 
 function speakText(text: string, locale: Locale): void {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
-  const cleanText = text.trim();
+  const cleanText = cleanSpeechText(text);
   if (!cleanText) return;
 
   const synth = window.speechSynthesis;
+  const voice = getBestVoice(locale);
+  const chunks = splitSpeechText(cleanText);
+
   synth.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(cleanText);
+  chunks.forEach((chunk) => {
+    const utterance = new SpeechSynthesisUtterance(chunk);
 
-  if (locale === "ru") utterance.lang = "ru-RU";
-  else if (locale === "es") utterance.lang = "es-ES";
-  else if (locale === "fr") utterance.lang = "fr-FR";
-  else utterance.lang = "en-US";
+    utterance.lang = SPEECH_LANG[locale];
 
-  utterance.rate = 0.95;
-  utterance.pitch = 1;
-  utterance.volume = 1;
+    if (voice) {
+      utterance.voice = voice;
+    }
 
-  synth.speak(utterance);
+    utterance.rate = locale === "ru" ? 0.82 : 0.88;
+    utterance.pitch = 0.92;
+    utterance.volume = 1;
+
+    synth.speak(utterance);
+  });
 }
 
 function formatTime(timestamp: number, locale: Locale): string {
@@ -73,7 +142,9 @@ function buildHistory(messages: LumiereMessage[]): LumiereHistoryMessage[] {
   }));
 }
 
-function getLastAssistantMessage(messages: LumiereMessage[]): LumiereMessage | null {
+function getLastAssistantMessage(
+  messages: LumiereMessage[]
+): LumiereMessage | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     if (messages[index].role === "assistant") {
       return messages[index];
@@ -214,11 +285,13 @@ const LumiereWidget: React.FC = () => {
 
   useEffect(() => {
     if (!isOpen) return;
+
     inputRef.current?.focus();
   }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) return;
+
     openButtonRef.current?.focus();
     stopSpeaking();
   }, [isOpen]);
@@ -375,11 +448,11 @@ const LumiereWidget: React.FC = () => {
 
               <button
                 type="button"
-                className={`lumiereVoiceButton ${
-                  speak ? "is-active" : ""
-                }`}
+                className={`lumiereVoiceButton ${speak ? "is-active" : ""}`}
                 onClick={onSpeechToggle}
-                aria-label={speak ? localizedText.speechOff : localizedText.speechOn}
+                aria-label={
+                  speak ? localizedText.speechOff : localizedText.speechOn
+                }
                 aria-pressed={speak}
                 title={speak ? localizedText.speechOff : localizedText.speechOn}
               >
