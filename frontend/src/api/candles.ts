@@ -1,3 +1,4 @@
+import i18n from "../i18n";
 import api from "../api/axiosInstance";
 import type { Candle, Category } from "../types/candle";
 
@@ -8,23 +9,42 @@ export type CandleListParams = {
   in_stock?: boolean;
 };
 
+type SupportedApiLanguage = "en" | "ru" | "es" | "fr";
+
+function getCurrentLanguage(): SupportedApiLanguage {
+  const lang = i18n.language?.split("-")[0];
+
+  if (lang === "ru" || lang === "es" || lang === "fr") {
+    return lang;
+  }
+
+  return "en";
+}
+
 function toQuery(params?: CandleListParams): Record<string, string> {
-  const q: Record<string, string> = {};
+  const query: Record<string, string> = {
+    lang: getCurrentLanguage(),
+  };
 
-  if (!params) return q;
+  if (!params) return query;
 
-  if (params.search) q.search = params.search;
-  if (params.ordering) q.ordering = params.ordering;
+  if (params.search) {
+    query.search = params.search;
+  }
+
+  if (params.ordering) {
+    query.ordering = params.ordering;
+  }
 
   if (typeof params.category === "number") {
-    q.category = String(params.category);
+    query.category = String(params.category);
   }
 
   if (typeof params.in_stock === "boolean") {
-    q.in_stock = params.in_stock ? "true" : "false";
+    query.in_stock = params.in_stock ? "true" : "false";
   }
 
-  return q;
+  return query;
 }
 
 export async function listCandles(params?: CandleListParams): Promise<Candle[]> {
@@ -39,7 +59,12 @@ export async function getCandleBySlug(slug: string): Promise<Candle> {
   const safeSlug = String(slug).trim();
 
   const response = await api.get<Candle>(
-    `/candles/candles/${encodeURIComponent(safeSlug)}/`
+    `/candles/candles/${encodeURIComponent(safeSlug)}/`,
+    {
+      params: {
+        lang: getCurrentLanguage(),
+      },
+    }
   );
 
   return response.data;
@@ -49,13 +74,23 @@ export async function getCollectionScentsBySlug(slug: string): Promise<Candle[]>
   const safeSlug = String(slug).trim();
 
   const response = await api.get<Candle[]>(
-    `/candles/candles/${encodeURIComponent(safeSlug)}/collection_scents/`
+    `/candles/candles/${encodeURIComponent(safeSlug)}/collection_scents/`,
+    {
+      params: {
+        lang: getCurrentLanguage(),
+      },
+    }
   );
 
   return response.data;
 }
 
 export async function listCategories(): Promise<Category[]> {
-  const response = await api.get<Category[]>("/candles/categories/");
+  const response = await api.get<Category[]>("/candles/categories/", {
+    params: {
+      lang: getCurrentLanguage(),
+    },
+  });
+
   return response.data;
 }
