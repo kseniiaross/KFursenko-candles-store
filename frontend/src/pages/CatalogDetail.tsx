@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getCandleBySlug, getCollectionScentsBySlug } from "../api/candles";
 import { addToCart as addToCartApi } from "../api/cart";
-import { useAppDispatch } from "../store/hooks";
-import { setCart } from "../store/cartSlice";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { addToCart, setCart } from "../store/cartSlice";
 
 import type { Candle, CandleVariant } from "../types/candle";
 
@@ -14,6 +14,8 @@ const CatalogDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+
+  const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
 
   const [item, setItem] = useState<Candle | null>(null);
   const [activeImg, setActiveImg] = useState<string>("");
@@ -36,6 +38,8 @@ const CatalogDetail: React.FC = () => {
 
         if (data.variants && data.variants.length > 0) {
           setVariant(data.variants[0]);
+        } else {
+          setVariant(null);
         }
 
         try {
@@ -49,6 +53,8 @@ const CatalogDetail: React.FC = () => {
       } catch {
         if (!active) return;
         setItem(null);
+        setActiveImg("");
+        setVariant(null);
         setScents([]);
       }
     }
@@ -62,7 +68,7 @@ const CatalogDetail: React.FC = () => {
 
   const price = useMemo(() => {
     if (!variant) return 0;
-    return Number(variant.price);
+    return Number(variant.price) || 0;
   }, [variant]);
 
   const onAddToCart = async (): Promise<void> => {
@@ -70,6 +76,23 @@ const CatalogDetail: React.FC = () => {
 
     try {
       setAdding(true);
+
+      if (!isLoggedIn) {
+        dispatch(
+          addToCart({
+            variant_id: variant.id,
+            candle_id: item.id,
+            name: item.name,
+            price: Number(variant.price) || 0,
+            image: item.image ?? undefined,
+            size: variant.size,
+            quantity: 1,
+            isGift: false,
+          })
+        );
+
+        return;
+      }
 
       const items = await addToCartApi({
         variant_id: variant.id,
@@ -121,6 +144,7 @@ const CatalogDetail: React.FC = () => {
                     className={`catalogDetail__thumb ${
                       img === activeImg ? "is-active" : ""
                     }`}
+                    aria-label={`View ${item.name} image`}
                   >
                     <img src={img} alt={item.name} />
                   </button>
@@ -152,7 +176,7 @@ const CatalogDetail: React.FC = () => {
                       key={s.id}
                       type="button"
                       className="catalogDetail__scentBtn"
-                      onClick={() => navigate(`/catalog/${s.slug}`)}
+                      onClick={() => navigate(`/catalog/item/${s.slug}`)}
                     >
                       {s.name}
                     </button>
