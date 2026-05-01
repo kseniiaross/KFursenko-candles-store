@@ -1,8 +1,8 @@
 # KFursenko Candles Store
 
-KFursenko Candles Store is a modern e-commerce platform for handcrafted candles, designed to deliver a premium shopping experience with a focus on clarity, trust, and performance.
+KFursenko Candles Store is a modern full-stack e-commerce platform for handcrafted candles, built with a strong focus on accessibility (WCAG 2.1), performance, and real-world usability.
 
-The application is built as a production-ready product, combining a clean, minimal interface with a scalable architecture and secure data handling. The goal is not only to present products, but to guide users through a smooth and intuitive purchasing journey — from discovery to checkout.
+The application is designed as a production-ready product, combining a clean, minimal interface with a scalable architecture and secure data handling. The goal is not only to present products, but to guide users through a smooth and intuitive purchasing journey — from discovery to checkout.
 
 Live link: https://www.kfcandle.com
 
@@ -25,6 +25,20 @@ Live link: https://www.kfcandle.com
 ### Cart & Checkout
 ![Cart](docs/preview/cart.jpg)
 
+---
+
+## Key Features
+
+- AI-powered assistant (**Lumière**) with multilingual support (EN, RU, ES, FR)
+- Personalized product discovery via interactive quiz
+- Guest + authenticated cart system
+- JWT authentication with automatic token refresh
+- Real-time product filtering and search
+- Responsive and accessible UI (WCAG 2.1, Section 508)
+- Scalable full-stack architecture (React + Django)
+
+---
+
 ## Product Experience
 
 The platform is designed around real user behavior and expectations in modern e-commerce:
@@ -46,9 +60,36 @@ The platform enhances product discovery through a combination of an interactive 
 
 Users can take a guided quiz to identify their scent preferences, allowing the system to recommend products that match their taste instead of relying on random browsing.
 
-In addition, an AI assistant is integrated to support users in real time. It answers questions, suggests relevant products, and helps users navigate the catalog more efficiently.
+### Lumière — AI Assistant
 
-This combination of guided discovery and real-time assistance reduces decision fatigue, increases user confidence, and creates a more personalized shopping experience.
+The platform includes an AI assistant named **Lumière** (French for *“light”*), reflecting the essence of the brand — warmth, atmosphere, and guidance.
+
+Lumière acts as a knowledgeable in-store consultant, helping users:
+- understand scent profiles and fragrance families
+- discover products based on mood and preferences
+- receive personalized recommendations in real time
+
+The assistant supports **multiple languages (English, Russian, Spanish, and French)**, making the experience more accessible to a wider audience.
+
+This multilingual capability improves usability, reduces friction for non-English speakers, and reflects a product decision to prioritize inclusivity and global accessibility.
+
+Together, the quiz and AI assistant reduce decision fatigue, increase user confidence, and create a more personalized shopping experience.
+
+---
+
+## Technical Challenges & Solutions
+
+**1. Guest vs authenticated cart logic**  
+Implemented a dual cart system using localStorage for guest users and backend storage for authenticated users, with seamless synchronization after login.
+
+**2. Token expiration handling**  
+Prevented session interruptions by implementing Axios interceptors with automatic JWT refresh logic.
+
+**3. Flexible product search**  
+Improved search accuracy by combining slug parsing, normalized queries, and fuzzy matching techniques.
+
+**4. AI assistant reliability**  
+Designed the assistant to rely strictly on real backend product data, preventing hallucinated recommendations.
 
 ---
 
@@ -60,7 +101,7 @@ Security is treated as a core part of the product, not an afterthought.
 - Tokens are securely stored and automatically refreshed
 - Sensitive operations are protected through backend validation
 - No payment data is stored on the client side
-- Payment processing is designed to be handled by Stripe (PCI-compliant)
+- Payment processing is handled by Stripe (PCI-compliant)
 
 This approach ensures that user data is protected and the system is ready for real-world usage.
 
@@ -84,13 +125,13 @@ The system is designed to scale without degrading performance or user experience
 
 The project follows a full-stack architecture with clear separation of concerns.
 
-Frontend:
+### Frontend
 - React with TypeScript
 - Redux Toolkit for state management
 - React Router for navigation
 - Axios with interceptors for API handling
 
-Backend:
+### Backend
 - Django REST Framework
 - PostgreSQL database
 - Token-based authentication (JWT)
@@ -113,7 +154,7 @@ Key accessibility considerations include:
 - ARIA attributes to enhance assistive technology support
 - High-contrast UI in both light and dark modes
 
-The AI assistant also includes voice support, allowing users to interact with the system through audio. This extends usability beyond traditional visual interfaces and makes the experience more inclusive.
+The AI assistant also includes voice support, allowing users to interact with the system through audio, extending usability beyond traditional visual interfaces.
 
 Accessibility decisions are integrated into the development process from the start, improving usability for all users.
 
@@ -136,7 +177,7 @@ The result is not a demo application, but a functional foundation for a commerci
 ## Author
 
 Kseniia Rostovskaia  
-Full-Stack Developer | React, TypeScript, Django | AI Integration
+Full-Stack Developer | React, TypeScript, Django | AI Integration  
 
 Portfolio: https://kseniiaross.dev  
 LinkedIn: https://www.linkedin.com/in/kseniia-rostovskaia
