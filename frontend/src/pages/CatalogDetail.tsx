@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { getCandleBySlug, getCollectionScentsBySlug } from "../api/candles";
 import { addToCart as addToCartApi } from "../api/cart";
@@ -14,6 +15,7 @@ const CatalogDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { t, i18n } = useTranslation();
 
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
 
@@ -64,7 +66,7 @@ const CatalogDetail: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, i18n.language]);
 
   const price = useMemo(() => {
     if (!variant) return 0;
@@ -116,13 +118,13 @@ const CatalogDetail: React.FC = () => {
   ].filter(Boolean);
 
   return (
-    <main className="catalogDetail">
+    <main className="catalogDetail" aria-label={t("catalogDetail.pageLabel")}>
       <div className="catalogDetail__inner">
         <div className="catalogDetail__layout">
           <div className="catalogDetail__mediaColumn">
             <div className="catalogDetail__mediaTopRow">
               <Link to="/catalog" className="catalogDetail__back">
-                ← Back to catalog
+                ← {t("catalogDetail.backToCatalog")}
               </Link>
             </div>
 
@@ -144,7 +146,9 @@ const CatalogDetail: React.FC = () => {
                     className={`catalogDetail__thumb ${
                       img === activeImg ? "is-active" : ""
                     }`}
-                    aria-label={`View ${item.name} image`}
+                    aria-label={`${t("catalogDetail.selectImage")}: ${
+                      item.name
+                    }`}
                   >
                     <img src={img} alt={item.name} />
                   </button>
@@ -160,7 +164,9 @@ const CatalogDetail: React.FC = () => {
 
             {scents.length > 0 && (
               <div className="catalogDetail__scentBlock">
-                <span className="catalogDetail__scentLabel">Scent</span>
+                <span className="catalogDetail__scentLabel">
+                  {t("catalogDetail.collectionScents")}
+                </span>
 
                 <div className="catalogDetail__scentOptions">
                   <button
@@ -177,6 +183,7 @@ const CatalogDetail: React.FC = () => {
                       type="button"
                       className="catalogDetail__scentBtn"
                       onClick={() => navigate(`/catalog/item/${s.slug}`)}
+                      aria-label={`${t("catalogDetail.openScent")}: ${s.name}`}
                     >
                       {s.name}
                     </button>
@@ -216,7 +223,7 @@ const CatalogDetail: React.FC = () => {
               }}
               disabled={!variant || adding}
             >
-              {adding ? "Adding..." : "Add to cart"}
+              {adding ? "Adding..." : t("catalogDetail.addToCart")}
             </button>
           </div>
         </div>
