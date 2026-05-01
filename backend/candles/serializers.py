@@ -14,6 +14,33 @@ from .models import (
     AboutReviewItem,
 )
 
+SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
+
+
+def get_locale_from_request(request):
+    if not request:
+        return "en"
+
+    query_locale = (request.query_params.get("lang") or "").lower().strip()
+
+    if query_locale in SUPPORTED_LOCALES:
+        return query_locale
+
+    header = (request.headers.get("Accept-Language") or "").lower().strip()
+
+    for locale in SUPPORTED_LOCALES:
+        if header.startswith(locale):
+            return locale
+
+    return "en"
+
+
+def localized_value(obj, field_name, locale):
+    translated = getattr(obj, f"{field_name}_{locale}", "") or ""
+    fallback = getattr(obj, field_name, "") or ""
+
+    return translated.strip() or fallback
+
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -32,6 +59,7 @@ class CollectionSerializer(serializers.ModelSerializer):
     def get_parent(self, obj: Collection):
         if not obj.parent_id:
             return None
+
         return {
             "id": obj.parent_id,
             "name": obj.parent.name,
@@ -53,6 +81,7 @@ class CandleImageSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         if not obj.image:
             return None
+
         try:
             return obj.image.build_url(secure=True)
         except Exception:
@@ -72,6 +101,10 @@ class CandleBadgeSerializer(serializers.ModelSerializer):
 
 
 class CandleSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    short_description = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+
     image = serializers.SerializerMethodField()
     images = CandleImageSerializer(many=True, read_only=True)
     variants = CandleVariantSerializer(many=True, read_only=True)
@@ -100,9 +133,21 @@ class CandleSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "name_en",
+            "name_ru",
+            "name_es",
+            "name_fr",
             "slug",
             "short_description",
+            "short_description_en",
+            "short_description_ru",
+            "short_description_es",
+            "short_description_fr",
             "description",
+            "description_en",
+            "description_ru",
+            "description_es",
+            "description_fr",
             "fragrance_family",
             "intensity",
             "top_notes",
@@ -128,6 +173,7 @@ class CandleSerializer(serializers.ModelSerializer):
             "collection_ids",
             "badges",
         ]
+
         read_only_fields = [
             "slug",
             "in_stock",
@@ -141,9 +187,25 @@ class CandleSerializer(serializers.ModelSerializer):
             "discount_price",
         ]
 
+    def get_name(self, obj):
+        request = self.context.get("request")
+        locale = get_locale_from_request(request)
+        return localized_value(obj, "name", locale)
+
+    def get_short_description(self, obj):
+        request = self.context.get("request")
+        locale = get_locale_from_request(request)
+        return localized_value(obj, "short_description", locale)
+
+    def get_description(self, obj):
+        request = self.context.get("request")
+        locale = get_locale_from_request(request)
+        return localized_value(obj, "description", locale)
+
     def get_image(self, obj):
         if not obj.image:
             return None
+
         try:
             return obj.image.build_url(secure=True)
         except Exception:
@@ -226,11 +288,13 @@ class CandleSerializer(serializers.ModelSerializer):
     def validate_price(self, value):
         if value <= 0:
             raise serializers.ValidationError("Price must be greater than 0.")
+
         return value
 
     def validate_stock_qty(self, value):
         if value < 0:
             raise serializers.ValidationError("stock_qty cannot be negative.")
+
         return value
 
 
@@ -257,6 +321,7 @@ class AboutGalleryItemSerializer(serializers.ModelSerializer):
     def get_media(self, obj):
         if not obj.media:
             return None
+
         try:
             return obj.media.build_url(secure=True)
         except Exception:
@@ -265,6 +330,7 @@ class AboutGalleryItemSerializer(serializers.ModelSerializer):
     def get_preview_image(self, obj):
         if not obj.preview_image:
             return None
+
         try:
             return obj.preview_image.build_url(secure=True)
         except Exception:
@@ -291,6 +357,7 @@ class AboutReviewItemSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         if not obj.image:
             return None
+
         try:
             return obj.image.build_url(secure=True)
         except Exception:

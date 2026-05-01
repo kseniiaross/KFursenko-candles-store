@@ -192,10 +192,24 @@ class Candle(models.Model):
     )
 
     name = models.CharField(max_length=200)
+    name_en = models.CharField(max_length=200, blank=True, default="")
+    name_ru = models.CharField(max_length=200, blank=True, default="")
+    name_es = models.CharField(max_length=200, blank=True, default="")
+    name_fr = models.CharField(max_length=200, blank=True, default="")
+
     slug = models.SlugField(max_length=220, unique=True, blank=True)
 
     short_description = models.TextField(blank=True, default="")
+    short_description_en = models.TextField(blank=True, default="")
+    short_description_ru = models.TextField(blank=True, default="")
+    short_description_es = models.TextField(blank=True, default="")
+    short_description_fr = models.TextField(blank=True, default="")
+
     description = models.TextField(blank=True)
+    description_en = models.TextField(blank=True, default="")
+    description_ru = models.TextField(blank=True, default="")
+    description_es = models.TextField(blank=True, default="")
+    description_fr = models.TextField(blank=True, default="")
 
     fragrance_family = models.CharField(max_length=150, blank=True, default="")
     intensity = models.CharField(max_length=50, blank=True, default="")
