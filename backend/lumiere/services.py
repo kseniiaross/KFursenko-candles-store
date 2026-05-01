@@ -30,6 +30,8 @@ NOISE_PHRASES_RE = re.compile(
     re.IGNORECASE,
 )
 
+SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
+
 
 def _t(locale: str, en: str, ru: str, es: str, fr: str) -> str:
     if locale == "ru":
@@ -39,6 +41,19 @@ def _t(locale: str, en: str, ru: str, es: str, fr: str) -> str:
     if locale == "fr":
         return fr
     return en
+
+
+def _safe_locale(locale: str) -> str:
+    clean_locale = (locale or "en").lower().strip()
+    return clean_locale if clean_locale in SUPPORTED_LOCALES else "en"
+
+
+def _localized_value(candle: Candle, field_name: str, locale: str) -> str:
+    safe_locale = _safe_locale(locale)
+    translated = getattr(candle, f"{field_name}_{safe_locale}", "") or ""
+    fallback = getattr(candle, field_name, "") or ""
+
+    return translated.strip() or fallback
 
 
 def _format_price(value: Decimal | None) -> str:
@@ -89,15 +104,14 @@ def _join_list(values: List[str] | None) -> str:
     return ", ".join(v.strip() for v in values if isinstance(v, str) and v.strip())
 
 
-def _serialize_candle(candle: Candle) -> Dict[str, Any]:
+def _serialize_candle(candle: Candle, locale: str = "en") -> Dict[str, Any]:
     return {
         "id": candle.id,
-        "name": candle.name,
+        "name": _localized_value(candle, "name", locale),
         "slug": candle.slug,
         "price": _get_display_price(candle),
         "in_stock": _is_candle_available(candle),
-        "short_description": candle.short_description or "",
-        "description": candle.description or "",
+        "description": _localized_value(candle, "description", locale),
         "fragrance_family": candle.fragrance_family or "",
         "intensity": candle.intensity or "",
         "top_notes": candle.top_notes or [],
@@ -116,7 +130,9 @@ def _base_candle_queryset():
         .prefetch_related(
             Prefetch(
                 "variants",
-                queryset=CandleVariant.objects.filter(is_active=True).order_by("price", "id"),
+                queryset=CandleVariant.objects.filter(is_active=True).order_by(
+                    "price", "id"
+                ),
                 to_attr="prefetched_active_variants",
             )
         )
@@ -151,6 +167,7 @@ def _extract_slug_candidates(query: str) -> List[str]:
         raw,
         flags=re.IGNORECASE,
     )
+
     for slug in generic_matches:
         clean_slug = slug.strip().lower()
         if clean_slug:
@@ -172,7 +189,11 @@ def _similarity(left: str, right: str) -> float:
     return SequenceMatcher(None, left.lower(), right.lower()).ratio()
 
 
-def _find_best_fuzzy_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
+def _find_best_fuzzy_candles(
+    query: str,
+    limit: int = 6,
+    locale: str = "en",
+) -> List[Dict[str, Any]]:
     normalized = _normalize_text(query)
     if not normalized:
         return []
@@ -203,10 +224,10 @@ def _find_best_fuzzy_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]
 
     scored.sort(key=lambda item: item[0], reverse=True)
 
-    return [_serialize_candle(candle) for _, candle in scored[:limit]]
+    return [_serialize_candle(candle, locale=locale) for _, candle in scored[:limit]]
 
 
-def get_candle_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+def get_candle_by_slug(slug: str, locale: str = "en") -> Optional[Dict[str, Any]]:
     clean_slug = (slug or "").strip().lower()
     if not clean_slug:
         return None
@@ -224,10 +245,14 @@ def get_candle_by_slug(slug: str) -> Optional[Dict[str, Any]]:
     if not candle:
         return None
 
-    return _serialize_candle(candle)
+    return _serialize_candle(candle, locale=locale)
 
 
-def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
+def search_candles(
+    query: str,
+    limit: int = 6,
+    locale: str = "en",
+) -> List[Dict[str, Any]]:
     raw_query = (query or "").strip()
     if not raw_query:
         return []
@@ -235,7 +260,7 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
     slug_candidates = _extract_slug_candidates(raw_query)
 
     for slug in slug_candidates:
-        candle = get_candle_by_slug(slug)
+        candle = get_candle_by_slug(slug, locale=locale)
         if candle:
             return [candle]
 
@@ -249,10 +274,17 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
 
     search_filter = (
         Q(name__icontains=cleaned_query)
+        | Q(name_en__icontains=cleaned_query)
+        | Q(name_ru__icontains=cleaned_query)
+        | Q(name_es__icontains=cleaned_query)
+        | Q(name_fr__icontains=cleaned_query)
         | Q(slug__icontains=cleaned_query)
         | Q(slug__icontains=phrase_slug)
-        | Q(short_description__icontains=cleaned_query)
         | Q(description__icontains=cleaned_query)
+        | Q(description_en__icontains=cleaned_query)
+        | Q(description_ru__icontains=cleaned_query)
+        | Q(description_es__icontains=cleaned_query)
+        | Q(description_fr__icontains=cleaned_query)
         | Q(fragrance_family__icontains=cleaned_query)
         | Q(intensity__icontains=cleaned_query)
     )
@@ -260,9 +292,16 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
     if phrase:
         search_filter |= (
             Q(name__icontains=phrase)
+            | Q(name_en__icontains=phrase)
+            | Q(name_ru__icontains=phrase)
+            | Q(name_es__icontains=phrase)
+            | Q(name_fr__icontains=phrase)
             | Q(slug__icontains=phrase_slug)
-            | Q(short_description__icontains=phrase)
             | Q(description__icontains=phrase)
+            | Q(description_en__icontains=phrase)
+            | Q(description_ru__icontains=phrase)
+            | Q(description_es__icontains=phrase)
+            | Q(description_fr__icontains=phrase)
             | Q(fragrance_family__icontains=phrase)
             | Q(intensity__icontains=phrase)
         )
@@ -270,9 +309,16 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
     for part in parts:
         search_filter |= (
             Q(name__icontains=part)
+            | Q(name_en__icontains=part)
+            | Q(name_ru__icontains=part)
+            | Q(name_es__icontains=part)
+            | Q(name_fr__icontains=part)
             | Q(slug__icontains=part)
-            | Q(short_description__icontains=part)
             | Q(description__icontains=part)
+            | Q(description_en__icontains=part)
+            | Q(description_ru__icontains=part)
+            | Q(description_es__icontains=part)
+            | Q(description_fr__icontains=part)
             | Q(fragrance_family__icontains=part)
             | Q(intensity__icontains=part)
             | Q(top_notes__icontains=part)
@@ -291,12 +337,12 @@ def search_candles(query: str, limit: int = 6) -> List[Dict[str, Any]]:
         .order_by("-created_at")[:limit]
     )
 
-    results = [_serialize_candle(candle) for candle in qs]
+    results = [_serialize_candle(candle, locale=locale) for candle in qs]
 
     if results:
         return results
 
-    return _find_best_fuzzy_candles(raw_query, limit=limit)
+    return _find_best_fuzzy_candles(raw_query, limit=limit, locale=locale)
 
 
 def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
@@ -316,9 +362,6 @@ def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
         lines.append(
             f"• {suggestion['name']} — {price_text} — {stock} — slug: {suggestion['slug']}"
         )
-
-        if suggestion.get("short_description"):
-            lines.append(f"  Short description: {suggestion['short_description']}")
 
         if suggestion.get("description"):
             lines.append(f"  Description: {suggestion['description']}")

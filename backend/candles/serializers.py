@@ -102,7 +102,6 @@ class CandleBadgeSerializer(serializers.ModelSerializer):
 
 class CandleSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
-    short_description = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
 
     image = serializers.SerializerMethodField()
@@ -138,11 +137,6 @@ class CandleSerializer(serializers.ModelSerializer):
             "name_es",
             "name_fr",
             "slug",
-            "short_description",
-            "short_description_en",
-            "short_description_ru",
-            "short_description_es",
-            "short_description_fr",
             "description",
             "description_en",
             "description_ru",
@@ -191,11 +185,6 @@ class CandleSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         locale = get_locale_from_request(request)
         return localized_value(obj, "name", locale)
-
-    def get_short_description(self, obj):
-        request = self.context.get("request")
-        locale = get_locale_from_request(request)
-        return localized_value(obj, "short_description", locale)
 
     def get_description(self, obj):
         request = self.context.get("request")

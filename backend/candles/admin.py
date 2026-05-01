@@ -154,11 +154,6 @@ class CandleAdmin(admin.ModelAdmin):
         "name_es",
         "name_fr",
         "slug",
-        "short_description",
-        "short_description_en",
-        "short_description_ru",
-        "short_description_es",
-        "short_description_fr",
         "description",
         "description_en",
         "description_ru",
@@ -183,7 +178,6 @@ class CandleAdmin(admin.ModelAdmin):
                     "category",
                     "name",
                     "slug",
-                    "short_description",
                     "description",
                     "image",
                 )
@@ -194,7 +188,6 @@ class CandleAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "name_en",
-                    "short_description_en",
                     "description_en",
                 ),
                 "classes": ("collapse",),
@@ -205,7 +198,6 @@ class CandleAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "name_ru",
-                    "short_description_ru",
                     "description_ru",
                 ),
                 "classes": ("collapse",),
@@ -216,7 +208,6 @@ class CandleAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "name_es",
-                    "short_description_es",
                     "description_es",
                 ),
                 "classes": ("collapse",),
@@ -227,7 +218,6 @@ class CandleAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "name_fr",
-                    "short_description_fr",
                     "description_fr",
                 ),
                 "classes": ("collapse",),
