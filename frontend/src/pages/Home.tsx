@@ -2,8 +2,8 @@ import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-import lightImage from "../assets/images/lightmode.jpg";
-import darkImage from "../assets/images/darkmode.jpg";
+import lightImage from "../assets/images/lightmode.webp";
+import darkImage from "../assets/images/darkmode.webp";
 import logoImage from "../assets/images/Logo.png";
 
 import { useTheme } from "../theme/ThemeProvider";
@@ -31,6 +31,8 @@ const Home: React.FC<HomeProps> = () => {
           className="home__image"
           src={backgroundImage}
           alt=""
+          fetchPriority="high"
+          decoding="async"
         />
 
         <div className="home__overlay" />
@@ -47,6 +49,7 @@ const Home: React.FC<HomeProps> = () => {
               className="home__logo"
               src={logoImage}
               alt="KFursenko Candles logo"
+              decoding="async"
             />
           </Link>
         </div>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { Suspense, useCallback, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Header from "./pages/Header";
@@ -11,7 +11,6 @@ import Home from "./pages/Home";
 import Catalog from "./pages/Catalog";
 import CatalogDetail from "./pages/CatalogDetail";
 import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import Orders from "./pages/Orders";
@@ -42,6 +41,8 @@ import { logout, setUser } from "./store/authSlice";
 import { useTheme } from "./theme/ThemeProvider";
 import { getProfile } from "./api/auth";
 import { useHydrateCart } from "./hooks/useHydrateCart";
+
+const Checkout = React.lazy(() => import("./pages/Checkout"));
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -113,7 +114,15 @@ const App: React.FC = () => {
           <Route path="/catalog/item/:slug" element={<CatalogDetail />} />
 
           <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
+
+          <Route
+            path="/checkout"
+            element={
+              <Suspense fallback={null}>
+                <Checkout />
+              </Suspense>
+            }
+          />
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
