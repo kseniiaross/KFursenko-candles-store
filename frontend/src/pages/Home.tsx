@@ -33,6 +33,7 @@ const Home: React.FC<HomeProps> = () => {
           alt=""
           fetchPriority="high"
           decoding="async"
+          sizes="100vw"
         />
 
         <div className="home__overlay" />
