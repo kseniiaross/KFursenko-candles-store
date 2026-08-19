@@ -63,7 +63,7 @@ class LumiereReplyView(APIView):
         data = serializer.validated_data
         text = data["text"]
         locale = data.get("locale", "en")
-        user_name = (data.get("userName") or "").strip() or None
+        user_name = " ".join((data.get("userName") or "").split()) or None
         history = data.get("history", [])
 
         slug = extract_slug_from_text(text)

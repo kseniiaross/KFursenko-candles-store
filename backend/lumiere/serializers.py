@@ -9,7 +9,9 @@ class LumiereMessageSerializer(serializers.Serializer):
 class LumiereReplyInSerializer(serializers.Serializer):
     text = serializers.CharField(max_length=2000)
     locale = serializers.ChoiceField(choices=["en", "ru", "es", "fr"], default="en")
-    userName = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    userName = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, max_length=80
+    )
     page = serializers.CharField(required=False, allow_blank=True, default="")
     history = LumiereMessageSerializer(many=True, required=False, default=list)
 
