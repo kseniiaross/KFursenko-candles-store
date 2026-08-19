@@ -9,8 +9,10 @@ from rest_framework.throttling import UserRateThrottle
 
 from candles.models import CandleVariant
 from cart.models import Cart, CartItem
+
 from .models import Order, OrderItem
-from .serializers import OrderCreateSerializer, OrderReadSerializer, OrderStatusUpdateSerializer
+from .serializers import (OrderCreateSerializer, OrderReadSerializer,
+                          OrderStatusUpdateSerializer)
 
 
 class OrderCreateThrottle(UserRateThrottle):
@@ -72,7 +74,10 @@ class MyOrdersAPIView(generics.ListAPIView):
         ),
         OpenApiParameter(
             name="ordering",
-            description="Ordering fields: created_at, total_amount, status (if ordering backend enabled). Example: -created_at",
+            description=(
+                "Ordering fields: created_at, total_amount, status "
+                "(if ordering backend enabled). Example: -created_at"
+            ),
             required=False,
             type=str,
         ),

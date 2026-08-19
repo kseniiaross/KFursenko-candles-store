@@ -5,19 +5,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .filters import CandleFilter
-from .models import (
-    GalleryItem,
-    Candle,
-    Category,
-    Collection,
-)
+from .models import Candle, Category, Collection, GalleryItem
 from .permissions import IsStaffOrReadOnly
-from .serializers import (
-    GalleryItemSerializer,
-    CandleSerializer,
-    CategorySerializer,
-    CollectionSerializer,
-)
+from .serializers import (CandleSerializer, CategorySerializer,
+                          CollectionSerializer, GalleryItemSerializer)
 
 
 # =========================

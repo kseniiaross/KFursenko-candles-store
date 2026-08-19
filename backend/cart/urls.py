@@ -1,13 +1,8 @@
 from django.urls import path
 
-from .views import (
-    MyCartAPIView,
-    AddCartItemAPIView,
-    UpdateCartItemAPIView,
-    RemoveCartItemAPIView,
-    MergeCartAPIView,
-    ClearCartAPIView,
-)
+from .views import (AddCartItemAPIView, ClearCartAPIView, MergeCartAPIView,
+                    MyCartAPIView, RemoveCartItemAPIView,
+                    UpdateCartItemAPIView)
 
 urlpatterns = [
     path("my/", MyCartAPIView.as_view(), name="cart-my"),

@@ -5,19 +5,11 @@ from rest_framework import permissions, status, throttling
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import (
-    LumiereReplyInSerializer,
-    LumiereReplyOutSerializer,
-    LumiereSearchInSerializer,
-    LumiereSearchOutSerializer,
-)
-from .services import (
-    ai_search_candles,
-    build_store_context,
-    call_openai_reply,
-    get_candle_by_slug,
-    search_candles,
-)
+from .serializers import (LumiereReplyInSerializer, LumiereReplyOutSerializer,
+                          LumiereSearchInSerializer,
+                          LumiereSearchOutSerializer)
+from .services import (ai_search_candles, build_store_context,
+                       call_openai_reply, get_candle_by_slug, search_candles)
 
 logger = logging.getLogger(__name__)
 

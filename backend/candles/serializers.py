@@ -2,16 +2,8 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import (
-    Category,
-    Collection,
-    Candle,
-    CandleVariant,
-    CandleImage,
-    Offer,
-    GalleryItem,
-)
-
+from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
+                     GalleryItem, Offer)
 
 SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
 
@@ -213,7 +205,7 @@ class CandleSerializer(serializers.ModelSerializer):
 
 
 # ======================================================
-# GALLERY 
+# GALLERY
 # ======================================================
 class GalleryItemSerializer(serializers.ModelSerializer):
     media = serializers.SerializerMethodField()

@@ -1,7 +1,6 @@
 import logging
 
 import stripe
-
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse

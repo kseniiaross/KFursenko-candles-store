@@ -5,8 +5,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from candles.models import CandleVariant
+
 from .models import Cart, CartItem
-from .serializers import CartSerializer, CartItemSerializer, MergeCartSerializer
+from .serializers import (CartItemSerializer, CartSerializer,
+                          MergeCartSerializer)
 
 
 def _get_or_create_cart(user):

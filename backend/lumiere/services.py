@@ -444,10 +444,18 @@ Rules:
             "query": clean_query,
             "text": _t(
                 safe_locale,
-                "Lumière is temporarily using catalog matching instead of full AI search. These are the closest candles I found from the available product data.",
-                "Lumière временно использует поиск по каталогу вместо полного AI-поиска. Я показала самые близкие свечи по доступным данным товара.",
-                "Lumière está usando temporalmente coincidencias del catálogo en lugar de la búsqueda completa con IA. Estas son las velas más cercanas según los datos disponibles.",
-                "Lumière utilise temporairement la recherche catalogue au lieu de la recherche IA complète. Voici les bougies les plus proches selon les données disponibles.",
+                "Lumière is temporarily using catalog matching instead of full AI "
+                "search. These are the closest candles I found from the available "
+                "product data.",
+                "Lumière временно использует поиск по каталогу вместо полного "
+                "AI-поиска. Я показала самые близкие свечи по доступным данным "
+                "товара.",
+                "Lumière está usando temporalmente coincidencias del catálogo en "
+                "lugar de la búsqueda completa con IA. Estas son las velas más "
+                "cercanas según los datos disponibles.",
+                "Lumière utilise temporairement la recherche catalogue au lieu de "
+                "la recherche IA complète. Voici les bougies les plus proches selon "
+                "les données disponibles.",
             ),
             "suggestions": fallback,
         }
