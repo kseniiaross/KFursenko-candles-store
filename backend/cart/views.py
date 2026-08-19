@@ -30,13 +30,16 @@ class AddCartItemAPIView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CartItemSerializer
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         cart = _get_or_create_cart(request.user)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        variant = serializer.validated_data["variant"]
+        variant = CandleVariant.objects.select_for_update().get(
+            pk=serializer.validated_data["variant"].pk
+        )
         qty = serializer.validated_data.get("quantity", 1)
         is_gift = bool(serializer.validated_data.get("is_gift", False))
 
@@ -70,14 +73,17 @@ class UpdateCartItemAPIView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CartItemSerializer
 
+    @transaction.atomic
     def patch(self, request, *args, **kwargs):
         cart = _get_or_create_cart(request.user)
         item_id = kwargs.get("item_id")
 
         try:
-            item = CartItem.objects.select_related("variant", "variant__candle").get(
-                id=item_id,
-                cart=cart,
+            item = (
+                CartItem.objects
+                .select_related("variant", "variant__candle")
+                .select_for_update()
+                .get(id=item_id, cart=cart)
             )
         except CartItem.DoesNotExist:
             return Response({"detail": "Item not found."}, status=status.HTTP_404_NOT_FOUND)
