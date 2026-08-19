@@ -14,7 +14,7 @@ class CandleFilter(django_filters.FilterSet):
 
     is_bestseller = django_filters.BooleanFilter(field_name="is_bestseller")
     is_sold_out = django_filters.BooleanFilter(field_name="is_sold_out")
-    in_stock = django_filters.BooleanFilter(field_name="in_stock")
+    in_stock = django_filters.BooleanFilter(method="filter_in_stock")
 
     class Meta:
         model = Candle
@@ -34,3 +34,8 @@ class CandleFilter(django_filters.FilterSet):
             return queryset.filter(Q(collections=col) | Q(collections__in=child_ids)).distinct()
 
         return queryset.filter(collections=col).distinct()
+
+    def filter_in_stock(self, queryset, name, value):
+        if value:
+            return queryset.filter(stock_qty__gt=0)
+        return queryset.filter(stock_qty__lte=0)

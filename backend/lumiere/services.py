@@ -20,11 +20,6 @@ AI_SEARCH_CACHE_SECONDS = 60 * 30
 
 SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
 
-PRODUCT_URL_RE = re.compile(
-    r"(?:https?://)?(?:www\.)?kfcandle\.com/catalog/(?:item/)?(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)",
-    re.IGNORECASE,
-)
-
 
 def _t(locale: str, en: str, ru: str, es: str, fr: str) -> str:
     if locale == "ru":

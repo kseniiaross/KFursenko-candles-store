@@ -175,16 +175,21 @@ class CandleSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         return build_cloudinary_image_url(obj.image)
 
-    def get_badges(self, obj):
+    def _applicable_offers(self, obj):
+        """Offers that apply to this candle: global, directly assigned (m2m
+        and reverse m2m), by category, or by any of its collections."""
         qs = Offer.objects.filter(is_active=True)
 
-        combined = (
+        return (
             qs.filter(apply_globally=True)
             | obj.offers.filter(is_active=True)
             | qs.filter(candles=obj)
             | qs.filter(categories=obj.category)
             | qs.filter(collections__in=obj.collections.all())
         ).distinct()
+
+    def get_badges(self, obj):
+        combined = self._applicable_offers(obj)
 
         return CandleBadgeSerializer(
             combined.order_by("priority"),
@@ -196,7 +201,7 @@ class CandleSerializer(serializers.ModelSerializer):
             return None
 
         base = Decimal(obj.price)
-        offers = Offer.objects.filter(is_active=True)
+        offers = self._applicable_offers(obj).order_by("priority")
 
         for offer in offers:
             if offer.discount_percent:
