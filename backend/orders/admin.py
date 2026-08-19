@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Count, DecimalField, F, Sum, Value
-from django.db.models.functions import Coalesce
 from django.db.models.expressions import ExpressionWrapper
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.urls import path
 
@@ -103,7 +103,8 @@ class OrderAdmin(admin.ModelAdmin):
         html.append("<tr><th>User</th><th>Orders</th><th>Revenue</th></tr>")
         for row in by_user:
             html.append(
-                f"<tr><td>{row['user__email'] or row['user__id']}</td><td>{row['orders']}</td><td>{row['revenue']}</td></tr>"
+                f"<tr><td>{row['user__email'] or row['user__id']}</td>"
+                f"<td>{row['orders']}</td><td>{row['revenue']}</td></tr>"
             )
         html.append("</table>")
 
@@ -112,7 +113,8 @@ class OrderAdmin(admin.ModelAdmin):
         html.append("<tr><th>Product</th><th>Qty sold</th><th>Revenue</th></tr>")
         for row in by_product:
             html.append(
-                f"<tr><td>{row['candle__name'] or row['candle__id']}</td><td>{row['qty']}</td><td>{row['revenue']}</td></tr>"
+                f"<tr><td>{row['candle__name'] or row['candle__id']}</td>"
+                f"<td>{row['qty']}</td><td>{row['revenue']}</td></tr>"
             )
         html.append("</table>")
 

@@ -1,13 +1,8 @@
 from django.urls import path
 
-from .views import (
-    CreateOrderAPIView,
-    MyOrdersAPIView,
-    CreateOrderFromCartAPIView,
-    OrderDetailAPIView,
-    OrderStatusUpdateAPIView,
-    StaffOrdersAPIView,
-)
+from .views import (CreateOrderAPIView, CreateOrderFromCartAPIView,
+                    MyOrdersAPIView, OrderDetailAPIView,
+                    OrderStatusUpdateAPIView, StaffOrdersAPIView)
 from .views_stripe import CreatePaymentIntentView, stripe_webhook
 
 urlpatterns = [

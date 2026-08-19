@@ -1,14 +1,7 @@
 from django.contrib import admin
 
-from .models import (
-    Category,
-    Collection,
-    Candle,
-    CandleVariant,
-    CandleImage,
-    Offer,
-    GalleryItem,
-)
+from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
+                     GalleryItem, Offer)
 
 
 @admin.register(Category)

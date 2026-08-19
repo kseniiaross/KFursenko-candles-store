@@ -1,10 +1,9 @@
-from pathlib import Path
 from datetime import timedelta
-import os  
+from pathlib import Path
+
+import cloudinary
 import dj_database_url
 from decouple import config
-import cloudinary
-
 
 # ------------------------------------------------------------
 # Paths
@@ -109,7 +108,7 @@ INSTALLED_APPS = [
     "cart",
     "orders",
     "newsletter",
-    "lumiere", 
+    "lumiere",
 ]
 
 

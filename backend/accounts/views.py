@@ -1,11 +1,8 @@
 from rest_framework import generics, permissions
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .serializers import (
-    RegisterSerializer,
-    ProfileSerializer,
-    CustomTokenObtainPairSerializer,
-)
+from .serializers import (CustomTokenObtainPairSerializer, ProfileSerializer,
+                          RegisterSerializer)
 
 
 class RegisterAPIView(generics.CreateAPIView):

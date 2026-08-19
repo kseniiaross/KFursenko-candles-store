@@ -1,11 +1,7 @@
 from rest_framework.routers import DefaultRouter
 
-from .views import (
-    CategoryViewSet,
-    CollectionViewSet,
-    CandleViewSet,
-    GalleryItemViewSet,
-)
+from .views import (CandleViewSet, CategoryViewSet, CollectionViewSet,
+                    GalleryItemViewSet)
 
 router = DefaultRouter()
 router.register(r"categories", CategoryViewSet, basename="category")

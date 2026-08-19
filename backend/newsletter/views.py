@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions
+
 from .models import NewsletterSubscriber
 from .serializers import NewsletterSubscriberSerializer
 
