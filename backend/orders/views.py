@@ -7,7 +7,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
-from candles.models import Candle
+from candles.models import CandleVariant
 from cart.models import Cart, CartItem
 from .models import Order, OrderItem
 from .serializers import OrderCreateSerializer, OrderReadSerializer, OrderStatusUpdateSerializer
@@ -107,18 +107,28 @@ class CreateOrderFromCartAPIView(generics.GenericAPIView):
         user = request.user
 
         cart, _ = Cart.objects.get_or_create(user=user)
-        cart_items = CartItem.objects.select_related("candle").select_for_update().filter(cart=cart)
+        cart_items = (
+            CartItem.objects
+            .select_related("variant", "variant__candle")
+            .select_for_update()
+            .filter(cart=cart)
+        )
 
         if not cart_items.exists():
             raise ValidationError({"cart": "Cart is empty."})
 
-        candle_ids = list(cart_items.values_list("candle_id", flat=True))
-        candles = Candle.objects.select_for_update().filter(id__in=candle_ids)
-        candle_map = {c.id: c for c in candles}
+        variant_ids = list(cart_items.values_list("variant_id", flat=True))
+        variants = (
+            CandleVariant.objects
+            .select_for_update()
+            .select_related("candle")
+            .filter(id__in=variant_ids)
+        )
+        variant_map = {v.id: v for v in variants}
 
-        if len(candle_map) != len(set(candle_ids)):
-            missing = sorted(set(candle_ids) - set(candle_map.keys()))
-            raise ValidationError({"cart": f"Some candle_id do not exist: {missing}"})
+        if len(variant_map) != len(set(variant_ids)):
+            missing = sorted(set(variant_ids) - set(variant_map.keys()))
+            raise ValidationError({"cart": f"Some variant_id do not exist: {missing}"})
 
         order = Order.objects.create(
             user=user,
@@ -130,24 +140,33 @@ class CreateOrderFromCartAPIView(generics.GenericAPIView):
         total = Decimal("0.00")
 
         for item in cart_items:
-            candle = candle_map[item.candle_id]
+            variant = variant_map[item.variant_id]
+            candle = variant.candle
             qty = int(item.quantity)
 
-            if candle.stock_qty < qty:
-                raise ValidationError({"cart": f"Not enough stock for: {candle.name} (id={candle.id})"})
+            if not variant.is_active:
+                raise ValidationError(
+                    {"cart": f"{candle.name} / {variant.size} is currently unavailable."}
+                )
 
-            candle.stock_qty -= qty
-            candle.save(update_fields=["stock_qty"])
+            if variant.stock_qty < qty:
+                raise ValidationError(
+                    {"cart": f"Not enough stock for: {candle.name} / {variant.size}"}
+                )
+
+            variant.stock_qty -= qty
+            variant.save(update_fields=["stock_qty"])
 
             OrderItem.objects.create(
                 order=order,
                 candle=candle,
-                product_name=candle.name,
-                unit_price=candle.price,
+                product_name=f"{candle.name} - {variant.size}",
+                unit_price=variant.price,
                 quantity=qty,
+                is_gift=item.is_gift,
             )
 
-            total += candle.price * qty
+            total += variant.price * qty
 
         order.total_amount = total
         order.save(update_fields=["total_amount"])
