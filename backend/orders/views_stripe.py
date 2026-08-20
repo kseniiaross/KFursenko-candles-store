@@ -172,7 +172,7 @@ def stripe_webhook(request):
 
     if event_type == "payment_intent.succeeded":
         intent_id = data["id"]
-        order_id = data["metadata"].get("order_id")
+        order_id = (data.get("metadata") or {}).get("order_id")
         should_send_email = False
         order_to_email = None
 
@@ -206,7 +206,7 @@ def stripe_webhook(request):
 
     if event_type == "payment_intent.payment_failed":
         intent_id = data["id"]
-        order_id = data["metadata"].get("order_id")
+        order_id = (data.get("metadata") or {}).get("order_id")
 
         with transaction.atomic():
             order = (
