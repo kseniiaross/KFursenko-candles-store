@@ -1,4 +1,5 @@
 import logging
+from decimal import ROUND_HALF_UP, Decimal
 
 import stripe
 from django.conf import settings
@@ -24,6 +25,32 @@ class StripeIntentUserThrottle(throttling.UserRateThrottle):
 class CreatePaymentIntentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [StripeIntentUserThrottle]
+
+    # PaymentIntent statuses that can still be confirmed/paid, so it's safe
+    # to hand the same intent back to the client instead of creating a new
+    # one. Anything else (succeeded, canceled, processing, ...) means a
+    # fresh PaymentIntent is needed.
+    REUSABLE_INTENT_STATUSES = frozenset(
+        {"requires_payment_method", "requires_confirmation", "requires_action"}
+    )
+
+    def _get_reusable_intent(self, existing_intent_id):
+        if not existing_intent_id:
+            return None
+
+        try:
+            intent = stripe.PaymentIntent.retrieve(existing_intent_id)
+        except stripe.error.StripeError:
+            logger.warning(
+                "Could not retrieve existing PaymentIntent %s; creating a new one.",
+                existing_intent_id,
+            )
+            return None
+
+        if intent.status not in self.REUSABLE_INTENT_STATUSES:
+            return None
+
+        return intent
 
     def post(self, request):
         order_id = request.data.get("order_id")
@@ -54,7 +81,15 @@ class CreatePaymentIntentView(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                amount = int(order.total_amount * 100)
+                # Stripe wants an integer number of cents. total_amount is
+                # a Decimal, but int() truncates toward zero rather than
+                # rounding - quantize to the nearest cent first so e.g.
+                # 19.995 becomes 2000, not 1999.
+                amount = int(
+                    (order.total_amount * 100).quantize(
+                        Decimal("1"), rounding=ROUND_HALF_UP
+                    )
+                )
 
                 if amount < 50:
                     return Response(
@@ -62,18 +97,32 @@ class CreatePaymentIntentView(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                intent = stripe.PaymentIntent.create(
-                    amount=amount,
-                    currency=order.currency or "usd",
-                    payment_method_types=["card"],
-                    metadata={
-                        "order_id": str(order.id),
-                        "user_id": str(request.user.id),
-                    },
-                )
+                currency = order.currency or "usd"
+                metadata = {
+                    "order_id": str(order.id),
+                    "user_id": str(request.user.id),
+                }
 
-                order.stripe_payment_intent_id = intent.id
-                order.save(update_fields=["stripe_payment_intent_id"])
+                intent = self._get_reusable_intent(order.stripe_payment_intent_id)
+
+                if intent is not None and (intent.amount != amount or intent.currency != currency):
+                    intent = stripe.PaymentIntent.modify(
+                        intent.id,
+                        amount=amount,
+                        currency=currency,
+                        metadata=metadata,
+                    )
+
+                if intent is None:
+                    intent = stripe.PaymentIntent.create(
+                        amount=amount,
+                        currency=currency,
+                        payment_method_types=["card"],
+                        metadata=metadata,
+                    )
+
+                    order.stripe_payment_intent_id = intent.id
+                    order.save(update_fields=["stripe_payment_intent_id"])
 
             return Response(
                 {
@@ -98,9 +147,23 @@ def stripe_webhook(request):
     if request.method != "POST":
         return HttpResponse(status=405)
 
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    if not endpoint_secret:
+        # Fail closed: without a real secret, stripe.Webhook.construct_event()
+        # would verify the signature using an empty HMAC key, which anyone can
+        # compute without knowing anything about this deployment - that is,
+        # it would accept forged events from anyone, not just Stripe. Refuse
+        # to process webhooks at all until a real secret is configured rather
+        # than silently trusting unverified requests.
+        logger.error(
+            "STRIPE_WEBHOOK_SECRET is not configured; refusing to process "
+            "the Stripe webhook request."
+        )
+        return HttpResponse(status=500)
+
     payload = request.body
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
-    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
 
     try:
         event = stripe.Webhook.construct_event(
@@ -118,7 +181,7 @@ def stripe_webhook(request):
 
     if event_type == "payment_intent.succeeded":
         intent_id = data["id"]
-        order_id = data["metadata"].get("order_id")
+        order_id = (data.get("metadata") or {}).get("order_id")
         should_send_email = False
         order_to_email = None
 
@@ -152,7 +215,7 @@ def stripe_webhook(request):
 
     if event_type == "payment_intent.payment_failed":
         intent_id = data["id"]
-        order_id = data["metadata"].get("order_id")
+        order_id = (data.get("metadata") or {}).get("order_id")
 
         with transaction.atomic():
             order = (
