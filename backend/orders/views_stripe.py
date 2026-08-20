@@ -25,6 +25,32 @@ class CreatePaymentIntentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [StripeIntentUserThrottle]
 
+    # PaymentIntent statuses that can still be confirmed/paid, so it's safe
+    # to hand the same intent back to the client instead of creating a new
+    # one. Anything else (succeeded, canceled, processing, ...) means a
+    # fresh PaymentIntent is needed.
+    REUSABLE_INTENT_STATUSES = frozenset(
+        {"requires_payment_method", "requires_confirmation", "requires_action"}
+    )
+
+    def _get_reusable_intent(self, existing_intent_id):
+        if not existing_intent_id:
+            return None
+
+        try:
+            intent = stripe.PaymentIntent.retrieve(existing_intent_id)
+        except stripe.error.StripeError:
+            logger.warning(
+                "Could not retrieve existing PaymentIntent %s; creating a new one.",
+                existing_intent_id,
+            )
+            return None
+
+        if intent.status not in self.REUSABLE_INTENT_STATUSES:
+            return None
+
+        return intent
+
     def post(self, request):
         order_id = request.data.get("order_id")
 
@@ -62,18 +88,32 @@ class CreatePaymentIntentView(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                intent = stripe.PaymentIntent.create(
-                    amount=amount,
-                    currency=order.currency or "usd",
-                    payment_method_types=["card"],
-                    metadata={
-                        "order_id": str(order.id),
-                        "user_id": str(request.user.id),
-                    },
-                )
+                currency = order.currency or "usd"
+                metadata = {
+                    "order_id": str(order.id),
+                    "user_id": str(request.user.id),
+                }
 
-                order.stripe_payment_intent_id = intent.id
-                order.save(update_fields=["stripe_payment_intent_id"])
+                intent = self._get_reusable_intent(order.stripe_payment_intent_id)
+
+                if intent is not None and (intent.amount != amount or intent.currency != currency):
+                    intent = stripe.PaymentIntent.modify(
+                        intent.id,
+                        amount=amount,
+                        currency=currency,
+                        metadata=metadata,
+                    )
+
+                if intent is None:
+                    intent = stripe.PaymentIntent.create(
+                        amount=amount,
+                        currency=currency,
+                        payment_method_types=["card"],
+                        metadata=metadata,
+                    )
+
+                    order.stripe_payment_intent_id = intent.id
+                    order.save(update_fields=["stripe_payment_intent_id"])
 
             return Response(
                 {
