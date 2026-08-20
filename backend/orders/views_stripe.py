@@ -1,4 +1,5 @@
 import logging
+from decimal import ROUND_HALF_UP, Decimal
 
 import stripe
 from django.conf import settings
@@ -80,7 +81,15 @@ class CreatePaymentIntentView(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                amount = int(order.total_amount * 100)
+                # Stripe wants an integer number of cents. total_amount is
+                # a Decimal, but int() truncates toward zero rather than
+                # rounding - quantize to the nearest cent first so e.g.
+                # 19.995 becomes 2000, not 1999.
+                amount = int(
+                    (order.total_amount * 100).quantize(
+                        Decimal("1"), rounding=ROUND_HALF_UP
+                    )
+                )
 
                 if amount < 50:
                     return Response(

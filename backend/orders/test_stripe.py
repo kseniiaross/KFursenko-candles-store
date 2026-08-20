@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import time
+from decimal import ROUND_HALF_UP, Decimal
 
 import pytest
 
@@ -72,3 +73,25 @@ class TestStripeWebhookMetadataGuard:
         )
 
         assert response.status_code == 200
+
+
+class TestCentAmountRounding:
+    """Mirrors the exact expression CreatePaymentIntentView uses to convert
+    order.total_amount into the integer cent amount Stripe's API expects -
+    plain Decimal math, no DB/HTTP needed."""
+
+    @staticmethod
+    def _to_cents(amount: str) -> int:
+        return int(
+            (Decimal(amount) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        )
+
+    def test_exact_cent_amounts_unaffected(self):
+        assert self._to_cents("24.00") == 2400
+        assert self._to_cents("0.50") == 50
+
+    def test_rounds_instead_of_truncating(self):
+        # int(Decimal("19.995") * 100) truncates to 1999; this should round
+        # to the nearest cent (2000) instead.
+        assert self._to_cents("19.995") == 2000
+        assert self._to_cents("0.005") == 1
