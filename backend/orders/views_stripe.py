@@ -98,9 +98,23 @@ def stripe_webhook(request):
     if request.method != "POST":
         return HttpResponse(status=405)
 
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    if not endpoint_secret:
+        # Fail closed: without a real secret, stripe.Webhook.construct_event()
+        # would verify the signature using an empty HMAC key, which anyone can
+        # compute without knowing anything about this deployment - that is,
+        # it would accept forged events from anyone, not just Stripe. Refuse
+        # to process webhooks at all until a real secret is configured rather
+        # than silently trusting unverified requests.
+        logger.error(
+            "STRIPE_WEBHOOK_SECRET is not configured; refusing to process "
+            "the Stripe webhook request."
+        )
+        return HttpResponse(status=500)
+
     payload = request.body
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
-    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
 
     try:
         event = stripe.Webhook.construct_event(
