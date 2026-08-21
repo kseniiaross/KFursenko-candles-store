@@ -130,11 +130,17 @@ const Catalog: React.FC = () => {
           setCategories([]);
         }
 
-        const resolvedCategoryId = categorySlug
-          ? categoriesData.find(
-              (category) => category.slug === categorySlug
-            )?.id
-          : categoryId;
+        // An explicit ?category= query param (set by the category dropdown)
+        // must win over the route's :categorySlug, otherwise picking a
+        // category while already on a /catalog/category/:slug page is a
+        // no-op — the slug-derived id always overrides the user's choice.
+        const resolvedCategoryId =
+          categoryId ??
+          (categorySlug
+            ? categoriesData.find(
+                (category) => category.slug === categorySlug
+              )?.id
+            : undefined);
 
         const candlesData = await listCandles({
           search: q.trim() || undefined,
