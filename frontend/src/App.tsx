@@ -30,6 +30,7 @@ const Profile = React.lazy(() => import("./pages/Profile"));
 const StoryMission = React.lazy(() => import("./pages/StoryMission"));
 const Contacts = React.lazy(() => import("./pages/Contacts"));
 const Gallery = React.lazy(() => import("./pages/Gallery"));
+const ComingSoon = React.lazy(() => import("./pages/ComingSoon"));
 const RecommendationQuiz = React.lazy(() => import("./pages/RecommendationQuiz"));
 const RecommendationResult = React.lazy(() => import("./pages/RecommendationResult"));
 const Delivery = React.lazy(() => import("./pages/CustomerCare/Delivery"));
@@ -126,6 +127,89 @@ const App: React.FC = () => {
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/story-mission" element={<StoryMission />} />
             <Route path="/gallery" element={<Gallery />} />
+
+            <Route
+              path="/collections"
+              element={
+                <ComingSoon
+                  kicker="Candles"
+                  title="Collections"
+                  subtitle="Shop by seasonal collection — curated sets of scents for the moment you're in."
+                />
+              }
+            />
+            <Route
+              path="/collections/spring-summer"
+              element={
+                <ComingSoon
+                  kicker="Collections"
+                  title="Spring–Summer Collection"
+                  subtitle="Bright, fresh scents for the warmer months."
+                />
+              }
+            />
+            <Route
+              path="/collections/autumn-winter"
+              element={
+                <ComingSoon
+                  kicker="Collections"
+                  title="Autumn–Winter Collection"
+                  subtitle="Warm, spiced scents for cozy evenings."
+                />
+              }
+            />
+
+            <Route
+              path="/offers"
+              element={
+                <ComingSoon
+                  kicker="Offers"
+                  title="All Offers"
+                  subtitle="Current promotions and seasonal deals."
+                />
+              }
+            />
+            <Route
+              path="/offers/new-shopper"
+              element={
+                <ComingSoon
+                  kicker="Offers"
+                  title="New Shopper Offer"
+                  subtitle="A welcome offer for your first order with us."
+                />
+              }
+            />
+            <Route
+              path="/offers/buy-1-get-2"
+              element={
+                <ComingSoon
+                  kicker="Offers"
+                  title="Buy 1 Get 2"
+                  subtitle="Details on our buy-one-get-two promotion."
+                />
+              }
+            />
+            <Route
+              path="/offers/holidays"
+              element={
+                <ComingSoon
+                  kicker="Offers"
+                  title="Holiday Offers"
+                  subtitle="Seasonal holiday promotions."
+                />
+              }
+            />
+
+            <Route
+              path="/reviews"
+              element={
+                <ComingSoon
+                  kicker="About"
+                  title="Reviews"
+                  subtitle="What our customers are saying about KFursenko Candles."
+                />
+              }
+            />
 
             <Route path="/recommendation-quiz" element={<RecommendationQuiz />} />
             <Route

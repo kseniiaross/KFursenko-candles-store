@@ -41,7 +41,7 @@ const Footer: React.FC = () => {
         { label: t("footer.containerCandles"), to: "/catalog/container" },
         { label: t("footer.moldedCandles"), to: "/catalog/molded" },
         { label: t("footer.collections"), to: "/collections" },
-        { label: t("footer.customCandle"), to: "/custom-candle" },
+        { label: t("footer.customCandle"), to: "/catalog/category/custom-candle" },
       ],
       care: [
         { label: t("footer.delivery"), to: "/delivery" },
