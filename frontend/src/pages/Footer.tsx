@@ -38,8 +38,8 @@ const Footer: React.FC = () => {
     () => ({
       candles: [
         { label: t("footer.allCandles"), to: "/catalog" },
-        { label: t("footer.containerCandles"), to: "/catalog/container" },
-        { label: t("footer.moldedCandles"), to: "/catalog/molded" },
+        { label: t("footer.containerCandles"), to: "/catalog/category/container-candles" },
+        { label: t("footer.moldedCandles"), to: "/catalog/category/molded-candles" },
         { label: t("footer.collections"), to: "/collections" },
         { label: t("footer.customCandle"), to: "/catalog/category/custom-candle" },
       ],
