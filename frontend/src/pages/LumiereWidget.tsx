@@ -436,7 +436,7 @@ const LumiereWidget: React.FC = () => {
 
                             <div className="lumiereCard__price">
                               {product.price
-                                ? t("lumiere.fromPrice", {
+                                ? t("lumiere.priceFrom", {
                                     price: product.price,
                                   })
                                 : t("lumiere.seeProduct")}
