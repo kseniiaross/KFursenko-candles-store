@@ -4,6 +4,7 @@ export type AboutGalleryItem = {
   title: string;
   slug: string;
   media_type: "image" | "video";
+  content_type: "gallery" | "review";
   media: string;
   preview_image: string | null;
   caption: string;

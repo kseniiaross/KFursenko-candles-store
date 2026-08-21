@@ -2,7 +2,12 @@ import api from "../api/axiosInstance";
 import type { AboutGalleryItem, AboutReviewItem } from "../types/content";
 
 export async function listAboutGallery(): Promise<AboutGalleryItem[]> {
-  const response = await api.get<AboutGalleryItem[]>("/candles/about-gallery/");
+  // /candles/about-gallery/ no longer exists on the backend — the
+  // AboutGalleryItem model was replaced by the unified GalleryItem model,
+  // served from /candles/gallery/ and filtered by content_type.
+  const response = await api.get<AboutGalleryItem[]>("/candles/gallery/", {
+    params: { content_type: "gallery" },
+  });
   return Array.isArray(response.data) ? response.data : [];
 }
 
