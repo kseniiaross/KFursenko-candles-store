@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 
 import type { Candle, CandleVariant } from "../types/candle";
+import { hasColorChoice } from "../types/candle";
 
 import "../styles/CatalogDetail.css";
 
@@ -160,6 +161,7 @@ const CatalogDetail: React.FC = () => {
   if (!item) return null;
 
   const variants = item.variants ?? [];
+  const showColors = hasColorChoice(item);
 
   return (
     <main className="catalogDetail" aria-label={t("catalogDetail.pageLabel")}>
@@ -226,6 +228,36 @@ const CatalogDetail: React.FC = () => {
                     >
                       {s.name}
                     </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Each wax color is a separate product with its own photos,
+                so picking one navigates to that product. */}
+            {showColors && (
+              <div className="catalogDetail__colorBlock">
+                <span className="catalogDetail__colorLabel">
+                  {item.color ? item.color.name : "Color"}
+                </span>
+
+                <div className="catalogDetail__colorOptions">
+                  {item.color_options!.map((option) => (
+                    <button
+                      key={option.slug}
+                      type="button"
+                      className={`catalogDetail__colorBtn${
+                        option.is_current ? " is-active" : ""
+                      }`}
+                      style={{ background: option.color.hex }}
+                      onClick={() => {
+                        if (option.is_current) return;
+                        navigate(`/catalog/item/${option.slug}`);
+                      }}
+                      aria-label={option.color.name}
+                      aria-current={option.is_current}
+                      title={option.color.name}
+                    />
                   ))}
                 </div>
               </div>

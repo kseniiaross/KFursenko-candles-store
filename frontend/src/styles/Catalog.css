@@ -251,6 +251,30 @@
   gap: 12px;
 }
 
+/* Wax color swatches — each links to that color's own product page. */
+.catalogCard__swatches {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.catalogCard__swatch {
+  width: 14px;
+  height: 14px;
+  display: block;
+  border: 1px solid rgba(17, 17, 17, 0.22);
+  transition: transform 160ms ease;
+}
+
+.catalogCard__swatch:hover {
+  transform: scale(1.15);
+}
+
+.catalogCard__swatch.is-active {
+  outline: 1px solid #111111;
+  outline-offset: 2px;
+}
+
 .catalogCard__name {
   margin: 0;
   color: #111111;

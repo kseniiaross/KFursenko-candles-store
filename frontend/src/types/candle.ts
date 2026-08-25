@@ -23,6 +23,39 @@ export interface Category {
   id: number;
   name: string;
   slug: string;
+  allows_wax_color?: boolean;
+}
+
+export interface Fragrance {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface Color {
+  id: number;
+  name: string;
+  slug: string;
+  hex: string;
+}
+
+/** Another size of the same scent — its own card in the catalog. */
+export interface CandleSibling {
+  id: number;
+  slug: string;
+  size: string;
+  price: string | null;
+  is_sold_out: boolean;
+}
+
+/** Same scent and size in a different wax color — also its own card. */
+export interface ColorOption {
+  id: number;
+  slug: string;
+  image: string | null;
+  color: Color;
+  is_current: boolean;
+  is_sold_out: boolean;
 }
 
 export type BadgeKind =
@@ -100,6 +133,13 @@ export interface Candle {
   category?: Category;
   collections: Collection[];
 
+  fragrance?: Fragrance | null;
+  size?: string;
+  siblings?: CandleSibling[];
+
+  color?: Color | null;
+  color_options?: ColorOption[];
+
   badges?: CandleBadge[];
   variants?: CandleVariant[];
 }
@@ -142,4 +182,25 @@ export function isCandleAvailable(candle: Candle): boolean {
   }
 
   return Boolean(candle.in_stock || (candle.stock_qty ?? 0) > 0);
+}
+
+/** Swatches are only meaningful when there is a choice to make. */
+export function hasColorChoice(candle: Candle): boolean {
+  return (candle.color_options?.length ?? 0) > 1;
+}
+
+/** All sizes of a scent, current one included, ready for the switcher. */
+export function getSizeOptions(
+  candle: Candle,
+): Array<{ slug: string; size: string; isCurrent: boolean }> {
+  if (!candle.fragrance || !candle.siblings?.length) return [];
+
+  return [
+    { slug: candle.slug, size: candle.size ?? "", isCurrent: true },
+    ...candle.siblings.map((s) => ({
+      slug: s.slug,
+      size: s.size,
+      isCurrent: false,
+    })),
+  ].sort((a, b) => a.size.localeCompare(b.size, undefined, { numeric: true }));
 }

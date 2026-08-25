@@ -13,7 +13,7 @@ SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
 # ======================================================
 def build_cloudinary_image_url(image, width=1000, height=1250):
     """Card frames are 4:5. `limit` only downscales — it never crops,
-    so the aspect ratio of whatever was uploaded is preserved."""
+    so whatever aspect ratio was uploaded is preserved."""
     if not image:
         return None
     try:
@@ -173,6 +173,7 @@ class CandleSerializer(serializers.ModelSerializer):
     badges = serializers.SerializerMethodField()
     discount_price = serializers.SerializerMethodField()
     siblings = serializers.SerializerMethodField()
+    color_options = serializers.SerializerMethodField()
 
     class Meta:
         model = Candle
@@ -185,6 +186,7 @@ class CandleSerializer(serializers.ModelSerializer):
             "badges",
             "discount_price",
             "siblings",
+            "color_options",
         ]
 
     def get_name(self, obj):
@@ -201,13 +203,19 @@ class CandleSerializer(serializers.ModelSerializer):
         return build_cloudinary_image_url(obj.image)
 
     def get_siblings(self, obj):
-        """Other sizes of the same scent — used by the size switcher on
-        the product page. Each one is its own card in the catalog."""
+        """Other sizes of the same scent. Each is its own catalog card;
+        the product page uses this for the size switcher."""
         if not obj.fragrance_id:
             return []
 
         others = (
             Candle.objects.filter(fragrance_id=obj.fragrance_id)
+            .exclude(size=obj.size)
+            .exclude(pk=obj.pk)
+            .order_by("size")
+            .distinct("size")
+            if False  # distinct("size") is Postgres-only and needs matching order_by
+            else Candle.objects.filter(fragrance_id=obj.fragrance_id)
             .exclude(pk=obj.pk)
             .order_by("size")
         )
@@ -221,6 +229,35 @@ class CandleSerializer(serializers.ModelSerializer):
                 "is_sold_out": c.is_sold_out,
             }
             for c in others
+        ]
+
+    def get_color_options(self, obj):
+        """Every wax color this candle exists in — same scent, same size.
+        Each color is a separate product, so the swatch carries its slug
+        and its own cover image for the product page."""
+        if not obj.color_id or not obj.fragrance_id:
+            return []
+
+        group = (
+            Candle.objects.filter(
+                fragrance_id=obj.fragrance_id,
+                size=obj.size,
+                color__isnull=False,
+            )
+            .select_related("color")
+            .order_by("color__sort_order", "color__name")
+        )
+
+        return [
+            {
+                "id": c.id,
+                "slug": c.slug,
+                "image": build_cloudinary_image_url(c.image),
+                "color": ColorSerializer(c.color).data,
+                "is_current": c.pk == obj.pk,
+                "is_sold_out": c.is_sold_out,
+            }
+            for c in group
         ]
 
     def _applicable_offers(self, obj):

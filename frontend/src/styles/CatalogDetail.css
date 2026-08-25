@@ -145,6 +145,48 @@
   gap: 9px;
 }
 
+.catalogDetail__colorBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.catalogDetail__colorLabel {
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.catalogDetail__colorOptions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.catalogDetail__colorBtn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: transform 160ms ease;
+}
+
+.catalogDetail__colorBtn:hover {
+  transform: scale(1.08);
+}
+
+.catalogDetail__colorBtn.is-active {
+  outline: 2px solid #111111;
+  outline-offset: 3px;
+  cursor: default;
+}
+
+[data-theme="dark"] .catalogDetail__colorBtn.is-active {
+  outline-color: rgba(245, 239, 232, 0.95);
+}
+
 .catalogDetail__scentLabel,
 .catalogDetail__sizeLabel {
   font-size: 0.78rem;
