@@ -322,8 +322,8 @@ class Candle(models.Model):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["fragrance", "size"],
-                name="unique_fragrance_size",
+                fields=["fragrance", "size", "color"],
+                name="unique_fragrance_size_color",
                 condition=models.Q(fragrance__isnull=False),
             )
         ]
