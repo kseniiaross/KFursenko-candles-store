@@ -1,9 +1,6 @@
 import React, { useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-
-import loginBg from "../assets/images/lightmode.jpg";
-
 import "../styles/LoginChoice.css";
 
 function isSafePath(path: string | null): path is string {
@@ -23,15 +20,7 @@ const LoginChoice: React.FC = () => {
   }, [location.search]);
 
   return (
-    <main
-      className="loginChoice"
-      aria-labelledby="login-choice-title"
-      style={
-        {
-          "--login-choice-bg": `url(${loginBg})`,
-        } as React.CSSProperties
-      }
-    >
+    <main className="loginChoice" aria-labelledby="login-choice-title">
       <section
         className="loginChoice__container"
         aria-describedby="login-choice-subtitle"
