@@ -96,14 +96,16 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     return i18n.resolvedLanguage?.split("-")[0] ?? i18n.language.split("-")[0];
   }, [i18n.language, i18n.resolvedLanguage]);
 
-  const links = useMemo(
+    const links = useMemo(
     () => ({
       candles: [
         { label: t("header.allCandles"), to: "/catalog" },
         { label: t("header.containerCandles"), to: "/catalog/category/container-candles" },
         { label: t("header.moldedCandles"), to: "/catalog/category/molded-candles" },
-        { label: t("header.springSummer"), to: "/catalog/category/spring-summer-collection" },
-        { label: t("header.autumnWinter"), to: "/catalog/category/autumn-winter-collection" },
+        // Seasonal lines are collections, not categories — they group
+        // sub-collections, so they resolve through a different route.
+        { label: t("header.springSummer"), to: "/catalog/collection/spring-summer-collection" },
+        { label: t("header.autumnWinter"), to: "/catalog/collection/autumn-winter-collection" },
         { label: t("header.customCandle"), to: "/custom-candles" },
         { label: t("header.singleWick"), to: "/catalog/category/single-wick-candles" },
         { label: t("header.multipleWick"), to: "/catalog/category/multiple-wick-candles" },

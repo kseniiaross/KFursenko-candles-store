@@ -1,4 +1,3 @@
-from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
@@ -9,6 +8,33 @@ from .models import Candle, Category, Collection, GalleryItem
 from .permissions import IsStaffOrReadOnly
 from .serializers import (CandleSerializer, CategorySerializer,
                           CollectionSerializer, GalleryItemSerializer)
+
+
+def collection_tree_ids(collection):
+    """A collection and every collection nested under it.
+
+    A candle attached only to a berry sub-collection must still appear
+    under Spring-Summer, so filtering by a parent has to reach the
+    whole subtree, not just its direct children.
+    """
+    ids = [collection.id]
+    frontier = [collection.id]
+
+    while frontier:
+        children = list(
+            Collection.objects.filter(parent_id__in=frontier).values_list(
+                "id", flat=True
+            )
+        )
+        children = [cid for cid in children if cid not in ids]
+
+        if not children:
+            break
+
+        ids.extend(children)
+        frontier = children
+
+    return ids
 
 
 # =========================
@@ -52,24 +78,17 @@ class CollectionViewSet(viewsets.ModelViewSet):
     def detail(self, request, pk=None):
         collection = self.get_object()
 
-        candles_qs = (
-            Candle.objects.select_related("category")
+        candles = (
+            Candle.objects.select_related("category", "color", "fragrance")
             .prefetch_related(
                 "collections",
                 "images",
                 "variants",
                 "offers",
             )
+            .filter(collections__id__in=collection_tree_ids(collection))
             .distinct()
         )
-
-        if collection.parent_id is None:
-            child_ids = list(collection.children.values_list("id", flat=True))
-            candles = candles_qs.filter(
-                Q(collections=collection) | Q(collections__in=child_ids)
-            ).distinct()
-        else:
-            candles = candles_qs.filter(collections=collection).distinct()
 
         serializer = CandleSerializer(candles, many=True, context={"request": request})
         return Response(serializer.data)
@@ -80,7 +99,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
 # =========================
 class CandleViewSet(viewsets.ModelViewSet):
     queryset = (
-        Candle.objects.select_related("category")
+        Candle.objects.select_related("category", "color", "fragrance")
         .prefetch_related(
             "collections",
             "images",
@@ -110,6 +129,27 @@ class CandleViewSet(viewsets.ModelViewSet):
     ordering_fields = ["price", "created_at", "name"]
     ordering = ["-created_at"]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        collection_slug = (self.request.query_params.get("collection") or "").strip()
+
+        if collection_slug:
+            collection = Collection.objects.filter(
+                slug__iexact=collection_slug
+            ).first()
+
+            # An unknown slug must return nothing — falling through to an
+            # unfiltered list would quietly show the entire catalog.
+            if not collection:
+                return qs.none()
+
+            qs = qs.filter(
+                collections__id__in=collection_tree_ids(collection)
+            ).distinct()
+
+        return qs
+
     @action(detail=True, methods=["get"])
     def collection_scents(self, request, slug=None):
         candle = self.get_object()
@@ -122,7 +162,7 @@ class CandleViewSet(viewsets.ModelViewSet):
             return Response([])
 
         sibling_candles = (
-            Candle.objects.select_related("category")
+            Candle.objects.select_related("category", "color", "fragrance")
             .prefetch_related(
                 "collections",
                 "images",

@@ -6,6 +6,8 @@ export type CandleListParams = {
   search?: string;
   ordering?: "price" | "-price" | "created_at" | "-created_at" | "name" | "-name";
   category?: number;
+  /** Collection slug. Matches the whole subtree, parents included. */
+  collection?: string;
   in_stock?: boolean;
 };
 
@@ -38,6 +40,10 @@ function toQuery(params?: CandleListParams): Record<string, string> {
 
   if (typeof params.category === "number") {
     query.category = String(params.category);
+  }
+
+  if (params.collection?.trim()) {
+    query.collection = params.collection.trim();
   }
 
   if (typeof params.in_stock === "boolean") {

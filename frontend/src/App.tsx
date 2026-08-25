@@ -106,6 +106,12 @@ const App: React.FC = () => {
 
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/catalog/category/:categorySlug" element={<Catalog />} />
+            {/* Collections are a tree of their own — a parent collection
+                shows everything nested underneath it. */}
+            <Route
+              path="/catalog/collection/:collectionSlug"
+              element={<Catalog />}
+            />
             <Route path="/catalog/item/:slug" element={<CatalogDetail />} />
 
             <Route path="/cart" element={<Cart />} />
@@ -142,7 +148,7 @@ const App: React.FC = () => {
               path="/collections/spring-summer"
               element={
                 <Navigate
-                  to="/catalog/category/spring-summer-collection"
+                  to="/catalog/collection/spring-summer-collection"
                   replace
                 />
               }
@@ -151,7 +157,28 @@ const App: React.FC = () => {
               path="/collections/autumn-winter"
               element={
                 <Navigate
-                  to="/catalog/category/autumn-winter-collection"
+                  to="/catalog/collection/autumn-winter-collection"
+                  replace
+                />
+              }
+            />
+
+            {/* Old category-shaped links to the seasonal collections are
+                still in the wild, so keep them working. */}
+            <Route
+              path="/catalog/category/spring-summer-collection"
+              element={
+                <Navigate
+                  to="/catalog/collection/spring-summer-collection"
+                  replace
+                />
+              }
+            />
+            <Route
+              path="/catalog/category/autumn-winter-collection"
+              element={
+                <Navigate
+                  to="/catalog/collection/autumn-winter-collection"
                   replace
                 />
               }

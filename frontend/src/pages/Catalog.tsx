@@ -68,7 +68,15 @@ function getHoverImageUrl(product: Candle, coverUrl: string): string {
 const Catalog: React.FC = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { categorySlug } = useParams<{ categorySlug?: string }>();
+
+  // Two routes render this page: /catalog/category/:categorySlug and
+  // /catalog/collection/:collectionSlug. Collections are a separate tree
+  // from categories — a collection slug will never match a category.
+  const { categorySlug, collectionSlug } = useParams<{
+    categorySlug?: string;
+    collectionSlug?: string;
+  }>();
+
   const [searchParams, setSearchParams] = useSearchParams();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const debounceRef = useRef<number | null>(null);
@@ -171,8 +179,9 @@ const Catalog: React.FC = () => {
               )?.id
             : undefined);
 
-        // A slug that matches nothing used to fall through to an unfiltered
-        // query, so a typo in a menu link silently showed the whole catalog.
+        // A category slug that matches nothing used to fall through to an
+        // unfiltered query, so a typo in a menu link silently showed the
+        // entire catalog instead of reporting the miss.
         if (categorySlug && !categoryId && !resolvedCategoryId) {
           if (!active) return;
 
@@ -184,6 +193,7 @@ const Catalog: React.FC = () => {
         const candlesData = await listCandles({
           search: q.trim() || undefined,
           category: resolvedCategoryId,
+          collection: collectionSlug,
           ordering: "-created_at",
         });
 
@@ -206,7 +216,7 @@ const Catalog: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [aiMode, q, categoryId, categorySlug, t]);
+  }, [aiMode, q, categoryId, categorySlug, collectionSlug, t]);
 
   const visibleCandles = useMemo(() => {
     return candles.slice(0, visibleCount);
@@ -347,6 +357,8 @@ const Catalog: React.FC = () => {
     dispatch(openSizeModal(candle));
   };
 
+  const isEmpty = !loading && !error && candles.length === 0;
+
   return (
     <main className="catalog" aria-labelledby="catalog-title">
       <div className="catalog__inner">
@@ -448,6 +460,16 @@ const Catalog: React.FC = () => {
             </div>
           </form>
         </header>
+
+        {/* An empty result used to render nothing at all, which looked
+            identical to a broken page. */}
+        {isEmpty && (
+          <p className="catalog__empty">{t("catalog.noResults")}</p>
+        )}
+
+        {error && !loading && (
+          <p className="catalog__empty">{error}</p>
+        )}
 
         {!loading && !error && candles.length > 0 ? (
           <>
@@ -585,8 +607,8 @@ const Catalog: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Every color is its own product, so each swatch
-                          links to that product's page. */}
+                      {/* Every wax color is its own product, so each
+                          swatch links to that product's page. */}
                       {showSwatches && (
                         <div
                           className="catalogCard__swatches"

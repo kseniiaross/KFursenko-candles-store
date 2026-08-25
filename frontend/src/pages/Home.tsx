@@ -91,7 +91,7 @@ const Home: React.FC<HomeProps> = () => {
         kicker: "Sculpted in wax",
         title: "Modeled Candles",
         cta: "Shop molded candles",
-        to: "/catalog/category/molded",
+        to: "/catalog/category/molded-candles",
       },
       {
         src: card2,
