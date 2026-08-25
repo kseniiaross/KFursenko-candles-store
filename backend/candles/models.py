@@ -12,6 +12,9 @@ class Category(models.Model):
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True, blank=True)
 
+    # Only categories with this flag may assign a wax color (molded candles).
+    allows_wax_color = models.BooleanField(default=False)
+
     class Meta:
         ordering = ["name"]
 
@@ -64,6 +67,86 @@ class Collection(models.Model):
 
             self.slug = slug
 
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+# ======================================================
+# FRAGRANCE
+# ======================================================
+class Fragrance(models.Model):
+    """Groups the same scent across sizes.
+
+    Each size stays a separate Candle so it appears on its own card in
+    the catalog; the product page uses this link to offer the other sizes.
+    """
+
+    name = models.CharField(max_length=200, unique=True)
+    slug = models.SlugField(max_length=220, unique=True, blank=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or "fragrance"
+            slug = base_slug
+            counter = 2
+
+            while Fragrance.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+# ======================================================
+# WAX COLOR
+# ======================================================
+class Color(models.Model):
+    """Wax color. Used by molded candles only."""
+
+    name = models.CharField(max_length=80, unique=True)
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
+    hex = models.CharField(max_length=7, help_text="#RRGGBB")
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("sort_order", "name")
+
+    def clean(self):
+        value = (self.hex or "").strip()
+
+        if not value.startswith("#") or len(value) != 7:
+            raise ValidationError({"hex": "Use the #RRGGBB format."})
+
+        try:
+            int(value[1:], 16)
+        except ValueError:
+            raise ValidationError({"hex": "Not a valid hex color."})
+
+    def save(self, *args, **kwargs):
+        self.hex = (self.hex or "").strip().lower()
+
+        if not self.slug:
+            base_slug = slugify(self.name) or "color"
+            slug = base_slug
+            counter = 2
+
+            while Color.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -181,6 +264,25 @@ class Candle(models.Model):
     collections = models.ManyToManyField(Collection, blank=True)
     offers = models.ManyToManyField(Offer, blank=True)
 
+    # Same scent, different size — one Candle per size, grouped here.
+    fragrance = models.ForeignKey(
+        Fragrance,
+        on_delete=models.PROTECT,
+        related_name="candles",
+        null=True,
+        blank=True,
+    )
+    size = models.CharField(max_length=50, blank=True, help_text='e.g. "8 oz"')
+
+    # Wax color — molded candles only, see clean().
+    color = models.ForeignKey(
+        Color,
+        on_delete=models.SET_NULL,
+        related_name="candles",
+        null=True,
+        blank=True,
+    )
+
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True, blank=True)
 
@@ -218,6 +320,13 @@ class Candle(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fragrance", "size"],
+                name="unique_fragrance_size",
+                condition=models.Q(fragrance__isnull=False),
+            )
+        ]
 
     def clean(self):
         list_fields = [
@@ -239,6 +348,21 @@ class Candle(models.Model):
             if any(not isinstance(item, str) for item in value):
                 raise ValidationError({field_name: "Every item must be a string."})
 
+        if self.color_id and self.category_id and not self.category.allows_wax_color:
+            raise ValidationError(
+                {
+                    "color": (
+                        "Wax color is only available for categories with "
+                        "'allows wax color' enabled (molded candles)."
+                    )
+                }
+            )
+
+        if self.fragrance_id and not self.size:
+            raise ValidationError(
+                {"size": "Pick a size — it is what separates candles sharing a scent."}
+            )
+
     def save(self, *args, **kwargs):
         if not self.slug:
             base_slug = slugify(self.name) or "candle"
@@ -255,6 +379,8 @@ class Candle(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
+        if self.size:
+            return f"{self.name} ({self.size})"
         return self.name
 
 

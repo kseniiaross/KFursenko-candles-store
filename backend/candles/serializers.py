@@ -3,7 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
-                     GalleryItem, Offer)
+                     Color, Fragrance, GalleryItem, Offer)
 
 SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
 
@@ -11,7 +11,9 @@ SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
 # ======================================================
 # IMAGE UTILS
 # ======================================================
-def build_cloudinary_image_url(image, width=900, height=600):
+def build_cloudinary_image_url(image, width=1000, height=1250):
+    """Card frames are 4:5. `limit` only downscales — it never crops,
+    so the aspect ratio of whatever was uploaded is preserved."""
     if not image:
         return None
     try:
@@ -21,8 +23,7 @@ def build_cloudinary_image_url(image, width=900, height=600):
             quality="auto",
             width=width,
             height=height,
-            crop="fill",
-            gravity="auto",
+            crop="limit",
         )
     except Exception:
         return str(image)
@@ -59,6 +60,18 @@ def localized_value(obj, field_name, locale):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
+        fields = ["id", "name", "slug", "allows_wax_color"]
+
+
+class ColorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Color
+        fields = ["id", "name", "slug", "hex"]
+
+
+class FragranceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Fragrance
         fields = ["id", "name", "slug"]
 
 
@@ -97,7 +110,7 @@ class CandleImageSerializer(serializers.ModelSerializer):
         fields = ["id", "image", "sort_order"]
 
     def get_image(self, obj):
-        return build_cloudinary_image_url(obj.image, 1200, 900)
+        return build_cloudinary_image_url(obj.image)
 
 
 class CandleVariantSerializer(serializers.ModelSerializer):
@@ -130,6 +143,24 @@ class CandleSerializer(serializers.ModelSerializer):
         write_only=True,
     )
 
+    fragrance = FragranceSerializer(read_only=True)
+    fragrance_id = serializers.PrimaryKeyRelatedField(
+        queryset=Fragrance.objects.all(),
+        source="fragrance",
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+
+    color = ColorSerializer(read_only=True)
+    color_id = serializers.PrimaryKeyRelatedField(
+        queryset=Color.objects.all(),
+        source="color",
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+
     collections = CollectionSerializer(many=True, read_only=True)
     collection_ids = serializers.PrimaryKeyRelatedField(
         queryset=Collection.objects.all(),
@@ -141,6 +172,7 @@ class CandleSerializer(serializers.ModelSerializer):
 
     badges = serializers.SerializerMethodField()
     discount_price = serializers.SerializerMethodField()
+    siblings = serializers.SerializerMethodField()
 
     class Meta:
         model = Candle
@@ -152,6 +184,7 @@ class CandleSerializer(serializers.ModelSerializer):
             "variants",
             "badges",
             "discount_price",
+            "siblings",
         ]
 
     def get_name(self, obj):
@@ -166,6 +199,29 @@ class CandleSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         return build_cloudinary_image_url(obj.image)
+
+    def get_siblings(self, obj):
+        """Other sizes of the same scent — used by the size switcher on
+        the product page. Each one is its own card in the catalog."""
+        if not obj.fragrance_id:
+            return []
+
+        others = (
+            Candle.objects.filter(fragrance_id=obj.fragrance_id)
+            .exclude(pk=obj.pk)
+            .order_by("size")
+        )
+
+        return [
+            {
+                "id": c.id,
+                "slug": c.slug,
+                "size": c.size,
+                "price": c.price,
+                "is_sold_out": c.is_sold_out,
+            }
+            for c in others
+        ]
 
     def _applicable_offers(self, obj):
         """Offers that apply to this candle: global, directly assigned (m2m

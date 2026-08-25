@@ -1,12 +1,27 @@
 from django.contrib import admin
+from django.utils.html import format_html
 
 from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
-                     GalleryItem, Offer)
+                     Color, Fragrance, GalleryItem, Offer)
+
+
+def color_dot(hex_value, size=18):
+    """Small round swatch so colors are recognizable at a glance."""
+    return format_html(
+        '<span style="display:inline-block;width:{}px;height:{}px;'
+        'border-radius:50%;border:1px solid rgba(0,0,0,.2);'
+        'background:{};vertical-align:middle"></span>',
+        size,
+        size,
+        hex_value,
+    )
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "slug")
+    list_display = ("id", "name", "slug", "allows_wax_color")
+    list_filter = ("allows_wax_color",)
+    list_editable = ("allows_wax_color",)
     search_fields = ("name", "slug")
     ordering = ("name",)
     prepopulated_fields = {"slug": ("name",)}
@@ -19,6 +34,47 @@ class CollectionAdmin(admin.ModelAdmin):
     ordering = ("parent__name", "name")
     prepopulated_fields = {"slug": ("name",)}
     list_filter = ("is_group", "parent")
+
+
+# =========================
+# FRAGRANCE
+# =========================
+@admin.register(Fragrance)
+class FragranceAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "slug", "size_count", "sizes")
+    search_fields = ("name", "slug")
+    ordering = ("name",)
+    prepopulated_fields = {"slug": ("name",)}
+
+    @admin.display(description="Sizes")
+    def size_count(self, obj):
+        return obj.candles.count()
+
+    @admin.display(description="Available as")
+    def sizes(self, obj):
+        values = [c.size for c in obj.candles.order_by("size") if c.size]
+        return ", ".join(values) or "—"
+
+
+# =========================
+# WAX COLOR
+# =========================
+@admin.register(Color)
+class ColorAdmin(admin.ModelAdmin):
+    list_display = ("swatch", "name", "hex", "sort_order", "candle_count")
+    list_display_links = ("name",)
+    list_editable = ("sort_order",)
+    search_fields = ("name", "slug", "hex")
+    ordering = ("sort_order", "name")
+    prepopulated_fields = {"slug": ("name",)}
+
+    @admin.display(description="")
+    def swatch(self, obj):
+        return color_dot(obj.hex, 22)
+
+    @admin.display(description="Used by")
+    def candle_count(self, obj):
+        return obj.candles.count()
 
 
 @admin.register(Offer)
@@ -66,6 +122,9 @@ class CandleAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "name",
+        "size",
+        "fragrance",
+        "wax_color",
         "fragrance_family",
         "intensity",
         "variant_stock_total",
@@ -76,6 +135,9 @@ class CandleAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "category",
+        "fragrance",
+        "color",
+        "size",
         "fragrance_family",
         "intensity",
         "is_sold_out",
@@ -87,6 +149,7 @@ class CandleAdmin(admin.ModelAdmin):
         "slug",
         "description",
         "fragrance_family",
+        "fragrance__name",
         "mood_tags",
         "use_case_tags",
         "ideal_spaces",
@@ -97,6 +160,8 @@ class CandleAdmin(admin.ModelAdmin):
 
     readonly_fields = ("created_at", "variant_stock_total", "has_active_stock")
     list_editable = ("is_sold_out", "is_bestseller")
+    list_select_related = ("fragrance", "color", "category")
+    autocomplete_fields = ("fragrance", "color")
     filter_horizontal = ("collections", "offers")
     inlines = [CandleVariantInline, CandleImageInline]
 
@@ -113,6 +178,30 @@ class CandleAdmin(admin.ModelAdmin):
                     "description",
                     "image",
                     "price",
+                ),
+            },
+        ),
+        (
+            "Scent & size",
+            {
+                "fields": (
+                    "fragrance",
+                    "size",
+                ),
+                "description": (
+                    "Each size is its own product with its own catalog card. "
+                    "Give both the 8 oz and the 11 oz the same fragrance, and "
+                    "the product page will offer a switch between them."
+                ),
+            },
+        ),
+        (
+            "Wax color",
+            {
+                "fields": ("color",),
+                "description": (
+                    "Molded candles only. Leave empty unless the category has "
+                    "'allows wax color' enabled — otherwise saving will fail."
                 ),
             },
         ),
@@ -164,6 +253,13 @@ class CandleAdmin(admin.ModelAdmin):
         ),
     )
 
+    @admin.display(description="Color", ordering="color__name")
+    def wax_color(self, obj):
+        if not obj.color:
+            return "—"
+        return format_html("{} {}", color_dot(obj.color.hex, 14), obj.color.name)
+
+    @admin.display(description="Variant stock total")
     def variant_stock_total(self, obj):
         return sum(
             variant.stock_qty
@@ -171,13 +267,9 @@ class CandleAdmin(admin.ModelAdmin):
             if variant.is_active
         )
 
-    variant_stock_total.short_description = "Variant stock total"
-
+    @admin.display(boolean=True, description="Has active variant stock")
     def has_active_stock(self, obj):
         return obj.variants.filter(is_active=True, stock_qty__gt=0).exists()
-
-    has_active_stock.boolean = True
-    has_active_stock.short_description = "Has active variant stock"
 
 
 # =========================
