@@ -2,8 +2,7 @@ import React, { useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-import loginLightBg from "../assets/images/lightmode.jpg";
-import loginDarkBg from "../assets/images/darkmode.jpg";
+import loginBg from "../assets/images/lightmode.jpg";
 
 import "../styles/LoginChoice.css";
 
@@ -29,8 +28,7 @@ const LoginChoice: React.FC = () => {
       aria-labelledby="login-choice-title"
       style={
         {
-          "--login-choice-light-bg": `url(${loginLightBg})`,
-          "--login-choice-dark-bg": `url(${loginDarkBg})`,
+          "--login-choice-bg": `url(${loginBg})`,
         } as React.CSSProperties
       }
     >

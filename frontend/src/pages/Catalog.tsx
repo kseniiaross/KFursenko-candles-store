@@ -43,6 +43,27 @@ function buildOptimizedImageUrl(url: string, width: number): string {
   return url;
 }
 
+/** Second gallery frame, shown on hover. Accepts both a plain
+ *  string[] gallery and an array of objects with image/url fields. */
+function getHoverImageUrl(product: Candle, coverUrl: string): string {
+  const gallery = (product as unknown as { images?: unknown }).images;
+
+  if (!Array.isArray(gallery)) return "";
+
+  for (const item of gallery) {
+    const url =
+      typeof item === "string"
+        ? item
+        : (item as { image?: string; url?: string })?.image ??
+          (item as { url?: string })?.url ??
+          "";
+
+    if (url && url !== coverUrl) return url;
+  }
+
+  return "";
+}
+
 const Catalog: React.FC = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
@@ -62,6 +83,11 @@ const Catalog: React.FC = () => {
   const q = searchParams.get("q") ?? "";
   const categoryParam = searchParams.get("category") ?? "";
   const [searchInput, setSearchInput] = useState(q);
+
+  /** Cards whose hover image has already been requested. */
+  const [warmedCards, setWarmedCards] = useState<Set<number>>(
+    () => new Set()
+  );
 
   useEffect(() => {
     setSearchInput(q);
@@ -115,6 +141,8 @@ const Catalog: React.FC = () => {
         setError("");
 
         setVisibleCount(ITEMS_PER_BATCH);
+
+        setWarmedCards(new Set());
 
         let categoriesData: Category[] = [];
 
@@ -235,6 +263,18 @@ const Catalog: React.FC = () => {
     });
   };
 
+  const warmCard = (id: number): void => {
+    setWarmedCards((current) => {
+      if (current.has(id)) return current;
+
+      const next = new Set(current);
+
+      next.add(id);
+
+      return next;
+    });
+  };
+
   const runAiSearch = async (): Promise<void> => {
     const cleanQuery = searchInput.trim();
 
@@ -245,6 +285,7 @@ const Catalog: React.FC = () => {
       setLoading(true);
       setError("");
       setVisibleCount(ITEMS_PER_BATCH);
+      setWarmedCards(new Set());
 
       const aiResponse = await searchWithLumiere(
         cleanQuery,
@@ -417,6 +458,14 @@ const Catalog: React.FC = () => {
                 const optimizedLarge =
                   buildOptimizedImageUrl(coverUrl, 1200);
 
+                const hoverUrl = getHoverImageUrl(product, coverUrl);
+
+                const optimizedHover = hoverUrl
+                  ? buildOptimizedImageUrl(hoverUrl, 800)
+                  : "";
+
+                const isWarmed = warmedCards.has(product.id);
+
                 const destination = `/catalog/item/${product.slug}`;
 
                 const badges = normalizeBadges(product.badges);
@@ -440,27 +489,41 @@ const Catalog: React.FC = () => {
                   <article
                     key={product.id}
                     className="catalogCard"
+                    onMouseEnter={() => warmCard(product.id)}
+                    onFocus={() => warmCard(product.id)}
                   >
                     <Link
                       to={destination}
                       className="catalogCard__imageLink"
                       aria-label={`Open ${product.name}`}
                     >
-                      <div className="catalogCard__media">
+                                            <div className="catalogCard__media">
                         <img
-                          className="catalogCard__img"
+                          className="catalogCard__img catalogCard__img--cover"
                           src={optimizedMedium}
                           srcSet={`${optimizedSmall} 480w, ${optimizedMedium} 800w, ${optimizedLarge} 1200w`}
-                          sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 25vw"
                           alt={product.name}
                           loading={isPriorityImage ? "eager" : "lazy"}
                           fetchPriority={
                             isPriorityImage ? "high" : "auto"
                           }
                           decoding="async"
-                          width={900}
-                          height={600}
+                          width={1000}
+                          height={1250}
                         />
+
+                        {optimizedHover && isWarmed ? (
+                          <img
+                            className="catalogCard__img catalogCard__img--hover"
+                            src={optimizedHover}
+                            alt=""
+                            aria-hidden="true"
+                            decoding="async"
+                            width={1000}
+                            height={1250}
+                          />
+                        ) : null}
 
                         {(showSoldOut ||
                           showBestseller ||

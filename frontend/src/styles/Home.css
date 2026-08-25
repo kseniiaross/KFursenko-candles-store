@@ -3,11 +3,11 @@
    ===================================================== */
 
 .home {
+  --p: 0;
   position: relative;
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow: hidden;
   color: #ffffff;
   font-family: inherit;
 }
@@ -24,10 +24,6 @@
   overflow: hidden;
 }
 
-[data-theme="dark"] .home__media {
-  background: #120d0a;
-}
-
 .home__image {
   position: absolute;
   inset: 0;
@@ -36,37 +32,131 @@
   display: block;
   object-fit: cover;
   object-position: center center;
-  opacity: 1;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+  will-change: opacity;
+}
+
+/* --- base banner stays; Halloween layer slides over it
+   --p is written by Home.tsx (0 -> 1) as the page scrolls.
+   ---------------------------------------------------- */
+
+.home__image--base {
+  opacity: 1;
+  /* slight counter-drift so the layers feel stacked, not glued */
+  transform: translate3d(0, calc(var(--p) * -6%), 0);
+}
+
+.home__image--overlayImage {
+  opacity: 1;
+  transform: translate3d(0, calc((1 - var(--p)) * 100%), 0);
+  box-shadow: 0 -24px 48px rgba(0, 0, 0, 0.28);
+  will-change: transform;
 }
 
 .home__overlay {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.08),
-      rgba(0, 0, 0, 0.02) 30%,
-      rgba(0, 0, 0, 0.06) 75%,
-      rgba(0, 0, 0, 0.12)
-    );
-}
-
-[data-theme="dark"] .home__overlay {
-  background:
-    linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.24),
-      rgba(0, 0, 0, 0.12) 24%,
-      rgba(0, 0, 0, 0.16) 72%,
-      rgba(0, 0, 0, 0.24)
-    );
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.08),
+    rgba(0, 0, 0, 0.02) 30%,
+    rgba(0, 0, 0, 0.06) 75%,
+    rgba(0, 0, 0, 0.12)
+  );
 }
 
 /* =====================================================
-   CONTENT
+   HALLOWEEN PROMO  (rides with the Halloween banner)
+   ===================================================== */
+
+.home__promoLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  /* identical transform to .home__image--overlayImage,
+     so the text travels glued to the banner */
+  transform: translate3d(0, calc((1 - var(--p)) * 100%), 0);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.home__promo {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(9vh, 14vh, 18vh);
+  width: min(700px, 86vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.home__promo::before {
+  content: "";
+  position: absolute;
+  inset: -12% -20%;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.42),
+    rgba(0, 0, 0, 0) 70%
+  );
+  pointer-events: none;
+}
+
+
+.home__promoTitle {
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(2.1rem, 5.5vw, 4rem);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+}
+
+.home__promoText {
+  margin: 0;
+  font-family: "Raleway", sans-serif;
+  font-size: clamp(0.8rem, 1.4vw, 0.95rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.9;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.4);
+}
+
+.home__promoCta {
+  margin-top: 0.5rem;
+  padding: 0.85rem 2.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  color: #ffffff;
+  font-family: "Raleway", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-decoration: none;
+  pointer-events: auto;
+  transition:
+    background-color 260ms ease,
+    color 260ms ease;
+}
+
+.home__promoCta:hover {
+  background: #ffffff;
+  color: #1a1a1a;
+}
+
+.home__promoCta:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.96);
+  outline-offset: 4px;
+}
+
+/* =====================================================
+   HERO CONTENT
    ===================================================== */
 
 .home__content {
@@ -116,11 +206,109 @@
   filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.12));
 }
 
-[data-theme="dark"] .home__logo {
-  filter:
-    brightness(0)
-    invert(1)
-    drop-shadow(0 10px 24px rgba(0, 0, 0, 0.28));
+/* =====================================================
+   HOLD  (empty scroll so the Halloween banner lingers)
+   ===================================================== */
+
+.home__hold {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  height: 100dvh;
+  pointer-events: none;
+}
+
+/* =====================================================
+   CARDS  (scroll up over the fixed background)
+   ===================================================== */
+
+.home__cards {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(0.75rem, 2vw, 1.75rem);
+  padding: clamp(2.5rem, 6vw, 5rem) clamp(1rem, 5vw, 4rem);
+  background: #f6f1e8;
+  color: #2b2622;
+}
+
+.home__card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.home__cardMedia {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e8e3da;
+}
+
+.home__cardImage {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home__card:hover .home__cardImage,
+.home__card:focus-visible .home__cardImage {
+  transform: scale(1.04);
+}
+
+.home__card:focus-visible .home__cardMedia {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+.home__cardBody {
+  padding-top: 1.1rem;
+}
+
+.home__cardKicker {
+  margin: 0 0 0.4rem;
+  font-family: "Raleway", sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.home__cardTitle {
+  margin: 0 0 0.6rem;
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(1.25rem, 1.7vw, 1.6rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.home__cardCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "Raleway", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 2px;
+}
+
+.home__cardArrow {
+  display: inline-block;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home__card:hover .home__cardArrow,
+.home__card:focus-visible .home__cardArrow {
+  transform: translateX(5px);
 }
 
 /* =====================================================
@@ -128,33 +316,26 @@
    ===================================================== */
 
 @media (max-width: 1200px) {
-  .home__logoWrapper {
-    top: 6vh;
-  }
-
-  .home__logo {
-    width: min(250px, 34vw);
-  }
+  .home__logoWrapper { top: 6vh; }
+  .home__logo { width: min(250px, 34vw); }
 }
 
 @media (max-width: 900px) {
-  .home__logoWrapper {
-    top: 7vh;
-  }
-
-  .home__logo {
-    width: min(220px, 38vw);
-  }
+  .home__hold { height: 70vh; height: 70dvh; }
+  .home__logoWrapper { top: 7vh; }
+  .home__logo { width: min(220px, 38vw); }
+  .home__cards { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 600px) {
-  .home__logoWrapper {
-    top: 8vh;
-  }
+  .home__logoWrapper { top: 8vh; }
+  .home__logo { width: min(180px, 42vw); }
+  .home__promo { bottom: 10vh; gap: 0.7rem; }
+  .home__promoCta { padding: 0.75rem 1.8rem; }
+}
 
-  .home__logo {
-    width: min(180px, 42vw);
-  }
+@media (max-width: 520px) {
+  .home__cards { grid-template-columns: 1fr; }
 }
 
 /* =====================================================
@@ -162,7 +343,18 @@
    ===================================================== */
 
 @media (prefers-reduced-motion: reduce) {
-  .home__logoLink {
-    transition: none;
+  .home__hold { height: 0; }
+  .home__logoLink { transition: none; }
+  .home__image--base,
+  .home__image--overlayImage {
+    transform: none;
   }
+  .home__image--overlayImage {
+    display: none;
+  }
+  .home__promoLayer {
+    display: none;
+  }
+  .home__cardImage,
+  .home__cardArrow { transition: none; }
 }

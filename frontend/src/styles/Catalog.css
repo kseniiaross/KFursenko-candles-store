@@ -168,16 +168,21 @@
   text-decoration: none;
 }
 
+/* Единая пропорция кадра на всех экранах — карточка
+   масштабируется вместе с шириной колонки. */
 .catalogCard__media {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.2 / 1;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--catalog-image-radius);
   background: rgba(245, 243, 239, 0.42);
 }
 
+/* Both frames stack; the hover frame fades in on top. */
 .catalogCard__img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -188,9 +193,20 @@
     opacity 220ms ease;
 }
 
-.catalogCard__imageLink:hover .catalogCard__img,
-.catalogCard__imageLink:focus-visible .catalogCard__img {
-  transform: scale(1.015);
+.catalogCard__img--hover {
+  opacity: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .catalogCard__imageLink:hover .catalogCard__img,
+  .catalogCard__imageLink:focus-visible .catalogCard__img {
+    transform: scale(1.015);
+  }
+
+  .catalogCard__imageLink:hover .catalogCard__img--hover,
+  .catalogCard__imageLink:focus-visible .catalogCard__img--hover {
+    opacity: 1;
+  }
 }
 
 .catalogCard__badges {
@@ -304,10 +320,6 @@
     --catalog-grid-gap-x: 22px;
     --catalog-grid-gap-y: 28px;
   }
-
-  .catalogCard__media {
-    aspect-ratio: 1.2 / 1;
-  }
 }
 
 /* 1201–1599 */
@@ -337,10 +349,6 @@
 
   .catalogCard__body {
     gap: 7px;
-  }
-
-  .catalogCard__media {
-    aspect-ratio: 1.45 / 1;
   }
 
   .catalogCard__btn {
@@ -373,10 +381,6 @@
 
   .catalogCard__body {
     gap: 6px;
-  }
-
-  .catalogCard__media {
-    aspect-ratio: 1.55 / 1;
   }
 
   .catalogCard__btn {
@@ -422,10 +426,6 @@
     gap: 6px;
   }
 
-  .catalogCard__media {
-    aspect-ratio: 1.65 / 1;
-  }
-
   .catalogCard__name {
     font-size: 0.86rem;
   }
@@ -453,10 +453,6 @@
   .catalog__grid {
     margin-top: 8px;
   }
-
-  .catalogCard__media {
-    aspect-ratio: 1.8 / 1;
-  }
 }
 
 /* 601–900 */
@@ -479,10 +475,6 @@
   .catalog__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .catalogCard__media {
-    aspect-ratio: 1 / 1;
-  }
 }
 
 /* <=600 */
@@ -502,10 +494,6 @@
 
   .catalog__grid {
     grid-template-columns: 1fr;
-  }
-
-  .catalogCard__media {
-    aspect-ratio: 4 / 3;
   }
 
   .catalogCard__btn {

@@ -21,8 +21,8 @@ body {
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--color-bg, #f6f1ea);
-  color: var(--app-text);
+  background: var(--color-bg, #ffffff);
+  color: var(--app-text, #2b2622);
   font-family: "Times New Roman", Times, serif;
   line-height: 1.5;
   text-rendering: optimizeLegibility;
@@ -46,7 +46,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   isolation: isolate;
-  color: var(--app-text);
+  color: var(--app-text, #2b2622);
   overflow: visible;
 }
 
@@ -64,52 +64,8 @@ body {
   padding-top: 0;
 }
 
-.appShell--inner::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  transform: scale(1.02);
-  pointer-events: none;
-}
-
-.appShell--inner::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-}
-
-[data-theme="light"] .appShell--inner::before {
-  background-image: url("../assets/images/lightmode1.webp");
-  filter: blur(2px) brightness(1.04) saturate(0.98);
-}
-
-[data-theme="light"] .appShell--inner::after {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 252, 248, 0.68),
-    rgba(255, 252, 248, 0.54)
-  );
-}
-
-[data-theme="dark"] .appShell--inner::before {
-  background-image: url("../assets/images/darkmode1.webp");
-  filter: blur(2px) brightness(0.92) saturate(0.96);
-}
-
-[data-theme="dark"] .appShell--inner::after {
-  background: linear-gradient(
-    180deg,
-    rgba(78, 74, 69, 0.66),
-    rgba(78, 74, 69, 0.58)
-  );
-}
-
+.appShell--inner::before,
+.appShell--inner::after,
 .appShell--home::before,
 .appShell--home::after {
   display: none;
@@ -125,10 +81,4 @@ input,
 select,
 textarea {
   font-family: inherit;
-}
-
-@media (max-width: 900px) {
-  .appShell--inner::before {
-    transform: scale(1.04);
-  }
 }

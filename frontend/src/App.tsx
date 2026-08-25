@@ -11,7 +11,6 @@ import LumiereWidget from "./pages/LumiereWidget";
 import { clearAuthStorage, getAccessToken } from "./utils/token";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { logout, setUser } from "./store/authSlice";
-import { useTheme } from "./theme/ThemeProvider";
 import { getProfile } from "./api/auth";
 import { useHydrateCart } from "./hooks/useHydrateCart";
 
@@ -31,6 +30,8 @@ const StoryMission = React.lazy(() => import("./pages/StoryMission"));
 const Contacts = React.lazy(() => import("./pages/Contacts"));
 const Gallery = React.lazy(() => import("./pages/Gallery"));
 const ComingSoon = React.lazy(() => import("./pages/ComingSoon"));
+const PromoBuy2Get3 = React.lazy(() => import("./pages/PromoBuy2Get3"));
+const CustomCandles = React.lazy(() => import("./pages/CustomCandles"));
 const RecommendationQuiz = React.lazy(() => import("./pages/RecommendationQuiz"));
 const RecommendationResult = React.lazy(() => import("./pages/RecommendationResult"));
 const Delivery = React.lazy(() => import("./pages/CustomerCare/Delivery"));
@@ -41,7 +42,6 @@ const Support = React.lazy(() => import("./pages/CustomerCare/Support"));
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
   const location = useLocation();
-  const { theme } = useTheme();
 
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
   const firstName = useAppSelector(
@@ -86,7 +86,7 @@ const App: React.FC = () => {
     <div
       className={`appShell ${
         isHomePage ? "appShell--home" : "appShell--inner"
-      } appShell--${theme}`}
+      }`}
     >
       <Header
         firstName={firstName}
@@ -141,20 +141,18 @@ const App: React.FC = () => {
             <Route
               path="/collections/spring-summer"
               element={
-                <ComingSoon
-                  kicker="Collections"
-                  title="Spring–Summer Collection"
-                  subtitle="Bright, fresh scents for the warmer months."
+                <Navigate
+                  to="/catalog/category/spring-summer-collection"
+                  replace
                 />
               }
             />
             <Route
               path="/collections/autumn-winter"
               element={
-                <ComingSoon
-                  kicker="Collections"
-                  title="Autumn–Winter Collection"
-                  subtitle="Warm, spiced scents for cozy evenings."
+                <Navigate
+                  to="/catalog/category/autumn-winter-collection"
+                  replace
                 />
               }
             />
@@ -179,16 +177,12 @@ const App: React.FC = () => {
                 />
               }
             />
+            <Route path="/offers/buy-2-get-3" element={<PromoBuy2Get3 />} />
             <Route
               path="/offers/buy-1-get-2"
-              element={
-                <ComingSoon
-                  kicker="Offers"
-                  title="Buy 1 Get 2"
-                  subtitle="Details on our buy-one-get-two promotion."
-                />
-              }
+              element={<Navigate to="/offers/buy-2-get-3" replace />}
             />
+
             <Route
               path="/offers/holidays"
               element={
@@ -210,6 +204,8 @@ const App: React.FC = () => {
                 />
               }
             />
+
+            <Route path="/custom-candles" element={<CustomCandles />} />
 
             <Route path="/recommendation-quiz" element={<RecommendationQuiz />} />
             <Route

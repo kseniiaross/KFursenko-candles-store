@@ -77,7 +77,7 @@ class Offer(models.Model):
     class Kind(models.TextChoices):
         NEW_SHOPPER = "new_shopper", "New shopper"
         DISCOUNT = "discount", "Discount percent"
-        B1G2 = "b1g2", "Buy 1 get 2"
+        B1G2 = "b2g3", "Buy 2 get 3"
         HOLIDAY = "holiday", "Holiday offer"
         LOYALTY = "loyalty", "Loyalty"
 

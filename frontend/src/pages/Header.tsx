@@ -12,7 +12,6 @@ import { useTranslation } from "react-i18next";
 import "../styles/Header.css";
 import logo from "../assets/images/Logo.png";
 import { clearAuthStorage } from "../utils/token";
-import { useTheme } from "../theme/ThemeProvider";
 import { useAppSelector } from "../store/hooks";
 
 type HeaderProps = {
@@ -37,7 +36,6 @@ const LANGUAGES = [
 const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const { theme, toggleTheme } = useTheme();
 
   const cartCount = useAppSelector((state) => {
     const cartState = state.cart as
@@ -94,17 +92,6 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     return normalizedFirstName || t("common.goToMyAccount");
   }, [firstName, isLoggedIn, t]);
 
-  const currentModeLabel = useMemo(
-    () => (theme === "light" ? "Light" : "Dark"),
-    [theme]
-  );
-
-  const themeAriaLabel = useMemo(() => {
-    return theme === "light"
-      ? "Current mode: light. Activate to switch to dark mode."
-      : "Current mode: dark. Activate to switch to light mode.";
-  }, [theme]);
-
   const currentLanguageCode = useMemo(() => {
     return i18n.resolvedLanguage?.split("-")[0] ?? i18n.language.split("-")[0];
   }, [i18n.language, i18n.resolvedLanguage]);
@@ -114,10 +101,10 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
       candles: [
         { label: t("header.allCandles"), to: "/catalog" },
         { label: t("header.containerCandles"), to: "/catalog/category/container-candles" },
-        { label: t("header.moldedCandles"), to: "/catalog/category/molded-candles" },
-        { label: t("header.springSummer"), to: "/collections/spring-summer" },
-        { label: t("header.autumnWinter"), to: "/collections/autumn-winter" },
-        { label: t("header.customCandle"), to: "/catalog/category/custom-candle" },
+        { label: t("header.moldedCandles"), to: "/catalog/category/molded" },
+        { label: t("header.springSummer"), to: "/catalog/category/spring-summer-collection" },
+        { label: t("header.autumnWinter"), to: "/catalog/category/autumn-winter-collection" },
+        { label: t("header.customCandle"), to: "/custom-candles" },
         { label: t("header.singleWick"), to: "/catalog/category/single-wick-candles" },
         { label: t("header.multipleWick"), to: "/catalog/category/multiple-wick-candles" },
         { label: t("header.candleHolders"), to: "/catalog/category/candle-holders" },
@@ -426,60 +413,13 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     </>
   );
 
-  const desktopControlsRow = (
+  const renderControlsRow = (
+    languageRef: React.RefObject<HTMLDivElement | null>,
+    languageButtonId: string,
+    languageMenuId: string
+  ) => (
     <>
-      <button
-        type="button"
-        className="header__themeToggle"
-        onClick={toggleTheme}
-        aria-label={themeAriaLabel}
-        aria-pressed={theme === "dark"}
-        title={themeAriaLabel}
-      >
-        <span className="header__themeDot" aria-hidden="true" />
-        <span className="header__chipText">{currentModeLabel}</span>
-      </button>
-
-      {renderLanguageBox(
-        languageDesktopRef,
-        languageDesktopButtonId,
-        languageDesktopMenuId
-      )}
-
-      <Link
-        to="/cart"
-        className="header__cartLink"
-        aria-label={`Shopping cart${cartCount > 0 ? `, ${cartCount} items` : ", empty"}`}
-      >
-        <span className="header__chipText">{t("catalog.shoppingCart")}</span>
-        {cartCount > 0 && (
-          <span className="header__cartCount" aria-hidden="true">
-            {cartCount > 99 ? "99+" : cartCount}
-          </span>
-        )}
-      </Link>
-    </>
-  );
-
-  const mobileControlsRow = (
-    <>
-      <button
-        type="button"
-        className="header__themeToggle"
-        onClick={toggleTheme}
-        aria-label={themeAriaLabel}
-        aria-pressed={theme === "dark"}
-        title={themeAriaLabel}
-      >
-        <span className="header__themeDot" aria-hidden="true" />
-        <span className="header__chipText">{currentModeLabel}</span>
-      </button>
-
-      {renderLanguageBox(
-        languageMobileRef,
-        languageMobileButtonId,
-        languageMobileMenuId
-      )}
+      {renderLanguageBox(languageRef, languageButtonId, languageMenuId)}
 
       <Link
         to="/cart"
@@ -515,7 +455,11 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
           </div>
 
           <div className="header__right header__desktopRight">
-            {desktopControlsRow}
+            {renderControlsRow(
+              languageDesktopRef,
+              languageDesktopButtonId,
+              languageDesktopMenuId
+            )}
           </div>
 
           <div className="header__mobileLogo">
@@ -535,7 +479,13 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
               )}
             </div>
 
-            <div className="header__mobileRow2">{mobileControlsRow}</div>
+            <div className="header__mobileRow2">
+              {renderControlsRow(
+                languageMobileRef,
+                languageMobileButtonId,
+                languageMobileMenuId
+              )}
+            </div>
           </div>
         </div>
       </header>
