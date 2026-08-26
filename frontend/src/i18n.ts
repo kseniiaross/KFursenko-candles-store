@@ -142,6 +142,7 @@ const resources = {
         clear: "Clear",
         loading: "Loading candles...",
         loadError: "Failed to load candles.",
+        noResults: "Nothing matches this selection.",
         metaLabel: "Catalog results",
         itemsCount: "{{count}} item",
         itemsCount_other: "{{count}} items",
@@ -175,6 +176,8 @@ const resources = {
         collectionScentsSubtitle:
           "Explore other scents from the same collection.",
         openScent: "Open scent",
+        size: "Size",
+        color: "Color",
       },
 
       login: {
@@ -587,6 +590,7 @@ const resources = {
         clear: "Очистить",
         loading: "Загрузка свечей...",
         loadError: "Не удалось загрузить свечи.",
+        noResults: "По этому запросу ничего не нашлось.",
         metaLabel: "Результаты каталога",
         itemsCount: "{{count}} товар",
         itemsCount_other: "{{count}} товаров",
@@ -620,6 +624,8 @@ const resources = {
         collectionScentsSubtitle:
           "Посмотрите другие ароматы из этой же коллекции.",
         openScent: "Открыть аромат",
+        size: "Размер",
+        color: "Цвет",
       },
 
       login: {
@@ -1033,6 +1039,7 @@ const resources = {
         clear: "Limpiar",
         loading: "Cargando velas...",
         loadError: "No se pudieron cargar las velas.",
+        noResults: "No hay resultados para esta selección.",
         metaLabel: "Resultados del catálogo",
         itemsCount: "{{count}} artículo",
         itemsCount_other: "{{count}} artículos",
@@ -1065,6 +1072,8 @@ const resources = {
         collectionScents: "Aromas de esta colección",
         collectionScentsSubtitle: "Explora otros aromas de la misma colección.",
         openScent: "Abrir aroma",
+         size: "Tamaño",
+         color: "Color",
       },
 
       reviews: {
@@ -1480,6 +1489,7 @@ const resources = {
         clear: "Effacer",
         loading: "Chargement des bougies...",
         loadError: "Impossible de charger les bougies.",
+        noResults: "Aucun résultat pour cette sélection.",
         metaLabel: "Résultats du catalogue",
         itemsCount: "{{count}} article",
         itemsCount_other: "{{count}} articles",
@@ -1513,6 +1523,8 @@ const resources = {
         collectionScentsSubtitle:
           "Découvrez les autres parfums de la même collection.",
         openScent: "Ouvrir le parfum",
+        size: "Taille",
+        color: "Couleur",
       },
 
       reviews: {

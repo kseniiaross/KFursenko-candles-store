@@ -8,9 +8,40 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 
 import type { Candle, CandleVariant } from "../types/candle";
-import { hasColorChoice } from "../types/candle";
+import { getSizeOptions, hasColorChoice } from "../types/candle";
 
 import "../styles/CatalogDetail.css";
+
+/** Lines the structured rows below already cover — keeping them in the
+ *  prose is what turned the description into a wall of text. */
+const LABELLED_LINE = /^\s*(scent|mood|perfect for|details|notes)\s*:/i;
+
+function getLeadText(description: string): string {
+  if (!description) return "";
+
+  const kept = description
+    .split("\n")
+    .filter((line) => !LABELLED_LINE.test(line))
+    .join("\n")
+    .trim();
+
+  return kept || description.trim();
+}
+
+function uniqueTags(...groups: Array<string[] | undefined>): string[] {
+  const seen = new Set<string>();
+
+  for (const group of groups) {
+    if (!Array.isArray(group)) continue;
+
+    for (const tag of group) {
+      const clean = String(tag).trim();
+      if (clean) seen.add(clean);
+    }
+  }
+
+  return [...seen];
+}
 
 const CatalogDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -21,11 +52,10 @@ const CatalogDetail: React.FC = () => {
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
 
   const [item, setItem] = useState<Candle | null>(null);
-  const [activeImg, setActiveImg] = useState<string>("");
   const [variant, setVariant] = useState<CandleVariant | null>(null);
   const [scents, setScents] = useState<Candle[]>([]);
   const [adding, setAdding] = useState(false);
-  const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [zoomImg, setZoomImg] = useState<string>("");
 
   useEffect(() => {
     let active = true;
@@ -39,11 +69,8 @@ const CatalogDetail: React.FC = () => {
         if (!active) return;
 
         setItem(data);
-        setActiveImg(data.image ?? "");
 
-        const activeVariants = (data.variants ?? []).filter(
-          (v) => v.is_active
-        );
+        const activeVariants = (data.variants ?? []).filter((v) => v.is_active);
 
         if (activeVariants.length > 0) {
           setVariant(activeVariants[0]);
@@ -68,7 +95,6 @@ const CatalogDetail: React.FC = () => {
         if (!active) return;
 
         setItem(null);
-        setActiveImg("");
         setVariant(null);
         setScents([]);
       }
@@ -82,11 +108,11 @@ const CatalogDetail: React.FC = () => {
   }, [slug, i18n.language]);
 
   useEffect(() => {
-    if (!isZoomOpen) return;
+    if (!zoomImg) return;
 
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
-        setIsZoomOpen(false);
+        setZoomImg("");
       }
     };
 
@@ -97,17 +123,20 @@ const CatalogDetail: React.FC = () => {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [isZoomOpen]);
+  }, [zoomImg]);
 
   const price = useMemo(() => {
     if (!variant) return 0;
     return Number(variant.price) || 0;
   }, [variant]);
 
-  const gallery = [
-    item?.image ?? "",
-    ...((item?.images ?? []).map((img) => img.image)),
-  ].filter(Boolean);
+  const gallery = useMemo(() => {
+    if (!item) return [];
+
+    return [item.image ?? "", ...(item.images ?? []).map((img) => img.image)]
+      .filter(Boolean)
+      .filter((url, index, all) => all.indexOf(url) === index);
+  }, [item]);
 
   const buildCartItem = () => {
     if (!item || !variant) return null;
@@ -160,147 +189,208 @@ const CatalogDetail: React.FC = () => {
 
   if (!item) return null;
 
-  const variants = item.variants ?? [];
+  // Colors and sizes are separate products, so each switcher navigates
+  // instead of mutating state — that is what makes the photos change
+  // along with the choice.
   const showColors = hasColorChoice(item);
+  const sizeOptions = getSizeOptions(item);
+  const showSizes = sizeOptions.length > 1;
+
+  // The scent profile is already stored as arrays for the AI search, so
+  // the rows below need no extra fields in the database.
+  const scentNotes = uniqueTags(
+    item.top_notes,
+    item.heart_notes,
+    item.base_notes
+  );
+  const moodTags = uniqueTags(item.mood_tags);
+  const bestForTags = uniqueTags(item.use_case_tags, item.ideal_spaces);
+  const seasonTags = uniqueTags(item.season_tags);
+
+  const leadText = getLeadText(item.description);
+  const hasFacts = moodTags.length > 0 || bestForTags.length > 0 || seasonTags.length > 0;
 
   return (
     <main className="catalogDetail" aria-label={t("catalogDetail.pageLabel")}>
       <div className="catalogDetail__inner">
         <div className="catalogDetail__layout">
-          <section className="catalogDetail__mediaColumn" aria-label={item.name}>
-            <button
-              type="button"
-              className="catalogDetail__mainImgButton"
-              onClick={() => setIsZoomOpen(true)}
-              aria-label={`Open larger image of ${item.name}`}
-            >
-              <img
-                src={activeImg}
-                className="catalogDetail__mainImg"
-                alt={item.name}
-              />
-            </button>
-
-            <div className="catalogDetail__thumbs" aria-label="Product images">
-              {gallery.map((img) => (
-                <button
-                  key={img}
-                  type="button"
-                  onClick={() => setActiveImg(img)}
-                  className={`catalogDetail__thumb ${
-                    img === activeImg ? "is-active" : ""
-                  }`}
-                  aria-label={`${t("catalogDetail.selectImage")}: ${item.name}`}
-                >
-                  <img src={img} alt="" />
-                </button>
-              ))}
-            </div>
+          <section className="catalogDetail__gallery" aria-label={item.name}>
+            {gallery.map((img, index) => (
+              <button
+                key={img}
+                type="button"
+                className="catalogDetail__frame"
+                onClick={() => setZoomImg(img)}
+                aria-label={`${t("catalogDetail.selectImage")}: ${item.name}`}
+              >
+                <img
+                  src={img}
+                  className="catalogDetail__img"
+                  alt={index === 0 ? item.name : ""}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+              </button>
+            ))}
           </section>
 
           <section className="catalogDetail__info">
-            <h1 className="catalogDetail__title">{item.name}</h1>
+            <div className="catalogDetail__panel">
+              {item.category && (
+                <p className="catalogDetail__eyebrow">{item.category.name}</p>
+              )}
 
-            <p className="catalogDetail__price">${price.toFixed(2)}</p>
+              <h1 className="catalogDetail__title">{item.name}</h1>
 
-            {scents.length > 0 && (
-              <div className="catalogDetail__scentBlock">
-                <span className="catalogDetail__scentLabel">
-                  {t("catalogDetail.collectionScents")}
+              <div className="catalogDetail__priceRow">
+                <span className="catalogDetail__price">
+                  ${price.toFixed(2)}
                 </span>
-
-                <div className="catalogDetail__scentOptions">
-                  <button
-                    type="button"
-                    className="catalogDetail__scentBtn is-active"
-                    aria-current="true"
-                  >
-                    {item.name}
-                  </button>
-
-                  {scents.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      className="catalogDetail__scentBtn"
-                      onClick={() => navigate(`/catalog/item/${s.slug}`)}
-                      aria-label={`${t("catalogDetail.openScent")}: ${s.name}`}
-                    >
-                      {s.name}
-                    </button>
-                  ))}
-                </div>
+                {item.size && (
+                  <span className="catalogDetail__meta">{item.size}</span>
+                )}
               </div>
-            )}
 
-            {/* Each wax color is a separate product with its own photos,
-                so picking one navigates to that product. */}
-            {showColors && (
-              <div className="catalogDetail__colorBlock">
-                <span className="catalogDetail__colorLabel">
-                  {item.color ? item.color.name : "Color"}
-                </span>
+              {showColors && (
+                <div className="catalogDetail__block">
+                  <span className="catalogDetail__label">
+                    {item.color ? item.color.name : t("catalogDetail.color")}
+                  </span>
 
-                <div className="catalogDetail__colorOptions">
-                  {item.color_options!.map((option) => (
-                    <button
-                      key={option.slug}
-                      type="button"
-                      className={`catalogDetail__colorBtn${
-                        option.is_current ? " is-active" : ""
-                      }`}
-                      style={{ background: option.color.hex }}
-                      onClick={() => {
-                        if (option.is_current) return;
-                        navigate(`/catalog/item/${option.slug}`);
-                      }}
-                      aria-label={option.color.name}
-                      aria-current={option.is_current}
-                      title={option.color.name}
-                    />
-                  ))}
+                  <div className="catalogDetail__colorOptions">
+                    {item.color_options!.map((option) => (
+                      <button
+                        key={option.slug}
+                        type="button"
+                        className={`catalogDetail__colorBtn${
+                          option.is_current ? " is-active" : ""
+                        }`}
+                        style={{ background: option.color.hex }}
+                        onClick={() => {
+                          if (option.is_current) return;
+                          navigate(`/catalog/item/${option.slug}`);
+                        }}
+                        aria-label={option.color.name}
+                        aria-current={option.is_current}
+                        title={option.color.name}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {variants.length > 0 && (
-              <div className="catalogDetail__sizeBlock">
-                <span className="catalogDetail__sizeLabel">Size</span>
+              {showSizes && (
+                <div className="catalogDetail__block">
+                  <span className="catalogDetail__label">
+                    {t("catalogDetail.size")}
+                  </span>
 
-                <div className="catalogDetail__sizeOptions">
-                  {variants.map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => setVariant(v)}
-                      className={`catalogDetail__sizeBtn ${
-                        variant?.id === v.id ? "is-active" : ""
-                      }`}
-                    >
-                      {v.size}
-                    </button>
-                  ))}
+                  <div className="catalogDetail__pillRow">
+                    {sizeOptions.map((option) => (
+                      <button
+                        key={option.slug}
+                        type="button"
+                        className={`catalogDetail__sizeBtn${
+                          option.isCurrent ? " is-active" : ""
+                        }`}
+                        onClick={() => {
+                          if (option.isCurrent) return;
+                          navigate(`/catalog/item/${option.slug}`);
+                        }}
+                        aria-current={option.isCurrent}
+                      >
+                        {option.size}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              <button
+                type="button"
+                className="catalogDetail__btn"
+                onClick={() => {
+                  void onAddToCart();
+                }}
+                disabled={!variant || adding}
+              >
+                {adding ? "Adding..." : t("catalogDetail.addToCart")}
+              </button>
+
+              <div className="catalogDetail__details">
+                {leadText && (
+                  <p className="catalogDetail__desc">{leadText}</p>
+                )}
+
+                {scentNotes.length > 0 && (
+                  <div className="catalogDetail__block">
+                    <span className="catalogDetail__label">
+                      {t("catalogDetail.scent")}
+                    </span>
+
+                    <div className="catalogDetail__tags">
+                      {scentNotes.map((note) => (
+                        <span key={note} className="catalogDetail__tag">
+                          {note}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {hasFacts && (
+                  <dl className="catalogDetail__facts">
+                    {moodTags.length > 0 && (
+                      <>
+                        <dt>{t("catalogDetail.mood")}</dt>
+                        <dd>{moodTags.join(" · ")}</dd>
+                      </>
+                    )}
+
+                    {bestForTags.length > 0 && (
+                      <>
+                        <dt>{t("catalogDetail.bestFor")}</dt>
+                        <dd>{bestForTags.join(" · ")}</dd>
+                      </>
+                    )}
+
+                    {seasonTags.length > 0 && (
+                      <>
+                        <dt>{t("catalogDetail.season")}</dt>
+                        <dd>{seasonTags.join(" · ")}</dd>
+                      </>
+                    )}
+                  </dl>
+                )}
               </div>
-            )}
 
-            <p className="catalogDetail__desc">{item.description}</p>
+              {scents.length > 0 && (
+                <div className="catalogDetail__related">
+                  <span className="catalogDetail__label">
+                    {t("catalogDetail.collectionScents")}
+                  </span>
 
-            <button
-              type="button"
-              className="catalogDetail__btn"
-              onClick={() => {
-                void onAddToCart();
-              }}
-              disabled={!variant || adding}
-            >
-              {adding ? "Adding..." : t("catalogDetail.addToCart")}
-            </button>
+                  <div className="catalogDetail__pillRow">
+                    {scents.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className="catalogDetail__scentBtn"
+                        onClick={() => navigate(`/catalog/item/${s.slug}`)}
+                        aria-label={`${t("catalogDetail.openScent")}: ${s.name}`}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </section>
         </div>
       </div>
 
-      {isZoomOpen && (
+      {zoomImg && (
         <div
           className="catalogDetail__zoom"
           role="dialog"
@@ -310,7 +400,7 @@ const CatalogDetail: React.FC = () => {
           <button
             type="button"
             className="catalogDetail__zoomBackdrop"
-            onClick={() => setIsZoomOpen(false)}
+            onClick={() => setZoomImg("")}
             aria-label="Close image preview"
           />
 
@@ -318,14 +408,14 @@ const CatalogDetail: React.FC = () => {
             <button
               type="button"
               className="catalogDetail__zoomClose"
-              onClick={() => setIsZoomOpen(false)}
+              onClick={() => setZoomImg("")}
               aria-label="Close image preview"
             >
               ×
             </button>
 
             <img
-              src={activeImg}
+              src={zoomImg}
               className="catalogDetail__zoomImg"
               alt={item.name}
             />

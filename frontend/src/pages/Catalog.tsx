@@ -6,7 +6,6 @@ import type { Candle, Category, CandleBadge } from "../types/candle";
 import {
   getDisplayPrice,
   getLowestActiveVariant,
-  hasColorChoice,
   isCandleAvailable,
 } from "../types/candle";
 
@@ -516,8 +515,6 @@ const Catalog: React.FC = () => {
                 const firstVariant =
                   getLowestActiveVariant(product);
 
-                const showSwatches = hasColorChoice(product);
-
                 const isPriorityImage = index === 0;
 
                 return (
@@ -606,29 +603,6 @@ const Catalog: React.FC = () => {
                             : "Select size"}
                         </div>
                       </div>
-
-                      {/* Every wax color is its own product, so each
-                          swatch links to that product's page. */}
-                      {showSwatches && (
-                        <div
-                          className="catalogCard__swatches"
-                          aria-label={t("catalog.availableColors")}
-                        >
-                          {product.color_options!.map((option) => (
-                            <Link
-                              key={option.slug}
-                              to={`/catalog/item/${option.slug}`}
-                              className={`catalogCard__swatch${
-                                option.is_current ? " is-active" : ""
-                              }`}
-                              style={{ background: option.color.hex }}
-                              title={option.color.name}
-                              aria-label={option.color.name}
-                              aria-current={option.is_current}
-                            />
-                          ))}
-                        </div>
-                      )}
 
                       <div className="catalogCard__actions">
                         {showSoldOut ? (

@@ -3,7 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
-                     Color, Fragrance, GalleryItem, Offer)
+                     Color, GalleryItem, Offer)
 
 SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
 
@@ -66,13 +66,7 @@ class CategorySerializer(serializers.ModelSerializer):
 class ColorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Color
-        fields = ["id", "name", "slug", "hex"]
-
-
-class FragranceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Fragrance
-        fields = ["id", "name", "slug"]
+        fields = ["id", "name", "hex"]
 
 
 class CollectionSerializer(serializers.ModelSerializer):
@@ -143,15 +137,6 @@ class CandleSerializer(serializers.ModelSerializer):
         write_only=True,
     )
 
-    fragrance = FragranceSerializer(read_only=True)
-    fragrance_id = serializers.PrimaryKeyRelatedField(
-        queryset=Fragrance.objects.all(),
-        source="fragrance",
-        write_only=True,
-        required=False,
-        allow_null=True,
-    )
-
     color = ColorSerializer(read_only=True)
     color_id = serializers.PrimaryKeyRelatedField(
         queryset=Color.objects.all(),
@@ -203,46 +188,45 @@ class CandleSerializer(serializers.ModelSerializer):
         return build_cloudinary_image_url(obj.image)
 
     def get_siblings(self, obj):
-        """Other sizes of the same scent. Each is its own catalog card;
-        the product page uses this for the size switcher."""
-        if not obj.fragrance_id:
-            return []
-
+        """The same scent in other sizes. Candles are matched by name —
+        that is what a shopper reads as 'the same candle'."""
         others = (
-            Candle.objects.filter(fragrance_id=obj.fragrance_id)
-            .exclude(size=obj.size)
+            Candle.objects.filter(name=obj.name)
             .exclude(pk=obj.pk)
-            .order_by("size")
-            .distinct("size")
-            if False  # distinct("size") is Postgres-only and needs matching order_by
-            else Candle.objects.filter(fragrance_id=obj.fragrance_id)
-            .exclude(pk=obj.pk)
+            .exclude(size="")
             .order_by("size")
         )
 
-        return [
-            {
-                "id": c.id,
-                "slug": c.slug,
-                "size": c.size,
-                "price": c.price,
-                "is_sold_out": c.is_sold_out,
-            }
-            for c in others
-        ]
+        seen = set()
+        result = []
+
+        for candle in others:
+            # One entry per size — wax colors get their own switcher.
+            if candle.size in seen:
+                continue
+
+            seen.add(candle.size)
+            result.append(
+                {
+                    "id": candle.id,
+                    "slug": candle.slug,
+                    "size": candle.size,
+                    "price": candle.price,
+                    "is_sold_out": candle.is_sold_out,
+                }
+            )
+
+        return result
 
     def get_color_options(self, obj):
-        """Every wax color this candle exists in — same scent, same size.
-        Each color is a separate product, so the swatch carries its slug
-        and its own cover image for the product page."""
-        if not obj.color_id or not obj.fragrance_id:
+        """Every wax color of this candle in this size. Each color is its
+        own product, so the swatch carries a slug and its own cover."""
+        if not obj.color_id:
             return []
 
         group = (
             Candle.objects.filter(
-                fragrance_id=obj.fragrance_id,
-                size=obj.size,
-                color__isnull=False,
+                name=obj.name, size=obj.size, color__isnull=False
             )
             .select_related("color")
             .order_by("color__sort_order", "color__name")

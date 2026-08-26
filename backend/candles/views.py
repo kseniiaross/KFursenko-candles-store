@@ -14,8 +14,8 @@ def collection_tree_ids(collection):
     """A collection and every collection nested under it.
 
     A candle attached only to a berry sub-collection must still appear
-    under Spring-Summer, so filtering by a parent has to reach the
-    whole subtree, not just its direct children.
+    under Spring-Summer, so filtering by a parent has to reach the whole
+    subtree, not just its direct children.
     """
     ids = [collection.id]
     frontier = [collection.id]
@@ -35,6 +35,25 @@ def collection_tree_ids(collection):
         frontier = children
 
     return ids
+
+
+def one_per_scent(candles):
+    """Collapse sizes down to one entry per name.
+
+    Sizes are separate products now, so a scent sold in 8 oz and 11.3 oz
+    would otherwise be listed twice in the scent switcher.
+    """
+    seen = set()
+    result = []
+
+    for candle in candles:
+        if candle.name in seen:
+            continue
+
+        seen.add(candle.name)
+        result.append(candle)
+
+    return result
 
 
 # =========================
@@ -79,7 +98,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
         collection = self.get_object()
 
         candles = (
-            Candle.objects.select_related("category", "color", "fragrance")
+            Candle.objects.select_related("category", "color")
             .prefetch_related(
                 "collections",
                 "images",
@@ -99,7 +118,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
 # =========================
 class CandleViewSet(viewsets.ModelViewSet):
     queryset = (
-        Candle.objects.select_related("category", "color", "fragrance")
+        Candle.objects.select_related("category", "color")
         .prefetch_related(
             "collections",
             "images",
@@ -162,7 +181,7 @@ class CandleViewSet(viewsets.ModelViewSet):
             return Response([])
 
         sibling_candles = (
-            Candle.objects.select_related("category", "color", "fragrance")
+            Candle.objects.select_related("category", "color")
             .prefetch_related(
                 "collections",
                 "images",
@@ -170,13 +189,13 @@ class CandleViewSet(viewsets.ModelViewSet):
                 "offers",
             )
             .filter(collections=child_collection)
-            .exclude(id=candle.id)
+            .exclude(name=candle.name)
             .distinct()
             .order_by("name")
         )
 
         serializer = CandleSerializer(
-            sibling_candles,
+            one_per_scent(sibling_candles),
             many=True,
             context={"request": request},
         )

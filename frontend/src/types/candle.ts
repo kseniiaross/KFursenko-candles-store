@@ -26,20 +26,13 @@ export interface Category {
   allows_wax_color?: boolean;
 }
 
-export interface Fragrance {
-  id: number;
-  name: string;
-  slug: string;
-}
-
 export interface Color {
   id: number;
   name: string;
-  slug: string;
   hex: string;
 }
 
-/** Another size of the same scent — its own card in the catalog. */
+/** Another size of the same scent — its own product, its own photos. */
 export interface CandleSibling {
   id: number;
   slug: string;
@@ -48,7 +41,7 @@ export interface CandleSibling {
   is_sold_out: boolean;
 }
 
-/** Same scent and size in a different wax color — also its own card. */
+/** Same scent and size in a different wax color — also its own product. */
 export interface ColorOption {
   id: number;
   slug: string;
@@ -133,7 +126,6 @@ export interface Candle {
   category?: Category;
   collections: Collection[];
 
-  fragrance?: Fragrance | null;
   size?: string;
   siblings?: CandleSibling[];
 
@@ -184,16 +176,17 @@ export function isCandleAvailable(candle: Candle): boolean {
   return Boolean(candle.in_stock || (candle.stock_qty ?? 0) > 0);
 }
 
-/** Swatches are only meaningful when there is a choice to make. */
+/** Swatches only mean something when there is a choice to make. */
 export function hasColorChoice(candle: Candle): boolean {
   return (candle.color_options?.length ?? 0) > 1;
 }
 
-/** All sizes of a scent, current one included, ready for the switcher. */
+/** Every size of this scent, the current one included, ready for the
+ *  switcher. Sizes are separate products, so each carries its own slug. */
 export function getSizeOptions(
   candle: Candle,
 ): Array<{ slug: string; size: string; isCurrent: boolean }> {
-  if (!candle.fragrance || !candle.siblings?.length) return [];
+  if (!candle.siblings?.length) return [];
 
   return [
     { slug: candle.slug, size: candle.size ?? "", isCurrent: true },

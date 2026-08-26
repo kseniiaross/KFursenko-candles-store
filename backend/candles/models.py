@@ -74,47 +74,12 @@ class Collection(models.Model):
 
 
 # ======================================================
-# FRAGRANCE
-# ======================================================
-class Fragrance(models.Model):
-    """Groups the same scent across sizes.
-
-    Each size stays a separate Candle so it appears on its own card in
-    the catalog; the product page uses this link to offer the other sizes.
-    """
-
-    name = models.CharField(max_length=200, unique=True)
-    slug = models.SlugField(max_length=220, unique=True, blank=True)
-
-    class Meta:
-        ordering = ["name"]
-
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            base_slug = slugify(self.name) or "fragrance"
-            slug = base_slug
-            counter = 2
-
-            while Fragrance.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-
-            self.slug = slug
-
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.name
-
-
-# ======================================================
 # WAX COLOR
 # ======================================================
 class Color(models.Model):
     """Wax color. Used by molded candles only."""
 
     name = models.CharField(max_length=80, unique=True)
-    slug = models.SlugField(max_length=100, unique=True, blank=True)
     hex = models.CharField(max_length=7, help_text="#RRGGBB")
     sort_order = models.PositiveSmallIntegerField(default=0)
 
@@ -134,18 +99,6 @@ class Color(models.Model):
 
     def save(self, *args, **kwargs):
         self.hex = (self.hex or "").strip().lower()
-
-        if not self.slug:
-            base_slug = slugify(self.name) or "color"
-            slug = base_slug
-            counter = 2
-
-            while Color.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-
-            self.slug = slug
-
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -250,6 +203,15 @@ class Offer(models.Model):
 # CANDLE
 # ======================================================
 class Candle(models.Model):
+    """One row per sellable item.
+
+    Candles that share a name are the same scent in a different size or
+    wax color. That shared name is the only link between them, so adding
+    a size means duplicating the product and changing `size` — never
+    stacking two sizes inside one card, which is what stopped the photos
+    from switching before.
+    """
+
     class Intensity(models.TextChoices):
         SOFT = "soft", "Soft"
         MEDIUM = "medium", "Medium"
@@ -264,14 +226,9 @@ class Candle(models.Model):
     collections = models.ManyToManyField(Collection, blank=True)
     offers = models.ManyToManyField(Offer, blank=True)
 
-    # Same scent, different size — one Candle per size, grouped here.
-    fragrance = models.ForeignKey(
-        Fragrance,
-        on_delete=models.PROTECT,
-        related_name="candles",
-        null=True,
-        blank=True,
-    )
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=220, unique=True, blank=True)
+
     size = models.CharField(max_length=50, blank=True, help_text='e.g. "8 oz"')
 
     # Wax color — molded candles only, see clean().
@@ -282,9 +239,6 @@ class Candle(models.Model):
         null=True,
         blank=True,
     )
-
-    name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=220, unique=True, blank=True)
 
     description = models.TextField(blank=True)
 
@@ -322,9 +276,8 @@ class Candle(models.Model):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["fragrance", "size", "color"],
-                name="unique_fragrance_size_color",
-                condition=models.Q(fragrance__isnull=False),
+                fields=["name", "size", "color"],
+                name="unique_name_size_color",
             )
         ]
 
@@ -358,14 +311,18 @@ class Candle(models.Model):
                 }
             )
 
-        if self.fragrance_id and not self.size:
-            raise ValidationError(
-                {"size": "Pick a size — it is what separates candles sharing a scent."}
-            )
-
     def save(self, *args, **kwargs):
         if not self.slug:
-            base_slug = slugify(self.name) or "candle"
+            # Sizes share a name, so fold size and color into the slug —
+            # otherwise the second one silently becomes "name-2".
+            parts = [slugify(self.name) or "candle"]
+
+            if self.size:
+                parts.append(slugify(self.size))
+            if self.color_id:
+                parts.append(slugify(self.color.name))
+
+            base_slug = "-".join(parts)
             slug = base_slug
             counter = 2
 
@@ -379,15 +336,26 @@ class Candle(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
+        label = self.name
+
         if self.size:
-            return f"{self.name} ({self.size})"
-        return self.name
+            label = f"{label} ({self.size})"
+        if self.color_id:
+            label = f"{label} — {self.color.name}"
+
+        return label
 
 
 # ======================================================
 # VARIANTS
 # ======================================================
 class CandleVariant(models.Model):
+    """Holds the price and stock for its candle.
+
+    Exactly one per candle now that each size is its own product; the
+    cart and orders still point here, which is why it stays.
+    """
+
     candle = models.ForeignKey(
         Candle,
         on_delete=models.CASCADE,

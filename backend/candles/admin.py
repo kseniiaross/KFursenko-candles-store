@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
-                     Color, Fragrance, GalleryItem, Offer)
+                     Color, GalleryItem, Offer)
 
 
 def color_dot(hex_value, size=18):
@@ -37,26 +37,6 @@ class CollectionAdmin(admin.ModelAdmin):
 
 
 # =========================
-# FRAGRANCE
-# =========================
-@admin.register(Fragrance)
-class FragranceAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "slug", "size_count", "sizes")
-    search_fields = ("name", "slug")
-    ordering = ("name",)
-    prepopulated_fields = {"slug": ("name",)}
-
-    @admin.display(description="Sizes")
-    def size_count(self, obj):
-        return obj.candles.count()
-
-    @admin.display(description="Available as")
-    def sizes(self, obj):
-        values = [c.size for c in obj.candles.order_by("size") if c.size]
-        return ", ".join(values) or "—"
-
-
-# =========================
 # WAX COLOR
 # =========================
 @admin.register(Color)
@@ -64,9 +44,8 @@ class ColorAdmin(admin.ModelAdmin):
     list_display = ("swatch", "name", "hex", "sort_order", "candle_count")
     list_display_links = ("name",)
     list_editable = ("sort_order",)
-    search_fields = ("name", "slug", "hex")
+    search_fields = ("name", "hex")
     ordering = ("sort_order", "name")
-    prepopulated_fields = {"slug": ("name",)}
 
     @admin.display(description="")
     def swatch(self, obj):
@@ -100,18 +79,29 @@ class OfferAdmin(admin.ModelAdmin):
 # INLINES
 # =========================
 class CandleVariantInline(admin.TabularInline):
+    """Price and stock for this one candle.
+
+    Capped at a single row: stacking two sizes here is what previously
+    stopped the photos from switching, since a variant has no images of
+    its own. A second size belongs in a second candle with the same name.
+    """
+
     model = CandleVariant
     extra = 1
+    max_num = 1
     fields = ("size", "price", "stock_qty", "is_active")
-    ordering = ("id",)
+    verbose_name = "Price & stock"
+    verbose_name_plural = "Price & stock"
 
 
 class CandleImageInline(admin.TabularInline):
     model = CandleImage
-    extra = 0
+    extra = 1
     max_num = 5
     fields = ("image", "sort_order")
     ordering = ("sort_order", "id")
+    verbose_name = "Extra photo"
+    verbose_name_plural = "More photos — shown after the cover, in sort order"
 
 
 # =========================
@@ -123,19 +113,15 @@ class CandleAdmin(admin.ModelAdmin):
         "id",
         "name",
         "size",
-        "fragrance",
         "wax_color",
-        "fragrance_family",
-        "intensity",
-        "variant_stock_total",
-        "has_active_stock",
+        "price",
+        "sibling_sizes",
         "is_sold_out",
         "is_bestseller",
         "created_at",
     )
     list_filter = (
         "category",
-        "fragrance",
         "color",
         "size",
         "fragrance_family",
@@ -149,19 +135,17 @@ class CandleAdmin(admin.ModelAdmin):
         "slug",
         "description",
         "fragrance_family",
-        "fragrance__name",
         "mood_tags",
         "use_case_tags",
         "ideal_spaces",
         "season_tags",
     )
     ordering = ("-created_at",)
-    prepopulated_fields = {"slug": ("name",)}
 
-    readonly_fields = ("created_at", "variant_stock_total", "has_active_stock")
+    readonly_fields = ("slug", "created_at")
     list_editable = ("is_sold_out", "is_bestseller")
-    list_select_related = ("fragrance", "color", "category")
-    autocomplete_fields = ("fragrance", "color")
+    list_select_related = ("color", "category")
+    autocomplete_fields = ("color",)
     filter_horizontal = ("collections", "offers")
     inlines = [CandleVariantInline, CandleImageInline]
 
@@ -170,28 +154,20 @@ class CandleAdmin(admin.ModelAdmin):
             "Main",
             {
                 "fields": (
+                    "name",
+                    "size",
+                    "price",
+                    "stock_qty",
                     "category",
                     "collections",
                     "offers",
-                    "name",
-                    "slug",
                     "description",
-                    "image",
-                    "price",
-                ),
-            },
-        ),
-        (
-            "Scent & size",
-            {
-                "fields": (
-                    "fragrance",
-                    "size",
                 ),
                 "description": (
-                    "Each size is its own product with its own catalog card. "
-                    "Give both the 8 oz and the 11 oz the same fragrance, and "
-                    "the product page will offer a switch between them."
+                    "Candles sharing a name are one scent. To add a second "
+                    "size, duplicate the candle, keep the name identical and "
+                    "change the size — the product page will then switch "
+                    "between them, photos included."
                 ),
             },
         ),
@@ -202,6 +178,15 @@ class CandleAdmin(admin.ModelAdmin):
                 "description": (
                     "Molded candles only. Leave empty unless the category has "
                     "'allows wax color' enabled — otherwise saving will fail."
+                ),
+            },
+        ),
+        (
+            "Display",
+            {
+                "fields": (
+                    "is_sold_out",
+                    "is_bestseller",
                 ),
             },
         ),
@@ -219,6 +204,7 @@ class CandleAdmin(admin.ModelAdmin):
                     "ideal_spaces",
                     "season_tags",
                 ),
+                "classes": ("collapse",),
                 "description": (
                     "Use JSON arrays for notes/tags. Example: "
                     '["cozy", "warm", "bedroom", "relaxing"]'
@@ -226,29 +212,18 @@ class CandleAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Display",
-            {
-                "fields": (
-                    "is_sold_out",
-                    "is_bestseller",
-                ),
-            },
-        ),
-        (
-            "Variant stock summary",
-            {
-                "fields": (
-                    "variant_stock_total",
-                    "has_active_stock",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
             "Meta",
             {
-                "fields": ("created_at",),
+                "fields": ("slug", "created_at"),
                 "classes": ("collapse",),
+            },
+        ),
+        # Last so the cover sits directly above the extra photos below.
+        (
+            "Cover photo",
+            {
+                "fields": ("image",),
+                "description": "First photo on the card and the product page.",
             },
         ),
     )
@@ -259,17 +234,15 @@ class CandleAdmin(admin.ModelAdmin):
             return "—"
         return format_html("{} {}", color_dot(obj.color.hex, 14), obj.color.name)
 
-    @admin.display(description="Variant stock total")
-    def variant_stock_total(self, obj):
-        return sum(
-            variant.stock_qty
-            for variant in obj.variants.all()
-            if variant.is_active
+    @admin.display(description="Also in")
+    def sibling_sizes(self, obj):
+        sizes = (
+            Candle.objects.filter(name=obj.name)
+            .exclude(pk=obj.pk)
+            .exclude(size="")
+            .values_list("size", flat=True)
         )
-
-    @admin.display(boolean=True, description="Has active variant stock")
-    def has_active_stock(self, obj):
-        return obj.variants.filter(is_active=True, stock_qty__gt=0).exists()
+        return ", ".join(sorted(set(sizes))) or "—"
 
 
 # =========================
@@ -295,38 +268,18 @@ class GalleryItemAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             "Content",
-            {
-                "fields": (
-                    "title",
-                    "slug",
-                    "caption",
-                ),
-            },
+            {"fields": ("title", "slug", "caption")},
         ),
         (
             "Media",
-            {
-                "fields": (
-                    "media_type",
-                    "media",
-                    "preview_image",
-                ),
-            },
+            {"fields": ("media_type", "media", "preview_image")},
         ),
         (
             "Display",
-            {
-                "fields": (
-                    "sort_order",
-                    "is_active",
-                ),
-            },
+            {"fields": ("sort_order", "is_active")},
         ),
         (
             "Meta",
-            {
-                "fields": ("created_at",),
-                "classes": ("collapse",),
-            },
+            {"fields": ("created_at",), "classes": ("collapse",)},
         ),
     )
