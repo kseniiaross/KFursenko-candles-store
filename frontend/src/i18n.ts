@@ -65,6 +65,17 @@ const resources = {
         contacts: "Contacts",
       },
 
+      discountModal: {
+        lead: "Unlock",
+        amount: "10% off",
+        sub: "your first order",
+        terms:
+          "Create an account and 10% comes off your first order automatically at checkout — no code needed. Valid for 60 days after sign-up. Does not apply to candles already included in another promotion, or to shipping and tax.",
+        termsRequired: "Please accept the terms to continue.",
+        cta: "Create account",
+        ctaNote: "The discount applies at checkout",
+      }, 
+
       loginChoice: {
         pageLabel: "Login choice page",
         title: "Welcome",
@@ -511,6 +522,17 @@ const resources = {
         policy: "Политика",
         storyMission: "История и миссия",
         contacts: "Контакты",
+      },
+
+      discountModal: {
+        lead: "Скидка",
+        amount: "10%",
+        sub: "на первый заказ",
+        terms:
+          "Зарегистрируйтесь — и 10% спишутся с первого заказа автоматически при оформлении, без промокода. Действует 60 дней после регистрации. Не распространяется на свечи, уже участвующие в другой акции, а также на доставку и налог.",
+        termsRequired: "Подтвердите условия, чтобы продолжить.",
+        cta: "Создать аккаунт",
+        ctaNote: "Скидка применится при оформлении",
       },
 
       loginChoice: {
@@ -960,6 +982,17 @@ const resources = {
         policy: "Política",
         storyMission: "Historia y misión",
         contacts: "Contactos",
+      },
+
+      discountModal: {
+        lead: "Descuento del",
+        amount: "10%",
+        sub: "en tu primer pedido",
+        terms:
+          "Crea una cuenta y el 10% se descontará automáticamente de tu primer pedido al finalizar la compra, sin código. Válido durante 60 días tras el registro. No se aplica a velas ya incluidas en otra promoción, ni al envío o los impuestos.",
+        termsRequired: "Acepta las condiciones para continuar.",
+        cta: "Crear cuenta",
+        ctaNote: "El descuento se aplica al pagar",
       },
 
       loginChoice: {
@@ -1412,15 +1445,16 @@ const resources = {
         contacts: "Contacts",
       },
 
-            discountModal: {
-        lead: "Unlock",
-        amount: "10% off",
-        sub: "your first order",
+      
+      discountModal: {
+        lead: "Remise de",
+        amount: "10%",
+        sub: "sur votre première commande",
         terms:
-          "10% off your first order, applied automatically at checkout. Valid for 60 days after you create an account. Not valid on candles already included in another offer, or on gift cards.",
-        termsRequired: "Please accept the terms to continue.",
-        cta: "Create account",
-        ctaNote: "The discount applies at checkout — no code needed",
+          "Créez un compte et 10% seront déduits automatiquement de votre première commande lors du paiement, sans code. Valable 60 jours après l'inscription. Ne s'applique pas aux bougies déjà incluses dans une autre promotion, ni à la livraison ou aux taxes.",
+        termsRequired: "Acceptez les conditions pour continuer.",
+        cta: "Créer un compte",
+        ctaNote: "La remise s'applique au paiement",
       },
 
       loginChoice: {
