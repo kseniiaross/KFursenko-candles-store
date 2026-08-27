@@ -5,6 +5,8 @@ from rest_framework import serializers
 from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
                      Color, GalleryItem, Offer)
 
+from orders.discounts import get_welcome_offer, offer_applies_to
+
 SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
 
 
@@ -243,38 +245,60 @@ class CandleSerializer(serializers.ModelSerializer):
             }
             for c in group
         ]
-
     def _applicable_offers(self, obj):
-        """Offers that apply to this candle: global, directly assigned (m2m
-        and reverse m2m), by category, or by any of its collections."""
-        qs = Offer.objects.filter(is_active=True)
+        """Offers this shopper actually gets on this candle.
 
-        return (
-            qs.filter(apply_globally=True)
-            | obj.offers.filter(is_active=True)
-            | qs.filter(candles=obj)
-            | qs.filter(categories=obj.category)
-            | qs.filter(collections__in=obj.collections.all())
-        ).distinct()
+        The welcome offer is personal — a guest, or someone who has
+        ordered before, must not see a price they cannot pay.
+        """
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        welcome = get_welcome_offer(user)
+
+        offers = []
+
+        for offer in Offer.objects.filter(is_active=True).order_by("priority"):
+            if not offer.is_currently_active:
+                continue
+
+            if offer.kind == Offer.Kind.NEW_SHOPPER:
+                if not welcome or offer.pk != welcome.pk:
+                    continue
+
+            if offer_applies_to(offer, obj):
+                offers.append(offer)
+
+        return offers
 
     def get_badges(self, obj):
-        combined = self._applicable_offers(obj)
+        visible = [
+            offer for offer in self._applicable_offers(obj) if offer.show_badge
+        ]
 
-        return CandleBadgeSerializer(
-            combined.order_by("priority"),
-            many=True,
-        ).data
+        return CandleBadgeSerializer(visible, many=True).data
 
     def get_discount_price(self, obj):
-        if not obj.price:
+        """Price after discounts, or None when nothing applies.
+
+        Based on the variant price the storefront actually shows, not
+        Candle.price — otherwise the struck-through figure and the new one
+        would come from different places.
+        """
+        variant = (
+            obj.variants.filter(is_active=True).order_by("price").first()
+        )
+        base = variant.price if variant else obj.price
+
+        if not base:
             return None
 
-        base = Decimal(obj.price)
-        offers = self._applicable_offers(obj).order_by("priority")
+        base = Decimal(base)
 
-        for offer in offers:
+        for offer in self._applicable_offers(obj):
             if offer.discount_percent:
-                return base - (base * Decimal(offer.discount_percent) / 100)
+                return (base - base * Decimal(offer.discount_percent) / 100).quantize(
+                    Decimal("0.01")
+                )
             if offer.discounted_price:
                 return offer.discounted_price
 

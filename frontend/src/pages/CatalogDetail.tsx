@@ -12,20 +12,49 @@ import { getSizeOptions, hasColorChoice } from "../types/candle";
 
 import "../styles/CatalogDetail.css";
 
-/** Lines the structured rows below already cover — keeping them in the
- *  prose is what turned the description into a wall of text. */
-const LABELLED_LINE = /^\s*(scent|mood|perfect for|details|notes)\s*:/i;
+/** Labels the description uses for its structured lines. Anything not
+ *  listed here stays in the lead paragraph. */
+const FACT_LABELS: Record<string, string> = {
+  scent: "scent",
+  notes: "scent",
+  mood: "mood",
+  "perfect for": "bestFor",
+  "best for": "bestFor",
+  details: "details",
+};
 
-function getLeadText(description: string): string {
-  if (!description) return "";
+const LABELLED_LINE = /^\s*([a-z][a-z\s]{1,20}?)\s*:\s*(.+)$/i;
 
-  const kept = description
-    .split("\n")
-    .filter((line) => !LABELLED_LINE.test(line))
-    .join("\n")
-    .trim();
+type ParsedDescription = {
+  lead: string;
+  facts: Record<string, string[]>;
+};
 
-  return kept || description.trim();
+/** The description arrives as one blob with labelled lines inside, which
+ *  is what made it read as a wall of text. Split it so those parts can
+ *  become tags and rows instead. */
+function parseDescription(description: string): ParsedDescription {
+  const facts: Record<string, string[]> = {};
+  const leadLines: string[] = [];
+
+  for (const line of (description || "").split("\n")) {
+    const match = line.match(LABELLED_LINE);
+    const key = match ? FACT_LABELS[match[1].trim().toLowerCase()] : undefined;
+
+    if (!match || !key) {
+      leadLines.push(line);
+      continue;
+    }
+
+    const values = match[2]
+      .split(/[•·|]/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    facts[key] = (facts[key] ?? []).concat(values);
+  }
+
+  return { lead: leadLines.join("\n").trim(), facts };
 }
 
 function uniqueTags(...groups: Array<string[] | undefined>): string[] {
@@ -138,6 +167,11 @@ const CatalogDetail: React.FC = () => {
       .filter((url, index, all) => all.indexOf(url) === index);
   }, [item]);
 
+  const parsed = useMemo(
+    () => parseDescription(item?.description ?? ""),
+    [item?.description]
+  );
+
   const buildCartItem = () => {
     if (!item || !variant) return null;
 
@@ -196,19 +230,31 @@ const CatalogDetail: React.FC = () => {
   const sizeOptions = getSizeOptions(item);
   const showSizes = sizeOptions.length > 1;
 
-  // The scent profile is already stored as arrays for the AI search, so
-  // the rows below need no extra fields in the database.
+  // The structured JSON fields win when they are filled; the labelled
+  // lines in the description are the fallback until they are.
   const scentNotes = uniqueTags(
     item.top_notes,
     item.heart_notes,
     item.base_notes
   );
-  const moodTags = uniqueTags(item.mood_tags);
-  const bestForTags = uniqueTags(item.use_case_tags, item.ideal_spaces);
-  const seasonTags = uniqueTags(item.season_tags);
+  const notes = scentNotes.length > 0 ? scentNotes : parsed.facts.scent ?? [];
 
-  const leadText = getLeadText(item.description);
-  const hasFacts = moodTags.length > 0 || bestForTags.length > 0 || seasonTags.length > 0;
+  const moodFromTags = uniqueTags(item.mood_tags);
+  const mood = moodFromTags.length > 0 ? moodFromTags : parsed.facts.mood ?? [];
+
+  const bestForFromTags = uniqueTags(item.use_case_tags, item.ideal_spaces);
+  const bestFor =
+    bestForFromTags.length > 0 ? bestForFromTags : parsed.facts.bestFor ?? [];
+
+  const season = uniqueTags(item.season_tags);
+  const details = parsed.facts.details ?? [];
+
+  const rows: Array<{ key: string; label: string; values: string[] }> = [
+    { key: "mood", label: t("catalogDetail.mood"), values: mood },
+    { key: "bestFor", label: t("catalogDetail.bestFor"), values: bestFor },
+    { key: "season", label: t("catalogDetail.season"), values: season },
+    { key: "details", label: t("catalogDetail.details"), values: details },
+  ].filter((row) => row.values.length > 0);
 
   return (
     <main className="catalogDetail" aria-label={t("catalogDetail.pageLabel")}>
@@ -242,10 +288,22 @@ const CatalogDetail: React.FC = () => {
 
               <h1 className="catalogDetail__title">{item.name}</h1>
 
-              <div className="catalogDetail__priceRow">
-                <span className="catalogDetail__price">
-                  ${price.toFixed(2)}
-                </span>
+                            <div className="catalogDetail__priceRow">
+                {item.discount_price ? (
+                  <>
+                    <span className="catalogDetail__priceWas">
+                      ${price.toFixed(2)}
+                    </span>
+                    <span className="catalogDetail__price catalogDetail__price--sale">
+                      ${Number(item.discount_price).toFixed(2)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="catalogDetail__price">
+                    ${price.toFixed(2)}
+                  </span>
+                )}
+
                 {item.size && (
                   <span className="catalogDetail__meta">{item.size}</span>
                 )}
@@ -318,18 +376,18 @@ const CatalogDetail: React.FC = () => {
               </button>
 
               <div className="catalogDetail__details">
-                {leadText && (
-                  <p className="catalogDetail__desc">{leadText}</p>
+                {parsed.lead && (
+                  <p className="catalogDetail__desc">{parsed.lead}</p>
                 )}
 
-                {scentNotes.length > 0 && (
+                {notes.length > 0 && (
                   <div className="catalogDetail__block">
                     <span className="catalogDetail__label">
                       {t("catalogDetail.scent")}
                     </span>
 
                     <div className="catalogDetail__tags">
-                      {scentNotes.map((note) => (
+                      {notes.map((note) => (
                         <span key={note} className="catalogDetail__tag">
                           {note}
                         </span>
@@ -338,28 +396,14 @@ const CatalogDetail: React.FC = () => {
                   </div>
                 )}
 
-                {hasFacts && (
+                {rows.length > 0 && (
                   <dl className="catalogDetail__facts">
-                    {moodTags.length > 0 && (
-                      <>
-                        <dt>{t("catalogDetail.mood")}</dt>
-                        <dd>{moodTags.join(" · ")}</dd>
-                      </>
-                    )}
-
-                    {bestForTags.length > 0 && (
-                      <>
-                        <dt>{t("catalogDetail.bestFor")}</dt>
-                        <dd>{bestForTags.join(" · ")}</dd>
-                      </>
-                    )}
-
-                    {seasonTags.length > 0 && (
-                      <>
-                        <dt>{t("catalogDetail.season")}</dt>
-                        <dd>{seasonTags.join(" · ")}</dd>
-                      </>
-                    )}
+                    {rows.map((row) => (
+                      <React.Fragment key={row.key}>
+                        <dt>{row.label}</dt>
+                        <dd>{row.values.join(" · ")}</dd>
+                      </React.Fragment>
+                    ))}
                   </dl>
                 )}
               </div>

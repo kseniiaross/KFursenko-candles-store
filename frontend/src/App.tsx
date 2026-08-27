@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Header from "./pages/Header";
 import Footer from "./pages/Footer";
 import SizeModal from "./components/SizeModal";
+import DiscountModal from "./components/DiscountModal";
 import PrivateRoute from "./components/PrivateRoute";
 import ScrollToTop from "./components/ScrollToTop";
 import LumiereWidget from "./pages/LumiereWidget";
@@ -253,6 +254,7 @@ const App: React.FC = () => {
 
       <Footer />
       <LumiereWidget />
+      <DiscountModal />
     </div>
   );
 };

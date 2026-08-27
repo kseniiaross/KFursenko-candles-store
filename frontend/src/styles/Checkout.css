@@ -13,6 +13,15 @@
   margin: 0 auto;
 }
 
+.catalogCard__priceWas {
+  font-weight: 400;
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+.catalogCard__priceNow {
+  color: #b73a3a;
+}
 /* HEADER */
 
 .checkout__backWrap {

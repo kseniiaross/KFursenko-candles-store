@@ -304,7 +304,7 @@ const Cart: React.FC = () => {
             </ul>
 
             <section className="cart__footer">
-              <div className="cart__summary">
+                         <div className="cart__summary">
                 <div className="cart__summaryRow">
                   <span className="cart__summaryLabel">Items</span>
                   <span className="cart__summaryValue">{totalItems}</span>
@@ -317,13 +317,21 @@ const Cart: React.FC = () => {
                   </div>
                 )}
 
+                {/* Shipping, tax and any discount are worked out server-side
+                    at checkout, so this is a subtotal — calling it a total
+                    would understate what the shopper actually pays. */}
                 <div className="cart__summaryRow cart__summaryRow--total">
-                  <span className="cart__summaryLabel">Total</span>
+                  <span className="cart__summaryLabel">Subtotal</span>
                   <span className="cart__summaryValue">
                     {money(totalAmount)}
                   </span>
                 </div>
+
+                <p className="cart__summaryNote">
+                  Shipping, tax and any discount are calculated at checkout.
+                </p>
               </div>
+        
 
               <button
                 type="button"

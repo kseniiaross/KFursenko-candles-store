@@ -254,6 +254,12 @@
   box-shadow: var(--app-shadow);
 }
 
+.cart__summaryNote {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  opacity: 0.6;
+  line-height: 1.5;
+}
 .cart__summary {
   display: flex;
   flex-direction: column;

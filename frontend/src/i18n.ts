@@ -1412,6 +1412,17 @@ const resources = {
         contacts: "Contacts",
       },
 
+            discountModal: {
+        lead: "Unlock",
+        amount: "10% off",
+        sub: "your first order",
+        terms:
+          "10% off your first order, applied automatically at checkout. Valid for 60 days after you create an account. Not valid on candles already included in another offer, or on gift cards.",
+        termsRequired: "Please accept the terms to continue.",
+        cta: "Create account",
+        ctaNote: "The discount applies at checkout — no code needed",
+      },
+
       loginChoice: {
         pageLabel: "Page de connexion",
         title: "Bienvenue",

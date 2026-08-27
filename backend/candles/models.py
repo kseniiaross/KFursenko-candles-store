@@ -133,7 +133,15 @@ class Offer(models.Model):
 
     priority = models.PositiveSmallIntegerField(default=100)
     is_active = models.BooleanField(default=True)
+    priority = models.PositiveSmallIntegerField(default=100)
+    is_active = models.BooleanField(default=True)
 
+    # A quiet offer still discounts the price — it just does not put a
+    # label on the card. Used for the sign-up discount, which is personal
+    # and would confuse shoppers who do not qualify.
+    show_badge = models.BooleanField(default=True)
+
+    apply_globally = models.BooleanField(default=False)
     apply_globally = models.BooleanField(default=False)
 
     new_shopper_only = models.BooleanField(default=False)

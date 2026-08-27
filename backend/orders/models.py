@@ -33,6 +33,23 @@ class Order(models.Model):
         decimal_places=2,
         default=Decimal("0.00"),
     )
+
+        # Worked out server-side at checkout; the storefront never sends it.
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    discount_label = models.CharField(max_length=160, blank=True, default="")
+
+    # Worked out server-side at checkout; the storefront never sends it.
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    discount_label = models.CharField(max_length=160, blank=True, default="")
+
     shipping_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,

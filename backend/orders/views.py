@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.db import transaction
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, permissions, status
@@ -7,12 +5,12 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
-from candles.models import CandleVariant
 from cart.models import Cart, CartItem
 
-from .models import Order, OrderItem
-from .serializers import (OrderCreateSerializer, OrderReadSerializer,
-                          OrderStatusUpdateSerializer)
+from .models import Order
+from .serializers import (OrderCreateSerializer, OrderFromCartSerializer,
+                          OrderReadSerializer, OrderStatusUpdateSerializer,
+                          build_order)
 
 
 class OrderCreateThrottle(UserRateThrottle):
@@ -25,7 +23,7 @@ class OrderCreateThrottle(UserRateThrottle):
     description=(
         "Creates an order from request payload items.\n\n"
         "Body example:\n"
-        '{ "items": [{"candle_id": 12, "quantity": 2}] }'
+        '{ "items": [{"variant_id": 12, "quantity": 2}], "shipping": {...} }'
     ),
     request=OrderCreateSerializer,
     responses={201: OrderReadSerializer},
@@ -68,7 +66,10 @@ class MyOrdersAPIView(generics.ListAPIView):
     parameters=[
         OpenApiParameter(
             name="search",
-            description="Search by order id, user email, or Stripe payment intent id (if search backend enabled).",
+            description=(
+                "Search by order id, user email, or Stripe payment intent id "
+                "(if search backend enabled)."
+            ),
             required=False,
             type=str,
         ),
@@ -94,89 +95,60 @@ class StaffOrdersAPIView(generics.ListAPIView):
     def get_queryset(self):
         if not self.request.user.is_staff:
             raise PermissionDenied("Only staff can view all orders.")
-        return Order.objects.select_related("user").prefetch_related("items").order_by("-created_at")
+
+        return (
+            Order.objects.select_related("user")
+            .prefetch_related("items")
+            .order_by("-created_at")
+        )
 
 
 @extend_schema(
     tags=["Orders"],
     summary="Create order from server cart",
-    description="Creates an order from the authenticated user's server-side cart and clears the cart after success.",
+    description=(
+        "Creates an order from the authenticated user's server-side cart "
+        "and clears the cart after success."
+    ),
+    request=OrderFromCartSerializer,
     responses={201: OrderReadSerializer},
 )
 class CreateOrderFromCartAPIView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderFromCartSerializer
     throttle_classes = [OrderCreateThrottle]
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         user = request.user
 
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         cart, _ = Cart.objects.get_or_create(user=user)
-        cart_items = (
-            CartItem.objects
-            .select_related("variant", "variant__candle")
-            .select_for_update()
-            .filter(cart=cart)
+        cart_items = list(
+            CartItem.objects.select_related("variant").filter(cart=cart)
         )
 
-        if not cart_items.exists():
+        if not cart_items:
             raise ValidationError({"cart": "Cart is empty."})
 
-        variant_ids = list(cart_items.values_list("variant_id", flat=True))
-        variants = (
-            CandleVariant.objects
-            .select_for_update()
-            .select_related("candle")
-            .filter(id__in=variant_ids)
-        )
-        variant_map = {v.id: v for v in variants}
-
-        if len(variant_map) != len(set(variant_ids)):
-            missing = sorted(set(variant_ids) - set(variant_map.keys()))
-            raise ValidationError({"cart": f"Some variant_id do not exist: {missing}"})
-
-        order = Order.objects.create(
+        # Same assembly path as the explicit-items endpoint, so shipping,
+        # stock checks and the welcome discount cannot diverge.
+        order = build_order(
             user=user,
-            status=Order.Status.PENDING,
-            currency="usd",
-            total_amount=Decimal("0.00"),
+            lines=[
+                {
+                    "variant_id": item.variant_id,
+                    "quantity": item.quantity,
+                    "is_gift": item.is_gift,
+                }
+                for item in cart_items
+            ],
+            shipping=serializer.validated_data["shipping"],
         )
 
-        total = Decimal("0.00")
-
-        for item in cart_items:
-            variant = variant_map[item.variant_id]
-            candle = variant.candle
-            qty = int(item.quantity)
-
-            if not variant.is_active:
-                raise ValidationError(
-                    {"cart": f"{candle.name} / {variant.size} is currently unavailable."}
-                )
-
-            if variant.stock_qty < qty:
-                raise ValidationError(
-                    {"cart": f"Not enough stock for: {candle.name} / {variant.size}"}
-                )
-
-            variant.stock_qty -= qty
-            variant.save(update_fields=["stock_qty"])
-
-            OrderItem.objects.create(
-                order=order,
-                candle=candle,
-                product_name=f"{candle.name} - {variant.size}",
-                unit_price=variant.price,
-                quantity=qty,
-                is_gift=item.is_gift,
-            )
-
-            total += variant.price * qty
-
-        order.total_amount = total
-        order.save(update_fields=["total_amount"])
-
-        cart_items.delete()
+        CartItem.objects.filter(cart=cart).delete()
 
         return Response(OrderReadSerializer(order).data, status=status.HTTP_201_CREATED)
 
@@ -184,7 +156,7 @@ class CreateOrderFromCartAPIView(generics.GenericAPIView):
 @extend_schema(
     tags=["Orders"],
     summary="Get my order by id",
-    description="Returns a single order for the authenticated user (only their own orders).",
+    description="Returns a single order for the authenticated user (only their own).",
     responses={200: OrderReadSerializer},
 )
 class OrderDetailAPIView(generics.RetrieveAPIView):
@@ -198,7 +170,10 @@ class OrderDetailAPIView(generics.RetrieveAPIView):
 @extend_schema(
     tags=["Orders"],
     summary="Staff: update order status",
-    description='Staff-only. Updates order status using transition rules.\n\nBody: {"status": "shipped"}',
+    description=(
+        "Staff-only. Updates order status using transition rules.\n\n"
+        'Body: {"status": "shipped"}'
+    ),
     request=OrderStatusUpdateSerializer,
     responses={200: OrderReadSerializer},
 )
@@ -211,10 +186,13 @@ class OrderStatusUpdateAPIView(generics.GenericAPIView):
             raise PermissionDenied("Only staff can update order status.")
 
         order_id = kwargs.get("pk")
+
         try:
             order = Order.objects.get(pk=order_id)
         except Order.DoesNotExist:
-            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -222,7 +200,7 @@ class OrderStatusUpdateAPIView(generics.GenericAPIView):
 
         try:
             order.transition_to(new_status)
-        except ValueError as e:
-            raise ValidationError({"status": str(e)})
+        except ValueError as error:
+            raise ValidationError({"status": str(error)})
 
         return Response(OrderReadSerializer(order).data, status=status.HTTP_200_OK)

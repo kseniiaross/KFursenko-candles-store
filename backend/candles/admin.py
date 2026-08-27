@@ -65,16 +65,75 @@ class OfferAdmin(admin.ModelAdmin):
         "badge_text",
         "discount_percent",
         "discounted_price",
+        "show_badge",
         "is_active",
         "priority",
     )
-    list_filter = ("is_active", "kind")
+    list_filter = ("is_active", "show_badge", "kind")
+    list_editable = ("show_badge", "is_active")
     search_fields = ("title", "slug", "badge_text")
     ordering = ("priority", "title")
     prepopulated_fields = {"slug": ("title",)}
     filter_horizontal = ("categories", "collections", "candles")
 
-
+    fieldsets = (
+        (
+            "Offer",
+            {
+                "fields": (
+                    "title",
+                    "slug",
+                    "kind",
+                    "discount_percent",
+                    "discounted_price",
+                    "priority",
+                    "is_active",
+                )
+            },
+        ),
+        (
+            "Where it applies",
+            {
+                "fields": (
+                    "apply_globally",
+                    "categories",
+                    "collections",
+                    "candles",
+                ),
+                "description": (
+                    "Leave everything empty and tick 'apply globally' to cover "
+                    "the whole catalog. Otherwise pick the categories, "
+                    "collections or individual candles it covers."
+                ),
+            },
+        ),
+        (
+            "Badge",
+            {
+                "fields": ("show_badge", "badge_text"),
+                "description": (
+                    "Untick 'show badge' for a personal offer such as the "
+                    "sign-up discount — the price still drops, but no label "
+                    "appears on the card. Shoppers who do not qualify never "
+                    "see either one."
+                ),
+            },
+        ),
+        (
+            "New shopper",
+            {
+                "fields": ("new_shopper_only", "new_shopper_days_active"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Schedule",
+            {
+                "fields": ("offer_start", "offer_end"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
 # =========================
 # INLINES
 # =========================

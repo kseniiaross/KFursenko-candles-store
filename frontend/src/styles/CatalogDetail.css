@@ -1,31 +1,38 @@
+/* Left edge lines up with the header logo. If the header uses a
+   different padding, change this one value to match it. */
 .catalogDetail {
+  --detail-side-padding: clamp(16px, 2vw, 32px);
+
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 0 clamp(16px, 4vw, 48px) 96px;
+  padding: 0 var(--detail-side-padding) 96px;
   color: #111111;
 }
 
 .catalogDetail__inner {
-  width: min(100%, 1240px);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 }
 
 /* Photos scroll, the buying panel does not — hence align-items: start,
    which is what lets position: sticky work in the second column. */
 .catalogDetail__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
-  gap: clamp(32px, 5vw, 72px);
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  gap: clamp(32px, 4vw, 64px);
   align-items: start;
 }
 
 /* GALLERY */
 
+/* Two frames per row, capped so they stay readable rather than
+   ballooning on a wide monitor. A third photo wraps underneath. */
 .catalogDetail__gallery {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 380px));
+  justify-content: start;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -178,7 +185,15 @@
   outline-offset: 3px;
   cursor: default;
 }
+.catalogDetail__priceWas {
+  font-size: 1.1rem;
+  text-decoration: line-through;
+  opacity: 0.45;
+}
 
+.catalogDetail__price--sale {
+  color: #b73a3a;
+}
 /* BUY */
 
 .catalogDetail__btn {
@@ -325,40 +340,17 @@
   outline-offset: 3px;
 }
 
-/* DARK */
+/* LAPTOP — the info column needs its width back before the photos do */
 
-[data-theme="dark"] .catalogDetail {
-  color: rgba(245, 239, 232, 0.95);
-}
+@media (max-width: 1280px) {
+  .catalogDetail__layout {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+    gap: 36px;
+  }
 
-[data-theme="dark"] .catalogDetail__sizeBtn,
-[data-theme="dark"] .catalogDetail__scentBtn,
-[data-theme="dark"] .catalogDetail__colorBtn {
-  border-color: rgba(245, 239, 232, 0.3);
-}
-
-[data-theme="dark"] .catalogDetail__sizeBtn.is-active {
-  background: rgba(245, 239, 232, 0.95);
-  color: #111111;
-  border-color: rgba(245, 239, 232, 0.95);
-}
-
-[data-theme="dark"] .catalogDetail__colorBtn.is-active {
-  outline-color: rgba(245, 239, 232, 0.95);
-}
-
-[data-theme="dark"] .catalogDetail__btn {
-  background: rgba(245, 239, 232, 0.95);
-  color: #111111;
-}
-
-[data-theme="dark"] .catalogDetail__tag {
-  background: rgba(245, 239, 232, 0.1);
-}
-
-[data-theme="dark"] .catalogDetail__details,
-[data-theme="dark"] .catalogDetail__related {
-  border-top-color: rgba(245, 239, 232, 0.18);
+  .catalogDetail__gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* TABLET */
@@ -377,12 +369,12 @@
 
   /* Photos become a swipe strip so the buy button stays near the top. */
   .catalogDetail__gallery {
-    flex-direction: row;
+    display: flex;
     gap: 8px;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    margin: 0 calc(clamp(16px, 4vw, 48px) * -1);
-    padding: 0 clamp(16px, 4vw, 48px);
+    margin: 0 calc(var(--detail-side-padding) * -1);
+    padding: 0 var(--detail-side-padding);
     scrollbar-width: none;
   }
 
@@ -400,7 +392,9 @@
 
 @media (max-width: 600px) {
   .catalogDetail {
-    padding: 0 16px 72px;
+    --detail-side-padding: 16px;
+
+    padding-bottom: 72px;
   }
 
   .catalogDetail__facts {

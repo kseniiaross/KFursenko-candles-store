@@ -137,8 +137,14 @@ class CreatePaymentIntentView(APIView):
             logger.exception("Stripe payment intent creation failed")
 
             return Response(
-                {"error": str(error)},
-                status=status.HTTP_400_BAD_REQUEST,
+                {
+                    "client_secret": intent.client_secret,
+                    "total_amount": float(order.total_amount),
+                    "tax_amount": float(order.tax_amount),
+                    "discount_amount": float(order.discount_amount),
+                    "discount_label": order.discount_label,
+                },
+                status=status.HTTP_200_OK,
             )
 
 

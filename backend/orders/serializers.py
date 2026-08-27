@@ -1,11 +1,14 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
 from rest_framework import serializers
 
 from candles.models import CandleVariant
 
+from .discounts import get_welcome_offer, welcome_percent_for
 from .models import Order, OrderItem
+
+SHIPPING_FLAT_RATE = Decimal("15.00")
 
 
 class OrderItemReadSerializer(serializers.ModelSerializer):
@@ -49,6 +52,8 @@ class OrderReadSerializer(serializers.ModelSerializer):
             "status",
             "currency",
             "subtotal_amount",
+            "discount_amount",
+            "discount_label",
             "shipping_amount",
             "tax_amount",
             "total_amount",
@@ -104,111 +109,150 @@ class ShippingSerializer(serializers.Serializer):
         return country
 
 
+# ======================================================
+# ORDER ASSEMBLY
+# ======================================================
+@transaction.atomic
+def build_order(*, user, lines, shipping):
+    """The single place an order is assembled.
+
+    Both entry points — an explicit item list and the server-side cart —
+    run through here, so stock checks, the flat shipping rate and the
+    welcome discount cannot drift apart between them.
+    """
+    merged: dict[int, dict[str, int | bool]] = {}
+
+    for line in lines:
+        variant_id = int(line["variant_id"])
+        qty = int(line["quantity"])
+        is_gift = bool(line.get("is_gift", False))
+
+        if variant_id not in merged:
+            merged[variant_id] = {"quantity": 0, "is_gift": False}
+
+        merged[variant_id]["quantity"] = int(merged[variant_id]["quantity"]) + qty
+        merged[variant_id]["is_gift"] = bool(merged[variant_id]["is_gift"]) or is_gift
+
+    variant_ids = list(merged.keys())
+
+    variants = (
+        CandleVariant.objects.select_for_update()
+        .select_related("candle", "candle__category")
+        .filter(id__in=variant_ids)
+    )
+
+    variant_map = {variant.id: variant for variant in variants}
+
+    if len(variant_map) != len(variant_ids):
+        raise serializers.ValidationError(
+            {"items": "Some items in your cart are no longer available."}
+        )
+
+    # Resolved before the order row exists, so the order being created
+    # cannot disqualify its own discount.
+    welcome_offer = get_welcome_offer(user)
+
+    order = Order.objects.create(
+        user=user,
+        status=Order.Status.PENDING,
+        currency="usd",
+        subtotal_amount=Decimal("0.00"),
+        discount_amount=Decimal("0.00"),
+        shipping_amount=SHIPPING_FLAT_RATE,
+        tax_amount=Decimal("0.00"),
+        total_amount=Decimal("0.00"),
+        shipping_full_name=shipping["full_name"].strip(),
+        shipping_line1=shipping["line1"].strip(),
+        shipping_line2=(shipping.get("line2") or "").strip(),
+        shipping_city=shipping["city"].strip(),
+        shipping_state=shipping["state"].strip(),
+        shipping_postal_code=shipping["postal_code"].strip(),
+        shipping_country=shipping["country"].strip(),
+    )
+
+    subtotal = Decimal("0.00")
+    discount = Decimal("0.00")
+
+    for variant_id, payload in merged.items():
+        variant = variant_map[variant_id]
+        candle = variant.candle
+        qty = int(payload["quantity"])
+        is_gift = bool(payload["is_gift"])
+
+        if not variant.is_active:
+            raise serializers.ValidationError(
+                {"items": f"{candle.name} / {variant.size} is currently unavailable."}
+            )
+
+        if variant.stock_qty < qty:
+            raise serializers.ValidationError(
+                {
+                    "items": (
+                        f"Only {variant.stock_qty} left for "
+                        f"{candle.name} / {variant.size}."
+                    )
+                }
+            )
+
+        variant.stock_qty -= qty
+        variant.save(update_fields=["stock_qty"])
+
+        OrderItem.objects.create(
+            order=order,
+            candle=candle,
+            product_name=f"{candle.name} - {variant.size}",
+            unit_price=variant.price,
+            quantity=qty,
+            is_gift=is_gift,
+        )
+
+        line_total = variant.price * qty
+        subtotal += line_total
+
+        percent = welcome_percent_for(candle, welcome_offer)
+
+        if percent:
+            discount += line_total * percent / Decimal("100")
+
+    discount = discount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    order.subtotal_amount = subtotal
+    order.discount_amount = discount
+    order.discount_label = welcome_offer.title if discount > 0 else ""
+    order.total_amount = subtotal - discount + order.shipping_amount + order.tax_amount
+    order.save(
+        update_fields=[
+            "subtotal_amount",
+            "discount_amount",
+            "discount_label",
+            "total_amount",
+        ]
+    )
+
+    return order
+
+
 class OrderCreateSerializer(serializers.Serializer):
     items = OrderItemCreateSerializer(many=True)
     shipping = ShippingSerializer()
 
-    @transaction.atomic
     def create(self, validated_data):
-        request = self.context["request"]
-        user = request.user
-
-        items_data = validated_data["items"]
-        ship = validated_data["shipping"]
-
-        merged: dict[int, dict[str, int | bool]] = {}
-
-        for item in items_data:
-            variant_id = int(item["variant_id"])
-            qty = int(item["quantity"])
-            is_gift = bool(item.get("is_gift", False))
-
-            if variant_id not in merged:
-                merged[variant_id] = {"quantity": 0, "is_gift": False}
-
-            merged[variant_id]["quantity"] = int(merged[variant_id]["quantity"]) + qty
-            merged[variant_id]["is_gift"] = (
-                bool(merged[variant_id]["is_gift"]) or is_gift
-            )
-
-        variant_ids = list(merged.keys())
-
-        variants = (
-            CandleVariant.objects.select_for_update()
-            .select_related("candle")
-            .filter(id__in=variant_ids)
+        return build_order(
+            user=self.context["request"].user,
+            lines=validated_data["items"],
+            shipping=validated_data["shipping"],
         )
 
-        variant_map = {variant.id: variant for variant in variants}
 
-        if len(variant_map) != len(variant_ids):
-            raise serializers.ValidationError(
-                {"items": "Some items in your cart are no longer available."}
-            )
+class OrderFromCartSerializer(serializers.Serializer):
+    """Shipping for a cart-based order.
 
-        order = Order.objects.create(
-            user=user,
-            status=Order.Status.PENDING,
-            currency="usd",
-            subtotal_amount=Decimal("0.00"),
-            shipping_amount=Decimal("15.00"),
-            tax_amount=Decimal("0.00"),
-            total_amount=Decimal("0.00"),
-            shipping_full_name=ship["full_name"].strip(),
-            shipping_line1=ship["line1"].strip(),
-            shipping_line2=(ship.get("line2") or "").strip(),
-            shipping_city=ship["city"].strip(),
-            shipping_state=ship["state"].strip(),
-            shipping_postal_code=ship["postal_code"].strip(),
-            shipping_country=ship["country"].strip(),
-        )
+    This endpoint used to take no shipping at all and skipped the flat
+    rate entirely, producing orders that could not be fulfilled or
+    charged correctly.
+    """
 
-        subtotal = Decimal("0.00")
-
-        for variant_id, payload in merged.items():
-            variant = variant_map[variant_id]
-            candle = variant.candle
-            qty = int(payload["quantity"])
-            is_gift = bool(payload["is_gift"])
-
-            if not variant.is_active:
-                raise serializers.ValidationError(
-                    {
-                        "items": (
-                            f"{candle.name} / {variant.size} is currently unavailable."
-                        )
-                    }
-                )
-
-            if variant.stock_qty < qty:
-                raise serializers.ValidationError(
-                    {
-                        "items": (
-                            f"Only {variant.stock_qty} left for "
-                            f"{candle.name} / {variant.size}."
-                        )
-                    }
-                )
-
-            variant.stock_qty -= qty
-            variant.save(update_fields=["stock_qty"])
-
-            OrderItem.objects.create(
-                order=order,
-                candle=candle,
-                product_name=f"{candle.name} - {variant.size}",
-                unit_price=variant.price,
-                quantity=qty,
-                is_gift=is_gift,
-            )
-
-            subtotal += variant.price * qty
-
-        order.subtotal_amount = subtotal
-        order.total_amount = subtotal + order.shipping_amount + order.tax_amount
-        order.save(update_fields=["subtotal_amount", "total_amount"])
-
-        return order
+    shipping = ShippingSerializer()
 
 
 class OrderStatusUpdateSerializer(serializers.Serializer):

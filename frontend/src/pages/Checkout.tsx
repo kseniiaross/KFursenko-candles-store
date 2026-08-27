@@ -190,6 +190,11 @@ const Checkout: React.FC = () => {
   const [total, setTotal] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  /** Worked out by the server when the order is created. The storefront
+   *  only displays it — a percentage sent from here would be forgeable. */
+  const [discount, setDiscount] = useState(0);
+  const [discountLabel, setDiscountLabel] = useState("");
+
   const savedProfile = useMemo(() => loadProfileFromStorage(), []);
 
   const [form, setForm] = useState<ShippingForm>({
@@ -225,10 +230,7 @@ const Checkout: React.FC = () => {
   }, [cartItems]);
 
   const subtotal = useMemo(() => {
-    return items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
+    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [items]);
 
   const itemCount = useMemo(() => {
@@ -256,7 +258,7 @@ const Checkout: React.FC = () => {
   const showPayment = Boolean(clientSecret) && orderId !== null;
 
   const stripeOptions = useMemo(() => {
-  if (!clientSecret) return undefined;
+    if (!clientSecret) return undefined;
 
     const currentLanguage = i18n.language?.split("-")[0];
 
@@ -285,6 +287,8 @@ const Checkout: React.FC = () => {
     setOrderId(null);
     setTax(null);
     setTotal(null);
+    setDiscount(0);
+    setDiscountLabel("");
 
     try {
       const orderResponse = await api.post("/orders/", {
@@ -312,15 +316,14 @@ const Checkout: React.FC = () => {
 
       setOrderId(createdOrderId);
 
-      const intentResponse = await api.post(
-        "/orders/create-intent/",
-        {
-          order_id: createdOrderId,
-        }
-      );
+      setDiscount(Number(orderResponse.data?.discount_amount) || 0);
+      setDiscountLabel(String(orderResponse.data?.discount_label ?? ""));
 
-      const clientSecretValue =
-        intentResponse.data?.client_secret;
+      const intentResponse = await api.post("/orders/create-intent/", {
+        order_id: createdOrderId,
+      });
+
+      const clientSecretValue = intentResponse.data?.client_secret;
 
       if (
         typeof clientSecretValue !== "string" ||
@@ -350,7 +353,6 @@ const Checkout: React.FC = () => {
   return (
     <main className="checkout" aria-labelledby={headingId}>
       <div className="checkout__inner">
-
         <datalist id="country-options">
           {COUNTRIES.map((country) => (
             <option key={country} value={country} />
@@ -375,8 +377,8 @@ const Checkout: React.FC = () => {
           </h1>
 
           <p className="checkout__subtitle">
-            Review your items, enter your shipping details,
-            and continue to secure payment.
+            Review your items, enter your shipping details, and continue to
+            secure payment.
           </p>
         </header>
 
@@ -387,45 +389,29 @@ const Checkout: React.FC = () => {
           aria-atomic="true"
         >
           {orderId !== null && (
-            <div className="checkout__state">
-              Order #{orderId} created.
-            </div>
+            <div className="checkout__state">Order #{orderId} created.</div>
           )}
 
           {clientSecret && (
-            <div className="checkout__state">
-              Payment is ready.
-            </div>
+            <div className="checkout__state">Payment is ready.</div>
           )}
 
           {errorMsg && (
-            <div
-              className="checkout__state checkout__state--error"
-              role="alert"
-            >
+            <div className="checkout__state checkout__state--error" role="alert">
               {errorMsg}
             </div>
           )}
         </div>
 
         <div className="checkout__grid">
-
-          <section
-            className="checkout__summary"
-            aria-labelledby={summaryId}
-          >
-            <h2
-              id={summaryId}
-              className="checkout__sectionTitle"
-            >
+          <section className="checkout__summary" aria-labelledby={summaryId}>
+            <h2 id={summaryId} className="checkout__sectionTitle">
               Order summary
             </h2>
 
             <ul className="checkout__items" role="list">
               {items.map((item) => {
-                const name =
-                  item.name?.trim() ||
-                  `Candle #${item.candle_id}`;
+                const name = item.name?.trim() || `Candle #${item.candle_id}`;
 
                 return (
                   <li
@@ -439,20 +425,14 @@ const Checkout: React.FC = () => {
                         className="checkoutItem__image"
                       />
                     ) : (
-                      <div
-                        className="checkoutItem__image checkoutItem__image--empty"
-                      />
+                      <div className="checkoutItem__image checkoutItem__image--empty" />
                     )}
 
                     <div className="checkoutItem__info">
-                      <h3 className="checkoutItem__name">
-                        {name}
-                      </h3>
+                      <h3 className="checkoutItem__name">{name}</h3>
 
                       {item.size && (
-                        <p className="checkoutItem__meta">
-                          Size: {item.size}
-                        </p>
+                        <p className="checkoutItem__meta">Size: {item.size}</p>
                       )}
 
                       <p className="checkoutItem__meta">
@@ -475,7 +455,6 @@ const Checkout: React.FC = () => {
             </ul>
 
             <div className="checkout__totals">
-
               <div className="checkout__totalRow">
                 <span>Items</span>
                 <span>{itemCount}</span>
@@ -486,6 +465,13 @@ const Checkout: React.FC = () => {
                 <span>{money(subtotal)}</span>
               </div>
 
+              {discount > 0 && (
+                <div className="checkout__totalRow checkout__totalRow--discount">
+                  <span>{discountLabel || "Discount"}</span>
+                  <span>−{money(discount)}</span>
+                </div>
+              )}
+
               <div className="checkout__totalRow">
                 <span>Shipping</span>
                 <span>{money(SHIPPING_AMOUNT)}</span>
@@ -493,9 +479,7 @@ const Checkout: React.FC = () => {
 
               <div className="checkout__totalRow">
                 <span>Tax</span>
-                <span>
-                  {tax === null ? "—" : money(tax)}
-                </span>
+                <span>{tax === null ? "—" : money(tax)}</span>
               </div>
 
               <div className="checkout__totalRow checkout__totalRow--grand">
@@ -509,17 +493,9 @@ const Checkout: React.FC = () => {
             </div>
           </section>
 
-          <section
-            className="checkout__formPanel"
-            aria-labelledby={shippingId}
-          >
-            <h2
-              id={shippingId}
-              className="checkout__sectionTitle"
-            >
-              {showPayment
-                ? "Payment"
-                : "Shipping details"}
+          <section className="checkout__formPanel" aria-labelledby={shippingId}>
+            <h2 id={shippingId} className="checkout__sectionTitle">
+              {showPayment ? "Payment" : "Shipping details"}
             </h2>
 
             {!showPayment ? (
@@ -572,7 +548,6 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="checkoutForm__row">
-
                   <div className="checkoutForm__group">
                     <label
                       className="checkoutForm__label"
@@ -615,7 +590,6 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="checkoutForm__row">
-
                   <div className="checkoutForm__group">
                     <label
                       className="checkoutForm__label"
@@ -682,20 +656,13 @@ const Checkout: React.FC = () => {
                 <button
                   type="submit"
                   className="checkout__button"
-                  disabled={
-                    loading || !canPreparePayment
-                  }
+                  disabled={loading || !canPreparePayment}
                 >
-                  {loading
-                    ? "Preparing payment..."
-                    : "Continue to payment"}
+                  {loading ? "Preparing payment..." : "Continue to payment"}
                 </button>
               </form>
             ) : stripePromise && stripeOptions ? (
-              <Elements
-                stripe={stripePromise}
-                options={stripeOptions}
-              >
+              <Elements stripe={stripePromise} options={stripeOptions}>
                 <CheckoutPaymentBlock
                   orderId={orderId!}
                   clientSecret={clientSecret}
