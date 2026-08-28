@@ -76,13 +76,18 @@ const resources = {
         ctaNote: "The discount applies at checkout",
       }, 
 
-      loginChoice: {
+        loginChoice: {
         pageLabel: "Login choice page",
         title: "Welcome",
-        subtitle:
-          "Sign in to your account or create a new one to explore our candle collections.",
+        subtitle: "Sign in, or create an account and start with 10% off.",
         login: "Log in",
         register: "Create account",
+        perkDiscountTitle: "10% off your first order",
+        perkDiscountText: "Applied automatically at checkout — no code needed",
+        perkMoodTitle: "A candle for every mood",
+        perkMoodText: "Take the scent quiz and we'll match one to yours",
+        perkCheckoutTitle: "Faster checkout, every time",
+        perkCheckoutText: "Your address is saved and orders are easy to track",
       },
 
       footer: {
@@ -199,6 +204,7 @@ const resources = {
         password: "Password",
         register: "Create account",
         loggingIn: "Logging in...",
+        noAccount: "Don't have an account?",
         errors: {
           network: "Network error. Please try again.",
           invalidCredentials: "Invalid email or password.",
@@ -223,6 +229,9 @@ const resources = {
         register: "Create account",
         logIn: "Log in",
         creating: "Creating account...",
+        haveAccount: "Already have an account?",
+        welcomePerk:
+          "10% off your first order — applied automatically at checkout.",
         errors: {
           network: "Network error. Please try again.",
           invalidForm: "Please check your information and try again.",
@@ -535,13 +544,19 @@ const resources = {
         ctaNote: "Скидка применится при оформлении",
       },
 
-      loginChoice: {
+        loginChoice: {
         pageLabel: "Страница выбора входа",
         title: "Добро пожаловать",
         subtitle:
-          "Войдите в аккаунт или создайте новый, чтобы продолжить знакомство с нашими свечами.",
+          "Войдите или создайте аккаунт — и начните со скидкой 10%.",
         login: "Войти",
         register: "Создать аккаунт",
+        perkDiscountTitle: "10% на первый заказ",
+        perkDiscountText: "Применится при оформлении, без промокода",
+        perkMoodTitle: "Свеча под любое настроение",
+        perkMoodText: "Пройдите квиз — подберём аромат под ваше",
+        perkCheckoutTitle: "Быстрое оформление",
+        perkCheckoutText: "Адрес сохранён, заказы легко отслеживать",
       },
 
       footer: {
@@ -659,6 +674,7 @@ const resources = {
         password: "Пароль",
         register: "Создать аккаунт",
         loggingIn: "Вход...",
+        noAccount: "Нет аккаунта?",
         errors: {
           network: "Ошибка сети. Попробуйте снова.",
           invalidCredentials: "Неверный email или пароль.",
@@ -683,6 +699,9 @@ const resources = {
         register: "Создать аккаунт",
         logIn: "Войти",
         creating: "Создание аккаунта...",
+        haveAccount: "Уже есть аккаунт?",
+        welcomePerk:
+          "10% на первый заказ — спишутся автоматически при оформлении.",
         errors: {
           network: "Ошибка сети. Попробуйте снова.",
           invalidForm: "Проверьте введённые данные и попробуйте снова.",
@@ -995,13 +1014,18 @@ const resources = {
         ctaNote: "El descuento se aplica al pagar",
       },
 
-      loginChoice: {
+        loginChoice: {
         pageLabel: "Página de acceso",
         title: "Bienvenido",
-        subtitle:
-          "Inicia sesión o crea una cuenta para explorar nuestras colecciones de velas.",
+        subtitle: "Inicia sesión o crea una cuenta y empieza con un 10% menos.",
         login: "Iniciar sesión",
         register: "Crear cuenta",
+        perkDiscountTitle: "10% en tu primer pedido",
+        perkDiscountText: "Se aplica al pagar, sin código",
+        perkMoodTitle: "Una vela para cada momento",
+        perkMoodText: "Haz el quiz y encontraremos la tuya",
+        perkCheckoutTitle: "Pago más rápido",
+        perkCheckoutText: "Tu dirección se guarda y sigues tus pedidos",
       },
 
       footer: {
@@ -1129,6 +1153,7 @@ const resources = {
         password: "Contraseña",
         register: "Crear cuenta",
         loggingIn: "Iniciando sesión...",
+        noAccount: "¿No tienes cuenta?",
         errors: {
           network: "Error de red. Inténtalo de nuevo.",
           invalidCredentials: "Email o contraseña incorrectos.",
@@ -1153,6 +1178,9 @@ const resources = {
         register: "Crear cuenta",
         logIn: "Iniciar sesión",
         creating: "Creando cuenta...",
+        haveAccount: "¿Ya tienes cuenta?",
+        welcomePerk:
+          "10% en tu primer pedido — se aplica automáticamente al pagar.",
         errors: {
           network: "Error de red. Inténtalo de nuevo.",
           invalidForm: "Revisa tu información e inténtalo de nuevo.",
@@ -1457,13 +1485,18 @@ const resources = {
         ctaNote: "La remise s'applique au paiement",
       },
 
-      loginChoice: {
+        loginChoice: {
         pageLabel: "Page de connexion",
         title: "Bienvenue",
-        subtitle:
-          "Connectez-vous ou créez un compte pour découvrir nos collections de bougies.",
+        subtitle: "Connectez-vous ou créez un compte et démarrez avec 10% de remise.",
         login: "Connexion",
         register: "Créer un compte",
+        perkDiscountTitle: "10% sur votre première commande",
+        perkDiscountText: "Appliqué au paiement, sans code",
+        perkMoodTitle: "Une bougie pour chaque humeur",
+        perkMoodText: "Faites le quiz, nous trouverons la vôtre",
+        perkCheckoutTitle: "Paiement plus rapide",
+        perkCheckoutText: "Votre adresse est enregistrée, vos commandes suivies",
       },
 
       footer: {
@@ -1583,6 +1616,7 @@ const resources = {
         gridLabel: "Galerie des avis",
         reviewImageAlt: "Capture d'avis client",
       },
+
       login: {
         pageLabel: "Page de connexion",
         title: "Se connecter",
@@ -1592,6 +1626,7 @@ const resources = {
         password: "Mot de passe",
         register: "Créer un compte",
         loggingIn: "Connexion...",
+        noAccount: "Vous n'avez pas de compte ?",
         errors: {
           network: "Erreur réseau. Veuillez réessayer.",
           invalidCredentials: "Email ou mot de passe invalide.",
@@ -1616,6 +1651,9 @@ const resources = {
         register: "Créer un compte",
         logIn: "Se connecter",
         creating: "Création du compte...",
+        haveAccount: "Vous avez déjà un compte ?",
+        welcomePerk:
+          "10% sur votre première commande — appliqué automatiquement au paiement.",
         errors: {
           network: "Erreur réseau. Veuillez réessayer.",
           invalidForm: "Vérifiez vos informations et réessayez.",

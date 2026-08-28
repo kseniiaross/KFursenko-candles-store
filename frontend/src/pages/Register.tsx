@@ -9,6 +9,8 @@ import { notifyAuthChanged } from "../utils/token";
 
 import { registerThenLoginWithProfile } from "../api/auth";
 
+import registerImage from "../assets/images/register.webp";
+
 import "../styles/Register.css";
 
 type RegisterFormState = {
@@ -41,9 +43,8 @@ const Register: React.FC = () => {
     password: "",
   });
 
-  const [fieldError, setFieldError] = useState<
-    Partial<Record<keyof RegisterFormState, string>>
-  >({});
+  const [fieldError, setFieldError] = useState<Partial<Record<keyof RegisterFormState, string>>>({});
+
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -88,7 +89,11 @@ const Register: React.FC = () => {
       for (const key of keys) {
         const value = data[key];
 
-        if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
+        if (
+          Array.isArray(value) &&
+          value.length > 0 &&
+          typeof value[0] === "string"
+        ) {
           return value[0];
         }
 
@@ -206,8 +211,17 @@ const Register: React.FC = () => {
 
   return (
     <main className="register" aria-labelledby="register-title">
-      <div className="register__layout">
-        <section className="register__panel" aria-label={t("register.pageLabel")}>
+      <div className="register__media" aria-hidden="true">
+        <img
+          src={registerImage}
+          alt=""
+          className="register__img"
+          decoding="async"
+        />
+      </div>
+
+      <section className="register__panel" aria-label={t("register.pageLabel")}>
+        <div className="register__inner">
           <header className="register__header">
             <p className="register__eyebrow">KFursenko Candles</p>
 
@@ -217,6 +231,10 @@ const Register: React.FC = () => {
 
             <p className="register__subtitle">{t("register.subtitle")}</p>
           </header>
+
+          {/* The discount is worked out server-side at checkout, so this is
+              a statement of fact rather than a code the visitor must keep. */}
+          <p className="register__perk">{t("register.welcomePerk")}</p>
 
           <form className="register__form" onSubmit={onSubmit} noValidate>
             <div className="register__grid">
@@ -234,7 +252,9 @@ const Register: React.FC = () => {
                   onChange={handleFieldChange("first_name")}
                   disabled={submitting}
                   aria-invalid={Boolean(fieldError.first_name)}
-                  aria-describedby={fieldError.first_name ? firstNameErrorId : undefined}
+                  aria-describedby={
+                    fieldError.first_name ? firstNameErrorId : undefined
+                  }
                 />
 
                 {fieldError.first_name ? (
@@ -262,7 +282,9 @@ const Register: React.FC = () => {
                   onChange={handleFieldChange("last_name")}
                   disabled={submitting}
                   aria-invalid={Boolean(fieldError.last_name)}
-                  aria-describedby={fieldError.last_name ? lastNameErrorId : undefined}
+                  aria-describedby={
+                    fieldError.last_name ? lastNameErrorId : undefined
+                  }
                 />
 
                 {fieldError.last_name ? (
@@ -291,7 +313,9 @@ const Register: React.FC = () => {
                   onChange={handleFieldChange("phone_number")}
                   disabled={submitting}
                   aria-invalid={Boolean(fieldError.phone_number)}
-                  aria-describedby={fieldError.phone_number ? phoneErrorId : undefined}
+                  aria-describedby={
+                    fieldError.phone_number ? phoneErrorId : undefined
+                  }
                 />
 
                 {fieldError.phone_number ? (
@@ -347,7 +371,9 @@ const Register: React.FC = () => {
                   onChange={handleFieldChange("password")}
                   disabled={submitting}
                   aria-invalid={Boolean(fieldError.password)}
-                  aria-describedby={fieldError.password ? passwordErrorId : undefined}
+                  aria-describedby={
+                    fieldError.password ? passwordErrorId : undefined
+                  }
                 />
 
                 {fieldError.password ? (
@@ -362,22 +388,13 @@ const Register: React.FC = () => {
               </div>
             </div>
 
-            <div className="register__actions">
-              <button
-                type="submit"
-                className="register__cta register__cta--primary"
-                disabled={submitting}
-              >
-                {submitting ? t("register.creating") : t("register.register")}
-              </button>
-
-              <Link
-                to={`/login${safeNextQuery}`}
-                className="register__cta register__cta--secondary"
-              >
-                {t("register.logIn")}
-              </Link>
-            </div>
+            <button
+              type="submit"
+              className="register__cta"
+              disabled={submitting}
+            >
+              {submitting ? t("register.creating") : t("register.register")}
+            </button>
 
             {serverError ? (
               <div
@@ -390,8 +407,20 @@ const Register: React.FC = () => {
               </div>
             ) : null}
           </form>
-        </section>
-      </div>
+
+          {/* Logging in is a different intent, not a second submit button —
+              keeping it out of the form makes that clear. */}
+          <p className="register__switch">
+            {t("register.haveAccount")}{" "}
+            <Link
+              to={`/login${safeNextQuery}`}
+              className="register__switchLink"
+            >
+              {t("register.logIn")}
+            </Link>
+          </p>
+        </div>
+      </section>
     </main>
   );
 };

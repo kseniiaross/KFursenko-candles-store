@@ -8,6 +8,8 @@ import { setCredentials } from "../store/authSlice";
 import { notifyAuthChanged } from "../utils/token";
 import { loginWithProfile } from "../api/auth";
 
+import loginImage from "../assets/images/login.webp";
+
 import "../styles/Login.css";
 
 type LoginFormState = {
@@ -140,90 +142,94 @@ const Login: React.FC = () => {
 
   return (
     <main className="login" aria-labelledby="login-title">
-      <div className="login__container">
+      <div className="login__media" aria-hidden="true">
+        <img
+          src={loginImage}
+          alt=""
+          className="login__img"
+          decoding="async"
+        />
+      </div>
 
-        <header className="login__header">
-          <h1 id="login-title" className="login__title">
-            {t("login.title")}
-          </h1>
+      <section className="login__panel">
+        <div className="login__inner">
+          <header className="login__header">
+            <p className="login__eyebrow">KFursenko Candles</p>
 
-          <p className="login__subtitle">
-            {t("login.subtitle")}
-          </p>
-        </header>
+            <h1 id="login-title" className="login__title">
+              {t("login.title")}
+            </h1>
 
-        <form
-          className="login__form"
-          onSubmit={onSubmit}
-          noValidate
-          aria-describedby={serverError ? "login-server-error" : undefined}
-        >
+            <p className="login__subtitle">{t("login.subtitle")}</p>
+          </header>
 
-          {/* EMAIL FIELD */}
+          <form
+            className="login__form"
+            onSubmit={onSubmit}
+            noValidate
+            aria-describedby={serverError ? "login-server-error" : undefined}
+          >
+            <div className="login__field">
+              <label htmlFor="login_email" className="login__label">
+                {t("login.email")}
+              </label>
 
-          <div className="login__field">
-            <label htmlFor="login_email" className="login__label">
-              {t("login.email")}
-            </label>
+              <input
+                id="login_email"
+                type="email"
+                className="login__input"
+                autoComplete="email"
+                value={form.email}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    email: e.target.value,
+                  }))
+                }
+                aria-invalid={Boolean(fieldError.email)}
+                aria-describedby={
+                  fieldError.email ? "login-email-error" : undefined
+                }
+                disabled={submitting}
+              />
 
-            <input
-              id="login_email"
-              type="email"
-              className="login__input"
-              autoComplete="email"
-              value={form.email}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  email: e.target.value,
-                }))
-              }
-              aria-invalid={Boolean(fieldError.email)}
-              aria-describedby={fieldError.email ? "login-email-error" : undefined}
-              disabled={submitting}
-            />
+              {fieldError.email && (
+                <p id="login-email-error" className="login__error">
+                  {fieldError.email}
+                </p>
+              )}
+            </div>
 
-            {fieldError.email && (
-              <p id="login-email-error" className="login__error">
-                {fieldError.email}
-              </p>
-            )}
-          </div>
+            <div className="login__field">
+              <label htmlFor="login_password" className="login__label">
+                {t("login.password")}
+              </label>
 
-          {/* PASSWORD FIELD */}
+              <input
+                id="login_password"
+                type="password"
+                className="login__input"
+                autoComplete="current-password"
+                value={form.password}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    password: e.target.value,
+                  }))
+                }
+                aria-invalid={Boolean(fieldError.password)}
+                aria-describedby={
+                  fieldError.password ? "login-password-error" : undefined
+                }
+                disabled={submitting}
+              />
 
-          <div className="login__field">
-            <label htmlFor="login_password" className="login__label">
-              {t("login.password")}
-            </label>
-
-            <input
-              id="login_password"
-              type="password"
-              className="login__input"
-              autoComplete="current-password"
-              value={form.password}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  password: e.target.value,
-                }))
-              }
-              aria-invalid={Boolean(fieldError.password)}
-              aria-describedby={fieldError.password ? "login-password-error" : undefined}
-              disabled={submitting}
-            />
-
-            {fieldError.password && (
-              <p id="login-password-error" className="login__error">
-                {fieldError.password}
-              </p>
-            )}
-          </div>
-
-          {/* ACTIONS */}
-
-          <div className="login__actions">
+              {fieldError.password && (
+                <p id="login-password-error" className="login__error">
+                  {fieldError.password}
+                </p>
+              )}
+            </div>
 
             <button
               type="submit"
@@ -233,27 +239,27 @@ const Login: React.FC = () => {
               {submitting ? t("login.loggingIn") : t("login.title")}
             </button>
 
-            <Link
-              to={`/register${safeNextQuery}`}
-              className="login__button login__button--secondary"
-            >
+            {serverError && (
+              <div
+                id="login-server-error"
+                className="login__serverError"
+                role="alert"
+              >
+                {serverError}
+              </div>
+            )}
+          </form>
+
+          {/* Signing up is a different intent, not a second submit button —
+              keeping it out of the form makes that clear. */}
+          <p className="login__switch">
+            {t("login.noAccount")}{" "}
+            <Link to={`/register${safeNextQuery}`} className="login__switchLink">
               {t("login.register")}
             </Link>
-
-          </div>
-
-          {serverError && (
-            <div
-              id="login-server-error"
-              className="login__serverError"
-              role="alert"
-            >
-              {serverError}
-            </div>
-          )}
-
-        </form>
-      </div>
+          </p>
+        </div>
+      </section>
     </main>
   );
 };
