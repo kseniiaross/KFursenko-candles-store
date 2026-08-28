@@ -5,8 +5,8 @@
 .login {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100vh - var(--header-height));
+  min-height: calc(100dvh - var(--header-height));
   color: #111111;
   font-family: inherit;
 }
@@ -16,7 +16,13 @@
    ===================================================== */
 
 .login__media {
-  position: relative;
+  --photo-focus: center;
+
+  position: sticky;
+  top: var(--header-height);
+  height: calc(100vh - var(--header-height));
+  height: calc(100dvh - var(--header-height));
+  align-self: start;
   overflow: hidden;
   background: #e9e4dc;
 }
@@ -25,7 +31,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
+  object-position: var(--photo-focus);
   display: block;
 }
 
@@ -138,7 +144,6 @@
   justify-content: center;
   margin-top: 4px;
   padding: 15px 20px;
-  border-radius: 999px;
   border: 1px solid #111111;
   background: #111111;
   color: #ffffff;
@@ -219,6 +224,11 @@
     grid-template-rows: 220px minmax(0, 1fr);
   }
 
+  .login__media {
+    position: static;
+    height: auto;
+  }
+
   .login__panel {
     padding: 32px 24px 56px;
     align-items: flex-start;
@@ -232,6 +242,10 @@
 @media (max-width: 600px) {
   .login {
     grid-template-rows: 170px minmax(0, 1fr);
+  }
+
+  .login__media {
+    --photo-focus: center 65%;
   }
 
   .login__panel {
