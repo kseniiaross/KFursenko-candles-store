@@ -18,8 +18,7 @@
    it scrolls. `--photo-focus` nudges which part survives the crop. */
 .loginChoice__media {
   --photo-focus: center;
-
-  position: sticky;
+  position: 0;
   top: var(--header-height);
   height: calc(100vh - var(--header-height));
   height: calc(100dvh - var(--header-height));
