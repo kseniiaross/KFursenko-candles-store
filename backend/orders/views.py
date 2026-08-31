@@ -146,6 +146,7 @@ class CreateOrderFromCartAPIView(generics.GenericAPIView):
                 for item in cart_items
             ],
             shipping=serializer.validated_data["shipping"],
+            shipping_rate_id=serializer.validated_data.get("shipping_rate_id") or None,
         )
 
         CartItem.objects.filter(cart=cart).delete()

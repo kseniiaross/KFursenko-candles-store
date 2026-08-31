@@ -3,6 +3,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from candles.models import Candle, CandleVariant, Category
+from orders.models import Order
 
 
 @pytest.fixture
@@ -90,4 +91,19 @@ def inactive_variant(db, candle):
         price="32.00",
         stock_qty=5,
         is_active=False,
+    )
+
+
+@pytest.fixture
+def paid_order(db):
+    buyer = User.objects.create_user(email="buyer@example.com", password="pw12345!")
+    return Order.objects.create(
+        user=buyer,
+        status=Order.Status.PAID,
+        shipping_full_name="Jane Doe",
+        shipping_line1="965 Mission St",
+        shipping_city="San Francisco",
+        shipping_state="CA",
+        shipping_postal_code="94105",
+        shipping_country="United States",
     )

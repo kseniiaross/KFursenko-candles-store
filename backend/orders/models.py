@@ -73,6 +73,7 @@ class Order(models.Model):
     shipping_state = models.CharField(max_length=255, blank=True, default="")
     shipping_postal_code = models.CharField(max_length=64, blank=True, default="")
     shipping_country = models.CharField(max_length=120, blank=True, default="United States")
+    shipping_phone = models.CharField(max_length=32, blank=True, default="")
 
     stripe_payment_intent_id = models.CharField(max_length=255, blank=True, default="")
     stripe_tax_calculation_id = models.CharField(max_length=255, blank=True, default="")

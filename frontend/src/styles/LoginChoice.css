@@ -19,7 +19,7 @@
   --photo-focus: center;
   position: 0;
   top: var(--header-height);
-  height: calc(100vh - var(--header-height));
+  height: calc(100svh - var(--header-height));
   height: calc(100dvh - var(--header-height));
   align-self: start;
   overflow: hidden;

@@ -4,11 +4,11 @@ from django.db import transaction
 from rest_framework import serializers
 
 from candles.models import CandleVariant
+from shipping.normalize import payload_to_address
+from shipping.services import resolve_shipping_cost
 
 from .discounts import get_welcome_offer, welcome_percent_for
 from .models import Order, OrderItem
-
-SHIPPING_FLAT_RATE = Decimal("15.00")
 
 
 class OrderItemReadSerializer(serializers.ModelSerializer):
@@ -100,6 +100,8 @@ class ShippingSerializer(serializers.Serializer):
         default="United States",
     )
 
+    phone = serializers.CharField(max_length=32, required=False, allow_blank=True, default="")
+
     def validate_country(self, value: str) -> str:
         country = (value or "").strip()
 
@@ -113,12 +115,12 @@ class ShippingSerializer(serializers.Serializer):
 # ORDER ASSEMBLY
 # ======================================================
 @transaction.atomic
-def build_order(*, user, lines, shipping):
+def build_order(*, user, lines, shipping, shipping_rate_id=None):
     """The single place an order is assembled.
 
     Both entry points — an explicit item list and the server-side cart —
-    run through here, so stock checks, the flat shipping rate and the
-    welcome discount cannot drift apart between them.
+    run through here, so stock checks, the shipping cost and the welcome
+    discount cannot drift apart between them.
     """
     merged: dict[int, dict[str, int | bool]] = {}
 
@@ -148,6 +150,17 @@ def build_order(*, user, lines, shipping):
             {"items": "Some items in your cart are no longer available."}
         )
 
+    quote_lines = [
+        (variant_map[vid], int(payload["quantity"]))
+        for vid, payload in merged.items()
+    ]
+
+    shipping_amount, rate = resolve_shipping_cost(
+        address_to=payload_to_address(shipping),
+        lines=quote_lines,
+        rate_id=shipping_rate_id,
+    )
+
     # Resolved before the order row exists, so the order being created
     # cannot disqualify its own discount.
     welcome_offer = get_welcome_offer(user)
@@ -158,7 +171,7 @@ def build_order(*, user, lines, shipping):
         currency="usd",
         subtotal_amount=Decimal("0.00"),
         discount_amount=Decimal("0.00"),
-        shipping_amount=SHIPPING_FLAT_RATE,
+        shipping_amount=shipping_amount,
         tax_amount=Decimal("0.00"),
         total_amount=Decimal("0.00"),
         shipping_full_name=shipping["full_name"].strip(),
@@ -168,7 +181,20 @@ def build_order(*, user, lines, shipping):
         shipping_state=shipping["state"].strip(),
         shipping_postal_code=shipping["postal_code"].strip(),
         shipping_country=shipping["country"].strip(),
+        shipping_phone=shipping.get("phone", "").strip(),
     )
+
+    if rate:
+        from shipping.models import Shipment
+
+        Shipment.objects.create(
+            order=order,
+            rate_id=rate["rate_id"],
+            carrier=rate["carrier"],
+            service_level=rate["service_level"],
+            amount=rate["amount"],
+            currency=rate["currency"].lower(),
+        )
 
     subtotal = Decimal("0.00")
     discount = Decimal("0.00")
@@ -235,12 +261,14 @@ def build_order(*, user, lines, shipping):
 class OrderCreateSerializer(serializers.Serializer):
     items = OrderItemCreateSerializer(many=True)
     shipping = ShippingSerializer()
+    shipping_rate_id = serializers.CharField(required=False, allow_blank=True, default="")
 
     def create(self, validated_data):
         return build_order(
             user=self.context["request"].user,
             lines=validated_data["items"],
             shipping=validated_data["shipping"],
+            shipping_rate_id=validated_data.get("shipping_rate_id") or None,
         )
 
 
@@ -253,6 +281,7 @@ class OrderFromCartSerializer(serializers.Serializer):
     """
 
     shipping = ShippingSerializer()
+    shipping_rate_id = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class OrderStatusUpdateSerializer(serializers.Serializer):

@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/candles/", include("candles.urls")),
     path("api/cart/", include("cart.urls")),
     path("api/orders/", include("orders.urls")),
+    path("api/shipping/", include("shipping.urls")),
     path("api/newsletter/", include("newsletter.urls")),
     path("api/lumiere/", include("lumiere.urls")),
 

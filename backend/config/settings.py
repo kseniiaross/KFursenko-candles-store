@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import cloudinary
@@ -107,6 +108,7 @@ INSTALLED_APPS = [
     "candles",
     "cart",
     "orders",
+    "shipping",
     "newsletter",
     "lumiere",
 ]
@@ -257,6 +259,7 @@ REST_FRAMEWORK = {
         "lumiere_anon": config("THROTTLE_LUMIERE_ANON", default="20/min"),
         "lumiere_user": config("THROTTLE_LUMIERE_USER", default="60/min"),
         "lumiere_search": config("THROTTLE_LUMIERE_SEARCH", default="30/min"),
+        "shipping_rates": config("THROTTLE_SHIPPING_RATES", default="20/min"),
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -362,3 +365,38 @@ LOGGING = {
 # Cloudinary
 # ------------------------------------------------------------
 cloudinary.config(secure=True)
+
+
+# ------------------------------------------------------------
+# Shippo
+# ------------------------------------------------------------
+SHIPPO_TOKEN = config("SHIPPO_TOKEN", default="").strip()
+SHIPPO_API_BASE = config("SHIPPO_API_BASE", default="https://api.goshippo.com")
+SHIPPO_API_VERSION = config("SHIPPO_API_VERSION", default="2018-02-08")
+SHIPPO_TIMEOUT_SECONDS = config("SHIPPO_TIMEOUT_SECONDS", default=30, cast=int)
+SHIPPO_LABEL_FILE_TYPE = config("SHIPPO_LABEL_FILE_TYPE", default="PDF")
+SHIPPO_FALLBACK_PHONE = config("SHIPPO_FALLBACK_PHONE", default="")
+
+# Флэт из orders/serializers.py переезжает сюда — он теперь фолбэк,
+# а не основная цена.
+SHIPPING_FALLBACK_RATE = Decimal(config("SHIPPING_FALLBACK_RATE", default="15.00"))
+
+SHIPPO_ADDRESS_FROM = {
+    "name": config("SHIP_FROM_NAME", default="KFursenko Candles"),
+    "company": config("SHIP_FROM_COMPANY", default=""),
+    "street1": config("SHIP_FROM_STREET1", default=""),
+    "street2": config("SHIP_FROM_STREET2", default=""),
+    "city": config("SHIP_FROM_CITY", default=""),
+    "state": config("SHIP_FROM_STATE", default=""),
+    "zip": config("SHIP_FROM_ZIP", default=""),
+    "country": config("SHIP_FROM_COUNTRY", default="US"),
+    "phone": config("SHIP_FROM_PHONE", default=""),
+    "email": config("SHIP_FROM_EMAIL", default=DEFAULT_FROM_EMAIL),
+}
+
+# Коробки, в которые реально пакуешь. Размеры в дюймах, tare_oz — вес
+# пустой коробки с наполнителем.
+SHIPPO_BOXES = [
+    {"name": "small", "length": 5, "width": 5, "height": 5, "tare_oz": 2.5},
+    {"name": "medium", "length": 8, "width": 8, "height": 5, "tare_oz": 5.0},
+]

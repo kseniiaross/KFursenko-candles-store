@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from cloudinary.models import CloudinaryField
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -375,6 +377,16 @@ class CandleVariant(models.Model):
 
     stock_qty = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
+
+    # Shipping. Вес готового изделия без коробки — тару добавляет
+    # shipping.normalize.build_parcels из SHIPPO_BOXES.
+    weight_oz = models.DecimalField(
+        max_digits=7, decimal_places=2, default=Decimal("8.00"),
+        help_text="Вес одной штуки в унциях, без упаковки",
+    )
+    length_in = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("3.00"))
+    width_in = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("3.00"))
+    height_in = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("4.00"))
 
     class Meta:
         unique_together = ("candle", "size")
