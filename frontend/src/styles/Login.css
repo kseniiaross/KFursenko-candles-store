@@ -1,11 +1,15 @@
 /* =====================================================
    PAGE
+
+   Full viewport height, nothing subtracted: the fixed header is
+   transparent and overlays the photo instead of pushing it down.
    ===================================================== */
 
 .login {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  min-height: calc(100svh - var(--header-height));
+  min-height: 100svh;
+  min-height: 100dvh;
   color: #111111;
   font-family: inherit;
 }
@@ -15,12 +19,12 @@
    ===================================================== */
 
 .login__media {
-  --photo-focus: center;
+  --photo-focus: center 55%;
 
   position: sticky;
   top: 0;
-  height: calc(100svh - var(--header-height));
-  height: calc(100dvh - var(--header-height));
+  height: 100svh;
+  height: 100dvh;
   align-self: start;
   overflow: hidden;
   background: #e9e4dc;
@@ -43,6 +47,7 @@
   align-items: center;
   justify-content: center;
   padding: clamp(32px, 5vw, 64px);
+  padding-top: calc(var(--header-height, 0px) + clamp(32px, 5vw, 64px));
 }
 
 .login__inner {
@@ -221,6 +226,8 @@
   .login {
     grid-template-columns: 1fr;
     grid-template-rows: 220px minmax(0, 1fr);
+    min-height: 100svh;
+    min-height: 100dvh;
   }
 
   .login__media {

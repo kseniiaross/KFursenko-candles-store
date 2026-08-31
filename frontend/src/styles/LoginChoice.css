@@ -1,26 +1,37 @@
-/* PAGE */
+/* =====================================================
+   PAGE
 
-/* The shell already pushes content below the fixed header, so the header
-   height has to come out of the viewport calculation — 100vh alone made
-   the page taller than the screen and cropped the photo column. */
+   The header is fixed and transparent — it sits on top of the photo
+   rather than pushing it down, so the page takes the full viewport and
+   nothing is subtracted from it. Subtracting the header height here is
+   what left a strip of empty page at the bottom for the footer to climb
+   into.
+   ===================================================== */
+
 .loginChoice {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  min-height: calc(100svh - var(--header-height));
+  min-height: 100svh;
+  min-height: 100dvh;
   color: #111111;
   font-family: inherit;
 }
 
-/* MEDIA */
+/* =====================================================
+   MEDIA
 
-/* Pinned to the viewport so the photo stays whole while the panel beside
-   it scrolls. `--photo-focus` nudges which part survives the crop. */
+   Pinned to the viewport so the photo stays whole while the panel beside
+   it scrolls. `--photo-focus` nudges which part survives the crop.
+   `align-self: start` is required — a stretched grid item cannot stick.
+   ===================================================== */
+
 .loginChoice__media {
-  --photo-focus: center;
-  position: 0;
-  top: var(--header-height);
-  height: calc(100svh - var(--header-height));
-  height: calc(100dvh - var(--header-height));
+  --photo-focus: center 55%;
+
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  height: 100dvh;
   align-self: start;
   overflow: hidden;
   background: #e9e4dc;
@@ -34,13 +45,20 @@
   display: block;
 }
 
-/* PANEL */
+/* =====================================================
+   PANEL
+
+   Extra top padding keeps the eyebrow clear of the transparent header,
+   which would otherwise overlap it. The panel centres its content, so
+   this reads as a slight downward nudge rather than a gap.
+   ===================================================== */
 
 .loginChoice__panel {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: clamp(32px, 5vw, 64px);
+  padding-top: calc(var(--header-height, 0px) + clamp(32px, 5vw, 64px));
 }
 
 .loginChoice__inner {
@@ -50,7 +68,9 @@
   gap: 26px;
 }
 
-/* HEADER */
+/* =====================================================
+   HEADER
+   ===================================================== */
 
 .loginChoice__header {
   display: flex;
@@ -81,7 +101,9 @@
   opacity: 0.72;
 }
 
-/* BUTTONS */
+/* =====================================================
+   BUTTONS
+   ===================================================== */
 
 .loginChoice__buttons {
   display: flex;
@@ -134,7 +156,9 @@
   outline-offset: 3px;
 }
 
-/* PERKS */
+/* =====================================================
+   PERKS
+   ===================================================== */
 
 .loginChoice__perks {
   display: flex;
@@ -162,12 +186,16 @@
   opacity: 0.62;
 }
 
-/* TABLET — the photo becomes a banner so the buttons stay above the fold */
+/* =====================================================
+   TABLET — the photo becomes a banner so the buttons stay above the fold
+   ===================================================== */
 
 @media (max-width: 900px) {
   .loginChoice {
     grid-template-columns: 1fr;
     grid-template-rows: 240px minmax(0, 1fr);
+    min-height: 100svh;
+    min-height: 100dvh;
   }
 
   .loginChoice__media {
@@ -181,7 +209,9 @@
   }
 }
 
-/* MOBILE */
+/* =====================================================
+   MOBILE
+   ===================================================== */
 
 @media (max-width: 600px) {
   .loginChoice {
