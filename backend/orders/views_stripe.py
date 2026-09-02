@@ -40,7 +40,7 @@ class CreatePaymentIntentView(APIView):
 
         try:
             intent = stripe.PaymentIntent.retrieve(existing_intent_id)
-        except stripe.error.StripeError:
+        except stripe.StripeError:
             logger.warning(
                 "Could not retrieve existing PaymentIntent %s; creating a new one.",
                 existing_intent_id,
@@ -51,6 +51,17 @@ class CreatePaymentIntentView(APIView):
             return None
 
         return intent
+
+    def _order_payload(self, order, intent):
+        return {
+            "client_secret": intent.client_secret,
+            "total_amount": float(order.total_amount),
+            "subtotal_amount": float(order.subtotal_amount),
+            "shipping_amount": float(order.shipping_amount),
+            "tax_amount": float(order.tax_amount),
+            "discount_amount": float(order.discount_amount),
+            "discount_label": order.discount_label,
+        }
 
     def post(self, request):
         order_id = request.data.get("order_id")
@@ -105,7 +116,12 @@ class CreatePaymentIntentView(APIView):
 
                 intent = self._get_reusable_intent(order.stripe_payment_intent_id)
 
-                if intent is not None and (intent.amount != amount or intent.currency != currency):
+                # The shopper can go back and pick a different shipping rate
+                # after the intent exists. Whatever the order says now is what
+                # gets charged.
+                if intent is not None and (
+                    intent.amount != amount or intent.currency != currency
+                ):
                     intent = stripe.PaymentIntent.modify(
                         intent.id,
                         amount=amount,
@@ -124,27 +140,25 @@ class CreatePaymentIntentView(APIView):
                     order.stripe_payment_intent_id = intent.id
                     order.save(update_fields=["stripe_payment_intent_id"])
 
+            return Response(self._order_payload(order, intent), status=status.HTTP_200_OK)
+
+        except stripe.StripeError:
+            # Never answer 200 here. The client reads this response to decide
+            # whether to mount the payment form; a success shape on a failed
+            # call shows the shopper a checkout that cannot complete.
+            logger.exception("Stripe rejected the intent for order %s", order_id)
+
             return Response(
-                {
-                    "client_secret": intent.client_secret,
-                    "total_amount": float(order.total_amount),
-                    "tax_amount": float(order.tax_amount),
-                },
-                status=status.HTTP_200_OK,
+                {"error": "Payment could not be initialised. Please try again."},
+                status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        except Exception as error:
-            logger.exception("Stripe payment intent creation failed")
+        except Exception:
+            logger.exception("Payment intent failed for order %s", order_id)
 
             return Response(
-                {
-                    "client_secret": intent.client_secret,
-                    "total_amount": float(order.total_amount),
-                    "tax_amount": float(order.tax_amount),
-                    "discount_amount": float(order.discount_amount),
-                    "discount_label": order.discount_label,
-                },
-                status=status.HTTP_200_OK,
+                {"error": "Something went wrong preparing the payment."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -172,23 +186,24 @@ def stripe_webhook(request):
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload,
-            sig_header,
-            endpoint_secret,
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except ValueError:
         return HttpResponse(status=400)
-    except stripe.error.SignatureVerificationError:
+    except stripe.SignatureVerificationError:
         return HttpResponse(status=400)
 
     event_type = event["type"]
     data = event["data"]["object"]
+    intent_id = data.get("id")
+    order_id = (data.get("metadata") or {}).get("order_id")
+
+    if not order_id:
+        # Not one of ours, or an event we never tagged. Acknowledge it so
+        # Stripe stops retrying.
+        logger.info("Webhook %s carried no order_id; ignoring.", event_type)
+        return HttpResponse(status=200)
 
     if event_type == "payment_intent.succeeded":
-        intent_id = data["id"]
-        order_id = (data.get("metadata") or {}).get("order_id")
-        should_send_email = False
         order_to_email = None
 
         with transaction.atomic():
@@ -196,21 +211,18 @@ def stripe_webhook(request):
                 Order.objects.select_for_update()
                 .select_related("user")
                 .prefetch_related("items")
-                .filter(
-                    id=order_id,
-                    stripe_payment_intent_id=intent_id,
-                )
+                .filter(id=order_id, stripe_payment_intent_id=intent_id)
                 .first()
             )
 
             if order and order.status != Order.Status.PAID:
                 order.status = Order.Status.PAID
                 order.save(update_fields=["status", "updated_at"])
-
-                should_send_email = True
                 order_to_email = order
 
-        if should_send_email and order_to_email:
+        # Outside the transaction: an SMTP timeout must not roll back a
+        # payment we have already taken.
+        if order_to_email:
             try:
                 send_order_confirmation_email(order_to_email)
             except Exception:
@@ -219,22 +231,15 @@ def stripe_webhook(request):
                     order_to_email.id,
                 )
 
-    if event_type == "payment_intent.payment_failed":
-        intent_id = data["id"]
-        order_id = (data.get("metadata") or {}).get("order_id")
-
-        with transaction.atomic():
-            order = (
-                Order.objects.select_for_update()
-                .filter(
-                    id=order_id,
-                    stripe_payment_intent_id=intent_id,
-                )
-                .first()
-            )
-
-            if order and order.status != Order.Status.CANCELED:
-                order.status = Order.Status.CANCELED
-                order.save(update_fields=["status", "updated_at"])
+    elif event_type == "payment_intent.payment_failed":
+        # A declined card is not a cancelled order. Cancelling here is
+        # terminal under ALLOWED_TRANSITIONS, so the shopper could never
+        # retry with another card — the order would be dead and the stock
+        # still held. Leave it PENDING and let them try again.
+        logger.info(
+            "Payment failed for order %s (intent %s); leaving it payable.",
+            order_id,
+            intent_id,
+        )
 
     return HttpResponse(status=200)

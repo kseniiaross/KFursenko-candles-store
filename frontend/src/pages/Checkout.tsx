@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
@@ -6,6 +6,7 @@ import type { StripeElementLocale } from "@stripe/stripe-js";
 
 import api from "../api/axiosInstance";
 import CheckoutPaymentBlock from "../components/CheckoutPaymentBlock";
+import ShippingRates, { type ShippingRate } from "../components/ShippingRates";
 import { useAppSelector } from "../store/hooks";
 import { PROFILE_STORAGE_KEY } from "./Profile";
 import i18n from "../i18n";
@@ -128,6 +129,10 @@ function getErrorMessage(error: unknown): string {
 
   const shipping = record.shipping;
 
+  if (typeof shipping === "string") {
+    return shipping;
+  }
+
   if (typeof shipping === "object" && shipping !== null) {
     const shippingRecord = shipping as Record<string, unknown>;
 
@@ -161,8 +166,6 @@ function getErrorMessage(error: unknown): string {
   return fallback;
 }
 
-const SHIPPING_AMOUNT = 15;
-
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY as
   | string
   | undefined;
@@ -189,6 +192,16 @@ const Checkout: React.FC = () => {
   const [tax, setTax] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+
+  /** The rate the shopper picked. Only its id travels to the server —
+   *  the price is re-read from the carrier there, so a tampered amount
+   *  from this page would change nothing. */
+  const [selectedRate, setSelectedRate] = useState<ShippingRate | null>(null);
+
+  /** What the order actually ended up charging for shipping. May differ
+   *  from the picked rate when the carrier API was unreachable and the
+   *  server fell back to its flat rate. */
+  const [serverShipping, setServerShipping] = useState<number | null>(null);
 
   /** Worked out by the server when the order is created. The storefront
    *  only displays it — a percentage sent from here would be forgeable. */
@@ -237,6 +250,36 @@ const Checkout: React.FC = () => {
     return items.reduce((sum, item) => sum + item.quantity, 0);
   }, [items]);
 
+  /** The shape the rates endpoint wants. Same lines the order will use,
+   *  so the quote prices the parcel we actually ship. */
+  const rateLines = useMemo(
+    () =>
+      items.map((item) => ({
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+      })),
+    [items]
+  );
+
+  const rateAddress = useMemo(
+    () => ({
+      full_name: form.full_name.trim(),
+      line1: form.address_line1.trim(),
+      line2: form.address_line2.trim(),
+      city: form.city.trim(),
+      state: form.state.trim(),
+      postal_code: form.postal_code.trim(),
+      country: form.country.trim(),
+    }),
+    [form]
+  );
+
+  // Stable identity, or ShippingRates would rebuild its fetch on every
+  // render and defeat the debounce.
+  const handleRateSelect = useCallback((rate: ShippingRate | null) => {
+    setSelectedRate(rate);
+  }, []);
+
   const onFieldChange =
     (key: keyof ShippingForm) =>
     (event: React.ChangeEvent<HTMLInputElement>): void => {
@@ -256,6 +299,15 @@ const Checkout: React.FC = () => {
     form.country.trim().length > 0;
 
   const showPayment = Boolean(clientSecret) && orderId !== null;
+
+  /** Before the order exists, the picked rate is the best estimate.
+   *  After it, the server's number is the truth. */
+  const shippingToShow =
+    serverShipping !== null
+      ? serverShipping
+      : selectedRate
+        ? Number(selectedRate.amount)
+        : null;
 
   const stripeOptions = useMemo(() => {
     if (!clientSecret) return undefined;
@@ -287,6 +339,7 @@ const Checkout: React.FC = () => {
     setOrderId(null);
     setTax(null);
     setTotal(null);
+    setServerShipping(null);
     setDiscount(0);
     setDiscountLabel("");
 
@@ -297,15 +350,10 @@ const Checkout: React.FC = () => {
           quantity: item.quantity,
           is_gift: Boolean(item.isGift),
         })),
-        shipping: {
-          full_name: form.full_name.trim(),
-          line1: form.address_line1.trim(),
-          line2: form.address_line2.trim(),
-          city: form.city.trim(),
-          state: form.state.trim(),
-          postal_code: form.postal_code.trim(),
-          country: form.country.trim(),
-        },
+        shipping: rateAddress,
+        // Empty when the carrier API was unreachable; the server then
+        // falls back to its flat rate rather than failing the sale.
+        shipping_rate_id: selectedRate?.rate_id ?? "",
       });
 
       const createdOrderId = Number(orderResponse.data?.id);
@@ -315,7 +363,7 @@ const Checkout: React.FC = () => {
       }
 
       setOrderId(createdOrderId);
-
+      setServerShipping(Number(orderResponse.data?.shipping_amount) || 0);
       setDiscount(Number(orderResponse.data?.discount_amount) || 0);
       setDiscountLabel(String(orderResponse.data?.discount_label ?? ""));
 
@@ -325,21 +373,13 @@ const Checkout: React.FC = () => {
 
       const clientSecretValue = intentResponse.data?.client_secret;
 
-      if (
-        typeof clientSecretValue !== "string" ||
-        !clientSecretValue.trim()
-      ) {
+      if (typeof clientSecretValue !== "string" || !clientSecretValue.trim()) {
         throw new Error("Payment initialization failed.");
       }
 
       setClientSecret(clientSecretValue);
-
       setTax(Number(intentResponse.data?.tax_amount) || 0);
-
-      setTotal(
-        Number(intentResponse.data?.total_amount) ||
-          subtotal + SHIPPING_AMOUNT
-      );
+      setTotal(Number(intentResponse.data?.total_amount) || null);
     } catch (error) {
       console.error("Checkout error:", error);
       setErrorMsg(getErrorMessage(error));
@@ -473,8 +513,18 @@ const Checkout: React.FC = () => {
               )}
 
               <div className="checkout__totalRow">
-                <span>Shipping</span>
-                <span>{money(SHIPPING_AMOUNT)}</span>
+                <span>
+                  Shipping
+                  {selectedRate && serverShipping === null && (
+                    <span className="checkout__totalNote">
+                      {" "}
+                      {selectedRate.carrier} {selectedRate.service_level}
+                    </span>
+                  )}
+                </span>
+                <span>
+                  {shippingToShow === null ? "—" : money(shippingToShow)}
+                </span>
               </div>
 
               <div className="checkout__totalRow">
@@ -485,9 +535,11 @@ const Checkout: React.FC = () => {
               <div className="checkout__totalRow checkout__totalRow--grand">
                 <span>Total</span>
                 <span>
-                  {total === null
-                    ? money(subtotal + SHIPPING_AMOUNT)
-                    : money(total)}
+                  {total !== null
+                    ? money(total)
+                    : shippingToShow === null
+                      ? money(subtotal)
+                      : money(subtotal + shippingToShow)}
                 </span>
               </div>
             </div>
@@ -652,6 +704,14 @@ const Checkout: React.FC = () => {
                     placeholder="United States"
                   />
                 </div>
+
+                <ShippingRates
+                  address={rateAddress}
+                  items={rateLines}
+                  selectedRateId={selectedRate?.rate_id ?? ""}
+                  disabled={loading}
+                  onSelect={handleRateSelect}
+                />
 
                 <button
                   type="submit"

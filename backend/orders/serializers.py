@@ -45,6 +45,14 @@ class OrderItemReadSerializer(serializers.ModelSerializer):
 class OrderReadSerializer(serializers.ModelSerializer):
     items = OrderItemReadSerializer(many=True, read_only=True)
 
+    # Shipment is a OneToOne that may not exist yet — a label is only bought
+    # after payment. Touching a missing reverse OneToOne raises rather than
+    # returning None, hence getattr with a default in every accessor below.
+    carrier = serializers.SerializerMethodField()
+    service_level = serializers.SerializerMethodField()
+    tracking_number = serializers.SerializerMethodField()
+    tracking_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Order
         fields = (
@@ -64,11 +72,35 @@ class OrderReadSerializer(serializers.ModelSerializer):
             "shipping_state",
             "shipping_postal_code",
             "shipping_country",
+            "shipping_phone",
+            "carrier",
+            "service_level",
+            "tracking_number",
+            "tracking_url",
             "stripe_payment_intent_id",
             "stripe_tax_calculation_id",
             "items",
             "created_at",
         )
+
+    def _shipment(self, obj):
+        return getattr(obj, "shipment", None)
+
+    def get_carrier(self, obj):
+        shipment = self._shipment(obj)
+        return shipment.carrier if shipment else ""
+
+    def get_service_level(self, obj):
+        shipment = self._shipment(obj)
+        return shipment.service_level if shipment else ""
+
+    def get_tracking_number(self, obj):
+        shipment = self._shipment(obj)
+        return shipment.tracking_number if shipment else ""
+
+    def get_tracking_url(self, obj):
+        shipment = self._shipment(obj)
+        return shipment.tracking_url if shipment else ""
 
 
 class OrderItemCreateSerializer(serializers.Serializer):
@@ -100,7 +132,12 @@ class ShippingSerializer(serializers.Serializer):
         default="United States",
     )
 
-    phone = serializers.CharField(max_length=32, required=False, allow_blank=True, default="")
+    phone = serializers.CharField(
+        max_length=32,
+        required=False,
+        allow_blank=True,
+        default="",
+    )
 
     def validate_country(self, value: str) -> str:
         country = (value or "").strip()
@@ -150,6 +187,34 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
             {"items": "Some items in your cart are no longer available."}
         )
 
+    # Availability is checked before anything slow happens. Quoting first
+    # would mean a live call to a carrier API for a cart that cannot be
+    # fulfilled anyway — and would hold the select_for_update lock on these
+    # rows for the two or three seconds that call takes.
+    for variant_id, payload in merged.items():
+        variant = variant_map[variant_id]
+        qty = int(payload["quantity"])
+
+        if not variant.is_active:
+            raise serializers.ValidationError(
+                {
+                    "items": (
+                        f"{variant.candle.name} / {variant.size} is currently "
+                        "unavailable."
+                    )
+                }
+            )
+
+        if variant.stock_qty < qty:
+            raise serializers.ValidationError(
+                {
+                    "items": (
+                        f"Only {variant.stock_qty} left for "
+                        f"{variant.candle.name} / {variant.size}."
+                    )
+                }
+            )
+
     quote_lines = [
         (variant_map[vid], int(payload["quantity"]))
         for vid, payload in merged.items()
@@ -181,7 +246,7 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
         shipping_state=shipping["state"].strip(),
         shipping_postal_code=shipping["postal_code"].strip(),
         shipping_country=shipping["country"].strip(),
-        shipping_phone=shipping.get("phone", "").strip(),
+        shipping_phone=(shipping.get("phone") or "").strip(),
     )
 
     if rate:
@@ -205,27 +270,13 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
         qty = int(payload["quantity"])
         is_gift = bool(payload["is_gift"])
 
-        if not variant.is_active:
-            raise serializers.ValidationError(
-                {"items": f"{candle.name} / {variant.size} is currently unavailable."}
-            )
-
-        if variant.stock_qty < qty:
-            raise serializers.ValidationError(
-                {
-                    "items": (
-                        f"Only {variant.stock_qty} left for "
-                        f"{candle.name} / {variant.size}."
-                    )
-                }
-            )
-
         variant.stock_qty -= qty
         variant.save(update_fields=["stock_qty"])
 
         OrderItem.objects.create(
             order=order,
             candle=candle,
+            variant=variant,
             product_name=f"{candle.name} - {variant.size}",
             unit_price=variant.price,
             quantity=qty,
@@ -261,7 +312,11 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
 class OrderCreateSerializer(serializers.Serializer):
     items = OrderItemCreateSerializer(many=True)
     shipping = ShippingSerializer()
-    shipping_rate_id = serializers.CharField(required=False, allow_blank=True, default="")
+    shipping_rate_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
 
     def create(self, validated_data):
         return build_order(
@@ -281,7 +336,11 @@ class OrderFromCartSerializer(serializers.Serializer):
     """
 
     shipping = ShippingSerializer()
-    shipping_rate_id = serializers.CharField(required=False, allow_blank=True, default="")
+    shipping_rate_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
 
 
 class OrderStatusUpdateSerializer(serializers.Serializer):

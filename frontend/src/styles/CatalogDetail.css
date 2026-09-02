@@ -4,8 +4,6 @@
   --detail-side-padding: clamp(16px, 2vw, 32px);
 
   width: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
   padding: 0 var(--detail-side-padding) 96px;
   color: #111111;
 }
@@ -62,7 +60,7 @@
 
 .catalogDetail__panel {
   position: sticky;
-  top: 32px;
+  top: calc(var(--header-height) + 24px);
   display: flex;
   flex-direction: column;
   gap: 18px;

@@ -125,6 +125,16 @@ class OrderItem(models.Model):
         related_name="order_items",
     )
 
+    variant = models.ForeignKey(
+        "candles.CandleVariant",
+        on_delete=models.PROTECT,
+        related_name="order_items",
+        null=True,
+        blank=True,
+        help_text="The exact variant ordered. Null on rows created before "
+                  "this field existed.",
+    )
+
     product_name = models.CharField(max_length=255)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)

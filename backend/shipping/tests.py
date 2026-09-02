@@ -7,6 +7,8 @@ from unittest.mock import MagicMock
 import pytest
 from django.test import override_settings
 
+from candles.models import Candle, CandleVariant
+from orders.models import OrderItem
 from shipping.client import ShippoError
 from shipping.models import Shipment
 from shipping.normalize import (AddressError, build_parcels, country_code,
@@ -173,3 +175,59 @@ def test_failed_purchase_leaves_a_readable_reason(paid_order):
 
     assert shipment.status == Shipment.Status.FAILED
     assert "Insufficient funds" in shipment.error_message
+
+
+def test_relabel_uses_the_recorded_variant(paid_order, category):
+    candle = Candle.objects.create(
+        category=category, name="Two Sizes", price="24.00", stock_qty=10
+    )
+    heavy = CandleVariant.objects.create(
+        candle=candle, size="Large", price="32.00", stock_qty=10,
+        weight_oz=Decimal("20"),
+    )
+    light = CandleVariant.objects.create(
+        candle=candle, size="Small", price="18.00", stock_qty=10,
+        weight_oz=Decimal("4"),
+    )
+
+    OrderItem.objects.create(
+        order=paid_order,
+        candle=candle,
+        variant=light,
+        product_name="Two Sizes - Small",
+        unit_price=light.price,
+        quantity=1,
+    )
+
+    client = MagicMock()
+    client.is_test = True
+    client.create_shipment.return_value = {
+        "object_id": "ship_1",
+        "status": "SUCCESS",
+        "address_to": {"validation_results": {"is_valid": True}},
+        "rates": [
+            {
+                "object_id": "rate_cheap",
+                "amount": "9.00",
+                "currency": "USD",
+                "provider": "USPS",
+                "servicelevel": {"name": "Ground Advantage"},
+            }
+        ],
+    }
+    client.create_transaction.return_value = {
+        "object_id": "txn_1",
+        "status": "SUCCESS",
+        "tracking_number": "9400100000000000000000",
+        "label_url": "https://example.test/label.pdf",
+    }
+
+    purchase_label(paid_order, client=client)
+
+    payload = client.create_shipment.call_args[0][0]
+    parcel = payload["parcels"][0]
+
+    # Small (4oz) + small-box tare (2.5oz) = 6.5oz. If the old
+    # `.first()` fallback had picked the heavy 20oz variant instead, this
+    # would be north of 22oz.
+    assert Decimal(parcel["weight"]) < Decimal("10")

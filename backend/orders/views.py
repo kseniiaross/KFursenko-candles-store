@@ -23,7 +23,11 @@ class OrderCreateThrottle(UserRateThrottle):
     description=(
         "Creates an order from request payload items.\n\n"
         "Body example:\n"
-        '{ "items": [{"variant_id": 12, "quantity": 2}], "shipping": {...} }'
+        '{ "items": [{"variant_id": 12, "quantity": 2}], "shipping": {...}, '
+        '"shipping_rate_id": "rate_abc" }\n\n'
+        "shipping_rate_id comes from POST /api/shipping/rates/. It is "
+        "optional: without it the cheapest live rate is used, and if the "
+        "carrier API is unreachable the flat fallback rate applies."
     ),
     request=OrderCreateSerializer,
     responses={201: OrderReadSerializer},
@@ -56,7 +60,15 @@ class MyOrdersAPIView(generics.ListAPIView):
     serializer_class = OrderReadSerializer
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user).order_by("-created_at")
+        # select_related("shipment") matters: the serializer reads carrier
+        # and tracking off it, so without this the list costs one extra
+        # query per order.
+        return (
+            Order.objects.filter(user=self.request.user)
+            .select_related("shipment")
+            .prefetch_related("items__candle")
+            .order_by("-created_at")
+        )
 
 
 @extend_schema(
@@ -97,8 +109,8 @@ class StaffOrdersAPIView(generics.ListAPIView):
             raise PermissionDenied("Only staff can view all orders.")
 
         return (
-            Order.objects.select_related("user")
-            .prefetch_related("items")
+            Order.objects.select_related("user", "shipment")
+            .prefetch_related("items__candle")
             .order_by("-created_at")
         )
 
@@ -165,7 +177,11 @@ class OrderDetailAPIView(generics.RetrieveAPIView):
     serializer_class = OrderReadSerializer
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user)
+        return (
+            Order.objects.filter(user=self.request.user)
+            .select_related("shipment")
+            .prefetch_related("items__candle")
+        )
 
 
 @extend_schema(
@@ -173,7 +189,10 @@ class OrderDetailAPIView(generics.RetrieveAPIView):
     summary="Staff: update order status",
     description=(
         "Staff-only. Updates order status using transition rules.\n\n"
-        'Body: {"status": "shipped"}'
+        'Body: {"status": "shipped"}\n\n'
+        "Note this only moves the status. To buy a label, use "
+        "POST /api/shipping/orders/{id}/label/, which moves the order to "
+        "shipped by itself once the label exists."
     ),
     request=OrderStatusUpdateSerializer,
     responses={200: OrderReadSerializer},
@@ -189,7 +208,7 @@ class OrderStatusUpdateAPIView(generics.GenericAPIView):
         order_id = kwargs.get("pk")
 
         try:
-            order = Order.objects.get(pk=order_id)
+            order = Order.objects.select_related("shipment").get(pk=order_id)
         except Order.DoesNotExist:
             return Response(
                 {"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND

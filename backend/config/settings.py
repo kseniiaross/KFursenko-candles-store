@@ -377,6 +377,16 @@ SHIPPO_TIMEOUT_SECONDS = config("SHIPPO_TIMEOUT_SECONDS", default=30, cast=int)
 SHIPPO_LABEL_FILE_TYPE = config("SHIPPO_LABEL_FILE_TYPE", default="PDF")
 SHIPPO_FALLBACK_PHONE = config("SHIPPO_FALLBACK_PHONE", default="")
 
+# Empty means every carrier enabled in the Shippo dashboard is offered.
+# Fill in provider names (e.g. ["usps", "fedex"]) to narrow the list.
+SHIPPO_CARRIERS: list[str] = []
+
+# Shoppers convert better on three or four real choices than on fifteen
+# near-identical service tiers.
+SHIPPO_MAX_RATES_PER_CARRIER = config(
+    "SHIPPO_MAX_RATES_PER_CARRIER", default=2, cast=int
+)
+
 # Флэт из orders/serializers.py переезжает сюда — он теперь фолбэк,
 # а не основная цена.
 SHIPPING_FALLBACK_RATE = Decimal(config("SHIPPING_FALLBACK_RATE", default="15.00"))

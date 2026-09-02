@@ -174,10 +174,18 @@ def purchase_label(order, *, client=None) -> Shipment:
         if not rate_id:
             # No quote survived checkout (flat-rate fallback, or an expired
             # rate). Re-quote now and take the cheapest.
-            lines = [
-                (item.candle.variants.first(), item.quantity)
-                for item in order.items.all()
-            ]
+            lines = []
+
+            for item in order.items.select_related("variant", "candle").all():
+                variant = item.variant or item.candle.variants.first()
+
+                if variant is None:
+                    raise ShippoError(
+                        f"Order item {item.id} has no variant to weigh."
+                    )
+
+                lines.append((variant, item.quantity))
+
             rates = quote_rates(
                 address_to=order_to_address(order), lines=lines, client=client
             )
