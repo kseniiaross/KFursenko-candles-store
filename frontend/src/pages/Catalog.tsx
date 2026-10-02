@@ -1,0 +1,668 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+
+import type { Candle, Category, CandleBadge } from "../types/candle";
+import {
+  getDisplayPrice,
+  getLowestActiveVariant,
+  isCandleAvailable,
+} from "../types/candle";
+
+import { listCandles, listCategories } from "../api/candles";
+import { searchWithLumiere } from "../api/lumiere";
+import Price from "../components/Price";
+
+import { useAppDispatch } from "../store/hooks";
+import { openSizeModal } from "../store/modalSlice";
+
+import "../styles/Catalog.css";
+
+const ITEMS_PER_BATCH = 8;
+const SEARCH_DEBOUNCE_MS = 420;
+const AI_SEARCH_LIMIT = 8;
+
+function normalizeBadges(badges?: CandleBadge[]): CandleBadge[] {
+  if (!Array.isArray(badges)) return [];
+
+  return [...badges].sort(
+    (a, b) => (a.priority ?? 999) - (b.priority ?? 999)
+  );
+}
+
+function buildOptimizedImageUrl(url: string, width: number): string {
+  if (!url) return "";
+
+  if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+    if (url.includes("/upload/f_auto") || url.includes("/upload/q_auto")) {
+      return url;
+    }
+
+    return url.replace("/upload/", `/upload/f_auto,q_auto,w_${width}/`);
+  }
+
+  return url;
+}
+
+/** Second gallery frame, shown on hover. Accepts both a plain
+ *  string[] gallery and an array of objects with image/url fields. */
+function getHoverImageUrl(product: Candle, coverUrl: string): string {
+  const gallery = (product as unknown as { images?: unknown }).images;
+
+  if (!Array.isArray(gallery)) return "";
+
+  for (const item of gallery) {
+    const url =
+      typeof item === "string"
+        ? item
+        : (item as { image?: string; url?: string })?.image ??
+          (item as { url?: string })?.url ??
+          "";
+
+    if (url && url !== coverUrl) return url;
+  }
+
+  return "";
+}
+
+const Catalog: React.FC = () => {
+  const { t } = useTranslation();
+  const dispatch = useAppDispatch();
+
+  // Two routes render this page: /catalog/category/:categorySlug and
+  // /catalog/collection/:collectionSlug. Collections are a separate tree
+  // from categories — a collection slug will never match a category.
+  const { categorySlug, collectionSlug } = useParams<{
+    categorySlug?: string;
+    collectionSlug?: string;
+  }>();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const debounceRef = useRef<number | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [candles, setCandles] = useState<Candle[]>([]);
+  const [visibleCount, setVisibleCount] =
+    useState<number>(ITEMS_PER_BATCH);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMode, setAiMode] = useState(false);
+  const q = searchParams.get("q") ?? "";
+  const categoryParam = searchParams.get("category") ?? "";
+  const [searchInput, setSearchInput] = useState(q);
+
+  /** Cards whose hover image has already been requested. */
+  const [warmedCards, setWarmedCards] = useState<Set<number>>(
+    () => new Set()
+  );
+
+  useEffect(() => {
+    setSearchInput(q);
+  }, [q]);
+
+  const categoryId = useMemo(() => {
+    const numericValue = Number(categoryParam);
+
+    return Number.isFinite(numericValue) && numericValue > 0
+      ? numericValue
+      : undefined;
+  }, [categoryParam]);
+
+  useEffect(() => {
+    if (aiMode) return;
+
+    if (debounceRef.current) {
+      window.clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = window.setTimeout(() => {
+      const next = new URLSearchParams(searchParams);
+
+      const cleanSearch = searchInput.trim();
+
+      if (cleanSearch) {
+        next.set("q", cleanSearch);
+      } else {
+        next.delete("q");
+      }
+
+      setSearchParams(next, { replace: true });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) {
+        window.clearTimeout(debounceRef.current);
+      }
+    };
+  }, [aiMode, searchInput, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCatalog(): Promise<void> {
+      if (aiMode) return;
+
+      try {
+        setLoading(true);
+
+        setError("");
+
+        setVisibleCount(ITEMS_PER_BATCH);
+
+        setWarmedCards(new Set());
+
+        let categoriesData: Category[] = [];
+
+        try {
+          categoriesData = await listCategories();
+
+          if (!active) return;
+
+          setCategories(categoriesData);
+        } catch {
+          if (!active) return;
+
+          setCategories([]);
+        }
+
+        // An explicit ?category= query param (set by the category dropdown)
+        // must win over the route's :categorySlug, otherwise picking a
+        // category while already on a /catalog/category/:slug page is a
+        // no-op — the slug-derived id always overrides the user's choice.
+        const resolvedCategoryId =
+          categoryId ??
+          (categorySlug
+            ? categoriesData.find(
+                (category) => category.slug === categorySlug
+              )?.id
+            : undefined);
+
+        // A category slug that matches nothing used to fall through to an
+        // unfiltered query, so a typo in a menu link silently showed the
+        // entire catalog instead of reporting the miss.
+        if (categorySlug && !categoryId && !resolvedCategoryId) {
+          if (!active) return;
+
+          setCandles([]);
+          setError(t("catalog.loadError"));
+          return;
+        }
+
+        const candlesData = await listCandles({
+          search: q.trim() || undefined,
+          category: resolvedCategoryId,
+          collection: collectionSlug,
+          ordering: "-created_at",
+        });
+
+        if (!active) return;
+
+        setCandles(candlesData);
+      } catch {
+        if (!active) return;
+
+        setError(t("catalog.loadError"));
+      } finally {
+        if (!active) return;
+
+        setLoading(false);
+      }
+    }
+
+    void loadCatalog();
+
+    return () => {
+      active = false;
+    };
+  }, [aiMode, q, categoryId, categorySlug, collectionSlug, t]);
+
+  const visibleCandles = useMemo(() => {
+    return candles.slice(0, visibleCount);
+  }, [candles, visibleCount]);
+
+  const hasMoreCandles = visibleCount < candles.length;
+
+  useEffect(() => {
+    if (!hasMoreCandles || loading || error) return;
+
+    const target = loadMoreRef.current;
+
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((current) =>
+            Math.min(current + ITEMS_PER_BATCH, candles.length)
+          );
+        }
+      },
+      {
+        root: null,
+        rootMargin: "240px",
+        threshold: 0,
+      }
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [candles.length, error, hasMoreCandles, loading]);
+
+  const updateParams = (
+    updater: (next: URLSearchParams) => void
+  ): void => {
+    const next = new URLSearchParams(searchParams);
+
+    updater(next);
+
+    setSearchParams(next, { replace: true });
+  };
+
+  const onCategoryChange = (value: string): void => {
+    setAiMode(false);
+    updateParams((next) => {
+      if (value) {
+        next.set("category", value);
+      } else {
+        next.delete("category");
+      }
+    });
+  };
+
+  const clearFilters = (): void => {
+    setSearchInput("");
+    setAiMode(false);
+    setError("");
+    updateParams((next) => {
+      next.delete("q");
+      next.delete("category");
+    });
+  };
+
+  const warmCard = (id: number): void => {
+    setWarmedCards((current) => {
+      if (current.has(id)) return current;
+
+      const next = new Set(current);
+
+      next.add(id);
+
+      return next;
+    });
+  };
+
+  const runAiSearch = async (): Promise<void> => {
+    const cleanQuery = searchInput.trim();
+
+    if (!cleanQuery || aiLoading) return;
+
+    try {
+      setAiLoading(true);
+      setLoading(true);
+      setError("");
+      setVisibleCount(ITEMS_PER_BATCH);
+      setWarmedCards(new Set());
+
+      const aiResponse = await searchWithLumiere(
+        cleanQuery,
+        AI_SEARCH_LIMIT,
+        true
+      );
+
+      const suggestionIds = aiResponse.suggestions.map(
+        (item) => item.id
+      );
+
+      if (suggestionIds.length === 0) {
+        setCandles([]);
+        setAiMode(true);
+        return;
+      }
+
+      const allCandles = await listCandles({
+        ordering: "-created_at",
+      });
+
+      const candleMap = new Map(
+        allCandles.map((candle) => [candle.id, candle])
+      );
+
+      const aiCandles = suggestionIds
+        .map((id) => candleMap.get(id))
+        .filter((candle): candle is Candle => Boolean(candle));
+      setCandles(aiCandles);
+      setAiMode(true);
+    } catch {
+      setError("Lumière AI Search could not complete. Please try again.");
+    } finally {
+      setAiLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const hasActiveFilters = Boolean(
+    q || categoryParam || searchInput.trim() || aiMode
+  );
+
+  const onAddToCart = (candle: Candle): void => {
+    const variant = getLowestActiveVariant(candle);
+
+    if (!variant) return;
+
+    dispatch(openSizeModal(candle));
+  };
+
+  const isEmpty = !loading && !error && candles.length === 0;
+
+  return (
+    <main className="catalog" aria-labelledby="catalog-title">
+      <div className="catalog__inner">
+        <header className="catalog__header">
+          <div className="catalog__topRow">
+            <div className="catalog__headingGroup">
+              <h1 id="catalog-title" className="catalog__title">
+                {t("catalog.title")}
+              </h1>
+            </div>
+          </div>
+
+          <form
+            className="catalog__filters"
+            role="search"
+            aria-label={t("catalog.filtersLabel")}
+            onSubmit={(event) => {
+              event.preventDefault();
+
+              void runAiSearch();
+            }}
+          >
+            <div className="catalog__filterItem">
+              <label
+                className="catalog__label"
+                htmlFor="catalog-search"
+              >
+                {t("catalog.searchLabel")}
+              </label>
+
+              <input
+                id="catalog-search"
+                className="catalog__searchLine"
+                type="search"
+                value={searchInput}
+                onChange={(event) => {
+                  setSearchInput(event.target.value);
+
+                  if (aiMode) {
+                    setAiMode(false);
+                  }
+                }}
+                placeholder="Try: I want something cozy for reading at night"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="catalog__filterItem">
+              <label
+                className="catalog__label"
+                htmlFor="catalog-category"
+              >
+                {t("catalog.categoryLabel")}
+              </label>
+
+              <div className="catalog__categoryWrap">
+                <select
+                  id="catalog-category"
+                  className="catalog__categoryInline"
+                  value={categoryParam}
+                  onChange={(event) =>
+                    onCategoryChange(event.target.value)
+                  }
+                  disabled={categories.length === 0 || aiLoading}
+                >
+                  <option value="">
+                    {t("catalog.allCategories")}
+                  </option>
+
+                  {categories.map((category) => (
+                    <option
+                      key={category.id}
+                      value={String(category.id)}
+                    >
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="catalog__actionsInline">
+              <button
+                type="submit"
+                className="catalog__aiButton"
+                disabled={!searchInput.trim() || aiLoading}
+              >
+                {aiLoading ? "Thinking..." : "Lumière AI Search"}
+              </button>
+
+              <button
+                type="button"
+                className="catalog__clearInline"
+                onClick={clearFilters}
+                disabled={!hasActiveFilters || aiLoading}
+              >
+                {t("catalog.clear")}
+              </button>
+            </div>
+          </form>
+        </header>
+
+        {/* An empty result used to render nothing at all, which looked
+            identical to a broken page. */}
+        {isEmpty && (
+          <p className="catalog__empty">{t("catalog.noResults")}</p>
+        )}
+
+        {error && !loading && (
+          <p className="catalog__empty">{error}</p>
+        )}
+
+        {!loading && !error && candles.length > 0 ? (
+          <>
+            <section
+              className="catalog__grid"
+              aria-label={t("catalog.productListLabel")}
+            >
+              {visibleCandles.map((product, index) => {
+                const coverUrl = product.image ?? "";
+
+                if (!coverUrl) return null;
+
+                const optimizedSmall =
+                  buildOptimizedImageUrl(coverUrl, 480);
+
+                const optimizedMedium =
+                  buildOptimizedImageUrl(coverUrl, 800);
+
+                const optimizedLarge =
+                  buildOptimizedImageUrl(coverUrl, 1200);
+
+                const hoverUrl = getHoverImageUrl(product, coverUrl);
+
+                const optimizedHover = hoverUrl
+                  ? buildOptimizedImageUrl(hoverUrl, 800)
+                  : "";
+
+                const isWarmed = warmedCards.has(product.id);
+
+                const destination = `/catalog/item/${product.slug}`;
+
+                const badges = normalizeBadges(product.badges);
+
+                const available = isCandleAvailable(product);
+
+                const showSoldOut = !available;
+
+                const showBestseller = Boolean(
+                  product.is_bestseller
+                );
+
+                const displayPrice = getDisplayPrice(product);
+
+                // Two prices need more room than one, so a discounted card
+                // drops the price onto its own line rather than squeezing
+                // the name into an ellipsis.
+                const onSale =
+                  displayPrice !== null &&
+                  displayPrice !== undefined &&
+                  product.discount_price !== null &&
+                  product.discount_price !== undefined &&
+                  Number(product.discount_price) < Number(displayPrice);
+
+                const firstVariant =
+                  getLowestActiveVariant(product);
+
+                const isPriorityImage = index === 0;
+
+                return (
+                  <article
+                    key={product.id}
+                    className="catalogCard"
+                    onMouseEnter={() => warmCard(product.id)}
+                    onFocus={() => warmCard(product.id)}
+                  >
+                    <Link
+                      to={destination}
+                      className="catalogCard__imageLink"
+                      aria-label={`Open ${product.name}`}
+                    >
+                      <div className="catalogCard__media">
+                        <img
+                          className="catalogCard__img catalogCard__img--cover"
+                          src={optimizedMedium}
+                          srcSet={`${optimizedSmall} 480w, ${optimizedMedium} 800w, ${optimizedLarge} 1200w`}
+                          sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 25vw"
+                          alt={product.name}
+                          loading={isPriorityImage ? "eager" : "lazy"}
+                          fetchPriority={
+                            isPriorityImage ? "high" : "auto"
+                          }
+                          decoding="async"
+                          width={1000}
+                          height={1250}
+                        />
+
+                        {optimizedHover && isWarmed ? (
+                          <img
+                            className="catalogCard__img catalogCard__img--hover"
+                            src={optimizedHover}
+                            alt=""
+                            aria-hidden="true"
+                            decoding="async"
+                            width={1000}
+                            height={1250}
+                          />
+                        ) : null}
+
+                        {(showSoldOut ||
+                          showBestseller ||
+                          badges.length > 0) && (
+                          <div className="catalogCard__badges">
+                            {showSoldOut ? (
+                              <span className="badge badge--soldout">
+                                {t("catalog.soldOut")}
+                              </span>
+                            ) : null}
+
+                            {showBestseller ? (
+                              <span className="badge badge--bestseller">
+                                {t("catalog.bestseller")}
+                              </span>
+                            ) : null}
+
+                            {badges.map((badge) => (
+                              <span
+                                key={badge.slug}
+                                className="badge"
+                              >
+                                {badge.badge_text}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+
+                    <div className="catalogCard__body">
+                      <div
+                        className={`catalogCard__metaRow${
+                          onSale ? " catalogCard__metaRow--stacked" : ""
+                        }`}
+                      >
+                        <Link
+                          to={destination}
+                          className="catalogCard__titleLink"
+                        >
+                          <h2 className="catalogCard__name">
+                            {product.name}
+                          </h2>
+                        </Link>
+
+                        <div className="catalogCard__price">
+                          {displayPrice ? (
+                            <Price
+                              price={displayPrice}
+                              discountPrice={product.discount_price}
+                            />
+                          ) : (
+                            <span className="catalogCard__priceHint">
+                              Select size
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="catalogCard__actions">
+                        {showSoldOut ? (
+                          <button
+                            type="button"
+                            className="catalogCard__btn"
+                          >
+                            {t("catalog.notifyMe")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="catalogCard__btn"
+                            onClick={() => onAddToCart(product)}
+                            disabled={!firstVariant}
+                          >
+                            {t("catalog.addToCart")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+
+            {hasMoreCandles ? (
+              <div
+                ref={loadMoreRef}
+                className="catalog__loadMoreTrigger"
+                aria-hidden="true"
+              />
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </main>
+  );
+};
+
+export default Catalog;

@@ -1,0 +1,76 @@
+/* =====================================================
+   CART OFFER HINT
+
+   Deliberately understated: a strip, not a banner. It sits above the cart
+   lines and has to survive being read once and then ignored for the rest
+   of the session.
+   ===================================================== */
+
+.cartHint {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: inherit;
+  color: #111111;
+}
+
+.cartHint__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-left: 2px solid #7a4b8c;
+  background: rgba(122, 75, 140, 0.06);
+}
+
+.cartHint__badge {
+  flex: none;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #7a4b8c;
+  color: #ffffff;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cartHint__text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.cartHint__link {
+  color: #111111;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.cartHint__link:focus-visible {
+  outline: 2px solid rgba(17, 17, 17, 0.9);
+  outline-offset: 3px;
+}
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 600px) {
+  .cartHint__row {
+    flex-direction: column;
+    gap: 8px;
+    padding: 13px 14px;
+  }
+
+  .cartHint__badge {
+    align-self: flex-start;
+  }
+
+  .cartHint__text {
+    font-size: 0.86rem;
+  }
+}

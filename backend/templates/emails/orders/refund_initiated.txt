@@ -1,0 +1,12 @@
+Refund initiated
+Order #{{ order_number }}
+
+Hi {{ first_name|default:"there" }},
+
+We’ve initiated your refund for {{ refund_amount }}.
+Depending on your bank, it may take a few business days to appear on your statement.
+
+If you have questions, reply to this email.
+
+— KFursenko Candles
+{{ support_email }}

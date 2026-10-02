@@ -1,0 +1,11 @@
+Your account has been deactivated
+
+Hi {{ first_name|default:"there" }},
+
+Your KFursenko Candles account has been deactivated.
+If this was a mistake, you can restore access here:
+
+{{ restore_url }}
+
+— KFursenko Candles
+{{ support_email }}

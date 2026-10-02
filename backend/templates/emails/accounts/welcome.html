@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+</head>
+<body style="margin:0; padding:0; background:#f7f7f7; font-family:Arial, sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+
+        <table width="600" cellpadding="0" cellspacing="0" style="background:white; padding:40px;">
+
+          <!-- LOGO -->
+          <tr>
+            <td align="center" style="padding-bottom:30px;">
+              <img src="https://yourdomain.com/static/logo.png"
+                   alt="KFursenko Candles"
+                   width="160"
+                   style="display:block;">
+            </td>
+          </tr>
+
+          <!-- TITLE -->
+          <tr>
+            <td align="center" style="font-size:20px; letter-spacing:3px; padding-bottom:20px;">
+              WELCOME
+            </td>
+          </tr>
+
+          <!-- TEXT -->
+          <tr>
+            <td style="font-size:14px; line-height:22px; color:#333;">
+              Hi {{ first_name|default:"there" }},<br><br>
+
+              Your account has been successfully created.<br><br>
+
+              You can start shopping here:<br>
+              <a href="{{ site_url }}" style="color:black; text-decoration:none;">
+                {{ site_url }}
+              </a><br><br>
+
+              We’re happy you’re here ✨
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td align="center" style="padding-top:40px; font-size:11px; color:#999;">
+              Hand-poured. Clean. Cozy.<br>
+              {{ support_email }}
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

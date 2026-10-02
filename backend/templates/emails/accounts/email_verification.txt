@@ -1,0 +1,12 @@
+Verify your email address
+
+Hi {{ first_name|default:"there" }},
+
+Please confirm your email to activate your KFursenko Candles account:
+
+{{ verification_url }}
+
+This link will expire soon. If you didn’t request this, you can ignore this email.
+
+— KFursenko Candles
+{{ site_url }}

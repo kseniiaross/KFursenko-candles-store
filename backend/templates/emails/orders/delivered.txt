@@ -1,0 +1,12 @@
+Delivered ✅
+Order #{{ order_number }}
+
+Hi {{ first_name|default:"there" }},
+
+Your order has been delivered.
+We hope it makes your space feel extra cozy.
+
+If anything isn’t perfect, reply to this email and we’ll help.
+
+— KFursenko Candles
+{{ support_email }}

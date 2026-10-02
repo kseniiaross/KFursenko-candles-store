@@ -1,0 +1,256 @@
+/* =====================================================
+   PROMO — BUY 2, GET 3
+
+   Shares its look with HolidayOffer: same rhythm, same rules, same
+   uppercase labels. The product grid below reuses Catalog.css, which is
+   imported alongside this file.
+   ===================================================== */
+
+.promo {
+  width: 100%;
+  padding: 0 clamp(16px, 2vw, 32px) 96px;
+  color: #111111;
+  font-family: inherit;
+}
+
+.promo__inner {
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  padding-top: clamp(32px, 5vw, 64px);
+}
+
+/* =====================================================
+   HEADER
+
+   Capped narrower than the grid below it: a line of running text is
+   unreadable at 1400px, while product cards are fine.
+   ===================================================== */
+
+.promo__header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 760px;
+}
+
+.promo__kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.promo__title {
+  margin: 0;
+  font-size: clamp(2.1rem, 4vw, 3rem);
+  font-weight: 400;
+  line-height: 1.03;
+  letter-spacing: 0.01em;
+}
+
+.promo__lead {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  opacity: 0.78;
+}
+
+/* =====================================================
+   HIGHLIGHT
+
+   The one sentence a shopper needs if they read nothing else.
+   ===================================================== */
+
+.promo__highlight {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 14px;
+  max-width: 760px;
+  padding: 18px 22px;
+  border-left: 2px solid #b73a3a;
+  background: rgba(183, 58, 58, 0.05);
+}
+
+.promo__highlightLabel {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.promo__highlightValue {
+  font-size: 1.08rem;
+  letter-spacing: 0.01em;
+}
+
+/* =====================================================
+   SECTION TITLES
+   ===================================================== */
+
+.promo__sectionTitle {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+/* =====================================================
+   TERMS
+   ===================================================== */
+
+.promo__terms {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 860px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(17, 17, 17, 0.12);
+}
+
+.promo__termsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+}
+
+/* Rule and explanation side by side on a wide screen, stacked on a
+   narrow one — the part a <table> could not do. */
+.promo__term {
+  display: grid;
+  grid-template-columns: minmax(0, 210px) minmax(0, 1fr);
+  gap: 6px 28px;
+  align-items: baseline;
+}
+
+.promo__termRule {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.promo__termDetail {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  opacity: 0.78;
+}
+
+/* =====================================================
+   PRODUCTS
+   ===================================================== */
+
+.promo__products {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(17, 17, 17, 0.12);
+}
+
+/* Catalog.css puts its own top margin on the grid; inside this page the
+   flex gap above already spaces it. */
+.promo__products .catalog__grid {
+  margin-top: 0;
+}
+
+.badge--promo {
+  background: #7a4b8c;
+}
+
+/* =====================================================
+   STATES
+   ===================================================== */
+
+.promo__state {
+  margin: 0;
+  padding: 24px 0;
+  font-size: 0.95rem;
+  opacity: 0.6;
+}
+
+.promo__state--error {
+  color: #b73a3a;
+  opacity: 1;
+}
+
+.promo__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 560px;
+  padding: 26px 0;
+}
+
+.promo__emptyText {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  opacity: 0.72;
+}
+
+.promo__emptyLink {
+  color: #111111;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.promo__emptyLink:focus-visible {
+  outline: 2px solid rgba(17, 17, 17, 0.9);
+  outline-offset: 3px;
+}
+
+/* =====================================================
+   TABLET
+   ===================================================== */
+
+@media (max-width: 900px) {
+  .promo__inner {
+    gap: 28px;
+  }
+
+  .promo__term {
+    grid-template-columns: minmax(0, 170px) minmax(0, 1fr);
+    gap: 6px 20px;
+  }
+}
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 600px) {
+  .promo {
+    padding-bottom: 72px;
+  }
+
+  .promo__inner {
+    gap: 26px;
+  }
+
+  .promo__highlight {
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px 18px;
+  }
+
+  /* Two columns at this width leave four words per line. */
+  .promo__term {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .promo__termsList {
+    gap: 20px;
+  }
+}

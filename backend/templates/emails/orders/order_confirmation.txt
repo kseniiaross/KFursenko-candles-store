@@ -1,0 +1,18 @@
+Order confirmed — thank you ✨
+Order #{{ order_number }}
+
+Hi {{ first_name|default:"there" }},
+
+We’ve received your order and it’s now confirmed.
+
+Order total: {{ order_total }}
+Shipping to: {{ shipping_name }}, {{ shipping_address }}
+
+You can review your order here:
+{{ order_url }}
+
+We’ll email you again when your order ships.
+
+— KFursenko Candles
+Hand-poured in small batches
+{{ support_email }}

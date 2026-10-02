@@ -1,0 +1,259 @@
+import React, { Suspense, useCallback, useEffect } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+
+import Header from "./pages/Header";
+import Footer from "./pages/Footer";
+import SizeModal from "./components/SizeModal";
+import DiscountModal from "./components/DiscountModal";
+import OfferModal from "./components/OfferModal";
+import PrivateRoute from "./components/PrivateRoute";
+import ScrollToTop from "./components/ScrollToTop";
+import LumiereWidget from "./pages/LumiereWidget";
+
+import { clearAuthStorage, getAccessToken } from "./utils/token";
+import { useAppDispatch, useAppSelector } from "./store/hooks";
+import { logout, setUser } from "./store/authSlice";
+import { getProfile } from "./api/auth";
+import { useHydrateCart } from "./hooks/useHydrateCart";
+
+const Home = React.lazy(() => import("./pages/Home"));
+const Catalog = React.lazy(() => import("./pages/Catalog"));
+const CatalogDetail = React.lazy(() => import("./pages/CatalogDetail"));
+const Cart = React.lazy(() => import("./pages/Cart"));
+const Checkout = React.lazy(() => import("./pages/Checkout"));
+const PaymentSuccess = React.lazy(() => import("./pages/PaymentSuccess"));
+const PaymentCancel = React.lazy(() => import("./pages/PaymentCancel"));
+const Orders = React.lazy(() => import("./pages/Orders"));
+const LoginChoice = React.lazy(() => import("./pages/LoginChoice"));
+const Login = React.lazy(() => import("./pages/Login"));
+const Register = React.lazy(() => import("./pages/Register"));
+const Profile = React.lazy(() => import("./pages/Profile"));
+const StoryMission = React.lazy(() => import("./pages/StoryMission"));
+const Contacts = React.lazy(() => import("./pages/Contacts"));
+const Gallery = React.lazy(() => import("./pages/Gallery"));
+const ComingSoon = React.lazy(() => import("./pages/ComingSoon"));
+const CustomCandles = React.lazy(() => import("./pages/CustomCandles"));
+const RecommendationQuiz = React.lazy(() => import("./pages/RecommendationQuiz"));
+const RecommendationResult = React.lazy(() => import("./pages/RecommendationResult"));
+
+// Offers
+const PromoBuy2Get3 = React.lazy(() => import("./pages/offers/PromoBuy2Get3"));
+const HolidayOffer = React.lazy(() => import("./pages/offers/HolidayOffer"));
+const NewShoppers = React.lazy(() => import("./pages/offers/NewShoppers"));
+
+// Customer care
+const Delivery = React.lazy(() => import("./pages/CustomerCare/Delivery"));
+const Payments = React.lazy(() => import("./pages/CustomerCare/Payments"));
+const Policy = React.lazy(() => import("./pages/CustomerCare/Policy"));
+const Support = React.lazy(() => import("./pages/CustomerCare/Support"));
+
+const App: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const location = useLocation();
+
+  const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
+  const firstName = useAppSelector(
+    (state) => state.auth?.user?.first_name ?? null
+  );
+
+  useHydrateCart();
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token || firstName) return;
+
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const user = await getProfile();
+        if (isMounted) dispatch(setUser(user));
+      } catch {
+        if (isMounted) {
+          clearAuthStorage();
+          dispatch(logout());
+        }
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch, firstName]);
+
+  const handleLogout = useCallback(() => {
+    clearAuthStorage();
+    dispatch(logout());
+  }, [dispatch]);
+
+  const isHomePage = location.pathname === "/";
+
+  return (
+    <div
+      className={`appShell ${
+        isHomePage ? "appShell--home" : "appShell--inner"
+      }`}
+    >
+      <Header
+        firstName={firstName}
+        isLoggedIn={isLoggedIn}
+        onLogout={handleLogout}
+      />
+
+      <div className="appShell__body">
+        <ScrollToTop />
+
+        <Suspense fallback={null}>
+          <Routes>
+            <Route
+              path="/"
+              element={<Home firstName={firstName} isLoggedIn={isLoggedIn} />}
+            />
+
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/catalog/category/:categorySlug" element={<Catalog />} />
+            {/* Collections are a tree of their own — a parent collection
+                shows everything nested underneath it. */}
+            <Route
+              path="/catalog/collection/:collectionSlug"
+              element={<Catalog />}
+            />
+            <Route path="/catalog/item/:slug" element={<CatalogDetail />} />
+
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/cancel" element={<PaymentCancel />} />
+
+            <Route path="/orders" element={<Orders />} />
+
+            <Route path="/login-choice" element={<LoginChoice />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+
+            <Route path="/delivery" element={<Delivery />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/policy" element={<Policy />} />
+            <Route path="/support" element={<Support />} />
+
+            <Route path="/contacts" element={<Contacts />} />
+            <Route path="/story-mission" element={<StoryMission />} />
+            <Route path="/gallery" element={<Gallery />} />
+
+            <Route
+              path="/collections"
+              element={
+                <ComingSoon
+                  kicker="Candles"
+                  title="Collections"
+                  subtitle="Shop by seasonal collection — curated sets of scents for the moment you're in."
+                />
+              }
+            />
+            <Route
+              path="/collections/spring-summer"
+              element={
+                <Navigate
+                  to="/catalog/collection/spring-summer-collection"
+                  replace
+                />
+              }
+            />
+            <Route
+              path="/collections/autumn-winter"
+              element={
+                <Navigate
+                  to="/catalog/collection/autumn-winter-collection"
+                  replace
+                />
+              }
+            />
+
+            {/* Old category-shaped links to the seasonal collections are
+                still in the wild, so keep them working. */}
+            <Route
+              path="/catalog/category/spring-summer-collection"
+              element={
+                <Navigate
+                  to="/catalog/collection/spring-summer-collection"
+                  replace
+                />
+              }
+            />
+            <Route
+              path="/catalog/category/autumn-winter-collection"
+              element={
+                <Navigate
+                  to="/catalog/collection/autumn-winter-collection"
+                  replace
+                />
+              }
+            />
+
+            <Route
+              path="/offers"
+              element={
+                <ComingSoon
+                  kicker="Offers"
+                  title="All Offers"
+                  subtitle="Current promotions and seasonal deals."
+                />
+              }
+            />
+
+            <Route path="/offers/new-shopper" element={<NewShoppers />} />
+            {/* The footer and some older links use the plural. */}
+            <Route
+              path="/offers/new-shoppers"
+              element={<Navigate to="/offers/new-shopper" replace />}
+            />
+
+            <Route path="/offers/buy-2-get-3" element={<PromoBuy2Get3 />} />
+            <Route
+              path="/offers/buy-1-get-2"
+              element={<Navigate to="/offers/buy-2-get-3" replace />}
+            />
+
+            <Route path="/offers/holidays" element={<HolidayOffer />} />
+
+            <Route
+              path="/reviews"
+              element={
+                <ComingSoon
+                  kicker="About"
+                  title="Reviews"
+                  subtitle="What our customers are saying about KFursenko Candles."
+                />
+              }
+            />
+
+            <Route path="/custom-candles" element={<CustomCandles />} />
+
+            <Route path="/recommendation-quiz" element={<RecommendationQuiz />} />
+            <Route
+              path="/recommendation-result"
+              element={<RecommendationResult />}
+            />
+
+            <Route element={<PrivateRoute />}>
+              <Route path="/profile" element={<Profile />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+
+        <SizeModal />
+        <OfferModal />
+      </div>
+
+      <Footer />
+      <LumiereWidget />
+      <DiscountModal />
+    </div>
+  );
+};
+
+export default App;

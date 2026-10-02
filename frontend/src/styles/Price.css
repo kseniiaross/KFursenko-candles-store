@@ -1,0 +1,72 @@
+/* =====================================================
+   PRICE
+
+   Shared by the catalog cards and the product page. The old price sits
+   first and reads quieter; the new one carries the weight and the only
+   spot of colour on an otherwise black-and-white card.
+   ===================================================== */
+
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  font-family: inherit;
+  color: #111111;
+  white-space: nowrap;
+}
+
+.price--sm {
+  font-size: 0.95rem;
+}
+
+.price--lg {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+/* =====================================================
+   SALE
+   ===================================================== */
+
+/* <s> already carries the strikethrough semantically; restating the
+   decoration here keeps it from disappearing under a CSS reset. */
+.price__was {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  /* Sits off the digits rather than through their middle, so the number
+     stays readable — shoppers do compare the two. */
+  text-underline-offset: 2px;
+  opacity: 0.45;
+  font-weight: 400;
+}
+
+.price--sm .price__was {
+  font-size: 0.86rem;
+}
+
+.price--lg .price__was {
+  font-size: 1.1rem;
+}
+
+.price__now {
+  color: #b73a3a;
+  font-weight: 700;
+}
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 600px) {
+  .price {
+    gap: 7px;
+  }
+
+  .price--sm {
+    font-size: 0.9rem;
+  }
+
+  .price--sm .price__was {
+    font-size: 0.8rem;
+  }
+}

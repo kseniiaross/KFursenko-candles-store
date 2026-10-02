@@ -1,0 +1,240 @@
+/* =====================================================
+   NEW SHOPPERS
+
+   Same rhythm as the other offer pages: narrow column, uppercase
+   labels, one coloured rule for the single fact that matters.
+   ===================================================== */
+
+.newShoppers {
+  width: 100%;
+  padding: 0 clamp(16px, 2vw, 32px) 96px;
+  color: #111111;
+  font-family: inherit;
+}
+
+.newShoppers__inner {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  padding-top: clamp(32px, 5vw, 64px);
+}
+
+/* =====================================================
+   HEADER
+   ===================================================== */
+
+.newShoppers__header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.newShoppers__kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.newShoppers__title {
+  margin: 0;
+  font-size: clamp(2.1rem, 4vw, 3rem);
+  font-weight: 400;
+  line-height: 1.03;
+  letter-spacing: 0.01em;
+}
+
+.newShoppers__lead {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  opacity: 0.78;
+}
+
+/* =====================================================
+   HIGHLIGHT
+   ===================================================== */
+
+.newShoppers__highlight {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 18px 22px;
+  border-left: 2px solid #2d6f48;
+  background: rgba(45, 111, 72, 0.05);
+}
+
+.newShoppers__highlightLabel {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.newShoppers__highlightValue {
+  font-size: 1.08rem;
+  letter-spacing: 0.01em;
+}
+
+/* =====================================================
+   TERMS
+   ===================================================== */
+
+.newShoppers__terms {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(17, 17, 17, 0.12);
+}
+
+.newShoppers__sectionTitle {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.newShoppers__list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.newShoppers__item {
+  position: relative;
+  padding-left: 18px;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  opacity: 0.82;
+}
+
+.newShoppers__item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.68em;
+  width: 5px;
+  height: 5px;
+  background: rgba(17, 17, 17, 0.35);
+}
+
+/* =====================================================
+   ACTIONS
+   ===================================================== */
+
+.newShoppers__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(17, 17, 17, 0.12);
+}
+
+.newShoppers__btn {
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 26px;
+  text-decoration: none;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.newShoppers__btn--primary {
+  background: #111111;
+  border: 1px solid #111111;
+  color: #ffffff;
+}
+
+.newShoppers__btn--primary:hover {
+  background: #2e2a26;
+  border-color: #2e2a26;
+}
+
+.newShoppers__btn--secondary {
+  background: transparent;
+  border: 1px solid rgba(17, 17, 17, 0.2);
+  color: #111111;
+}
+
+.newShoppers__btn--secondary:hover {
+  border-color: rgba(17, 17, 17, 0.5);
+  background: rgba(17, 17, 17, 0.04);
+}
+
+.newShoppers__btn:focus-visible {
+  outline: 2px solid rgba(17, 17, 17, 0.9);
+  outline-offset: 3px;
+}
+
+/* =====================================================
+   FOOTNOTE
+   ===================================================== */
+
+.newShoppers__footnote {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  opacity: 0.6;
+}
+
+.newShoppers__inlineLink {
+  color: #111111;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.newShoppers__inlineLink:focus-visible {
+  outline: 2px solid rgba(17, 17, 17, 0.9);
+  outline-offset: 3px;
+}
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 600px) {
+  .newShoppers {
+    padding-bottom: 72px;
+  }
+
+  .newShoppers__inner {
+    gap: 28px;
+  }
+
+  .newShoppers__highlight {
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px 18px;
+  }
+
+  .newShoppers__btn {
+    width: 100%;
+    min-height: 50px;
+    font-size: 0.74rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .newShoppers__btn {
+    transition: none;
+  }
+}

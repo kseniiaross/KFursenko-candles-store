@@ -1,0 +1,466 @@
+from decimal import Decimal
+
+from cloudinary.models import CloudinaryField
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
+from django.utils.text import slugify
+
+
+# ======================================================
+# CATEGORY
+# ======================================================
+class Category(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+    slug = models.SlugField(max_length=140, unique=True, blank=True)
+
+    # Only categories with this flag may assign a wax color (molded candles).
+    allows_wax_color = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or "category"
+            slug = base_slug
+            counter = 2
+
+            while Category.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+# ======================================================
+# COLLECTION
+# ======================================================
+class Collection(models.Model):
+    name = models.CharField(max_length=140, unique=True)
+    slug = models.SlugField(max_length=160, unique=True, blank=True)
+    is_group = models.BooleanField(default=False)
+
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="children",
+    )
+
+    class Meta:
+        ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or "collection"
+            slug = base_slug
+            counter = 2
+
+            while Collection.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+# ======================================================
+# WAX COLOR
+# ======================================================
+class Color(models.Model):
+    """Wax color. Used by molded candles only."""
+
+    name = models.CharField(max_length=80, unique=True)
+    hex = models.CharField(max_length=7, help_text="#RRGGBB")
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("sort_order", "name")
+
+    def clean(self):
+        value = (self.hex or "").strip()
+
+        if not value.startswith("#") or len(value) != 7:
+            raise ValidationError({"hex": "Use the #RRGGBB format."})
+
+        try:
+            int(value[1:], 16)
+        except ValueError:
+            raise ValidationError({"hex": "Not a valid hex color."})
+
+    def save(self, *args, **kwargs):
+        self.hex = (self.hex or "").strip().lower()
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+# ======================================================
+# OFFER
+# ======================================================
+class Offer(models.Model):
+    class Kind(models.TextChoices):
+        NEW_SHOPPER = "new_shopper", "New shopper"
+        DISCOUNT = "discount", "Discount percent"
+        B1G2 = "b2g3", "Buy 2 get 3"
+        HOLIDAY = "holiday", "Holiday offer"
+        LOYALTY = "loyalty", "Loyalty"
+
+    title = models.CharField(max_length=160)
+    slug = models.SlugField(max_length=180, unique=True, blank=True)
+    badge_text = models.CharField(max_length=40, blank=True)
+
+    kind = models.CharField(max_length=30, choices=Kind.choices)
+
+    discount_percent = models.PositiveSmallIntegerField(null=True, blank=True)
+    discounted_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    priority = models.PositiveSmallIntegerField(default=100)
+    is_active = models.BooleanField(default=True)
+    priority = models.PositiveSmallIntegerField(default=100)
+    is_active = models.BooleanField(default=True)
+
+    # A quiet offer still discounts the price — it just does not put a
+    # label on the card. Used for the sign-up discount, which is personal
+    # and would confuse shoppers who do not qualify.
+    show_badge = models.BooleanField(default=True)
+
+    apply_globally = models.BooleanField(default=False)
+    apply_globally = models.BooleanField(default=False)
+
+    new_shopper_only = models.BooleanField(default=False)
+    new_shopper_days_active = models.PositiveSmallIntegerField(default=60)
+
+    categories = models.ManyToManyField(Category, blank=True)
+    collections = models.ManyToManyField(Collection, blank=True)
+    candles = models.ManyToManyField("Candle", blank=True)
+
+    offer_start = models.DateTimeField(null=True, blank=True)
+    offer_end = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["priority"]
+
+    def __str__(self):
+        return self.title
+
+    def clean(self):
+        if self.offer_start and self.offer_end and self.offer_start >= self.offer_end:
+            raise ValidationError("Invalid dates")
+
+        if self.discount_percent and not (1 <= self.discount_percent < 100):
+            raise ValidationError("Discount must be between 1 and 99")
+
+    @property
+    def is_currently_active(self):
+        now = timezone.now()
+
+        if not self.is_active:
+            return False
+        if self.offer_start and now < self.offer_start:
+            return False
+        if self.offer_end and now > self.offer_end:
+            return False
+
+        return True
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.title) or "offer"
+            slug = base_slug
+            counter = 2
+
+            while Offer.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        if not self.badge_text:
+            if self.kind == self.Kind.DISCOUNT and self.discount_percent:
+                self.badge_text = f"-{self.discount_percent}%"
+            elif self.kind == self.Kind.NEW_SHOPPER:
+                self.badge_text = "New shopper"
+            elif self.kind == self.Kind.B1G2:
+                self.badge_text = "Buy 1 get 2"
+            elif self.kind == self.Kind.HOLIDAY:
+                self.badge_text = "Holiday"
+            elif self.kind == self.Kind.LOYALTY:
+                self.badge_text = "Loyalty"
+
+        super().save(*args, **kwargs)
+
+
+# ======================================================
+# CANDLE
+# ======================================================
+class Candle(models.Model):
+    """One row per sellable item.
+
+    Candles that share a name are the same scent in a different size or
+    wax color. That shared name is the only link between them, so adding
+    a size means duplicating the product and changing `size` — never
+    stacking two sizes inside one card, which is what stopped the photos
+    from switching before.
+    """
+
+    class Intensity(models.TextChoices):
+        SOFT = "soft", "Soft"
+        MEDIUM = "medium", "Medium"
+        STRONG = "strong", "Strong"
+
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name="candles",
+    )
+
+    collections = models.ManyToManyField(Collection, blank=True)
+    offers = models.ManyToManyField(Offer, blank=True)
+
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=220, unique=True, blank=True)
+
+    size = models.CharField(max_length=50, blank=True, help_text='e.g. "8 oz"')
+
+    # Wax color — molded candles only, see clean().
+    color = models.ForeignKey(
+        Color,
+        on_delete=models.SET_NULL,
+        related_name="candles",
+        null=True,
+        blank=True,
+    )
+
+    description = models.TextField(blank=True)
+
+    # AI Search structured fields
+    fragrance_family = models.CharField(max_length=120, blank=True)
+    intensity = models.CharField(
+        max_length=20,
+        choices=Intensity.choices,
+        blank=True,
+    )
+    top_notes = models.JSONField(default=list, blank=True)
+    heart_notes = models.JSONField(default=list, blank=True)
+    base_notes = models.JSONField(default=list, blank=True)
+    mood_tags = models.JSONField(default=list, blank=True)
+    use_case_tags = models.JSONField(default=list, blank=True)
+    ideal_spaces = models.JSONField(default=list, blank=True)
+    season_tags = models.JSONField(default=list, blank=True)
+
+    image = CloudinaryField("image", blank=True, null=True)
+
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    stock_qty = models.PositiveIntegerField(default=0)
+
+    is_sold_out = models.BooleanField(default=False)
+    is_bestseller = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name", "size", "color"],
+                name="unique_name_size_color",
+            )
+        ]
+
+    def clean(self):
+        list_fields = [
+            "top_notes",
+            "heart_notes",
+            "base_notes",
+            "mood_tags",
+            "use_case_tags",
+            "ideal_spaces",
+            "season_tags",
+        ]
+
+        for field_name in list_fields:
+            value = getattr(self, field_name)
+
+            if not isinstance(value, list):
+                raise ValidationError({field_name: "Must be a list."})
+
+            if any(not isinstance(item, str) for item in value):
+                raise ValidationError({field_name: "Every item must be a string."})
+
+        if self.color_id and self.category_id and not self.category.allows_wax_color:
+            raise ValidationError(
+                {
+                    "color": (
+                        "Wax color is only available for categories with "
+                        "'allows wax color' enabled (molded candles)."
+                    )
+                }
+            )
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            # Sizes share a name, so fold size and color into the slug —
+            # otherwise the second one silently becomes "name-2".
+            parts = [slugify(self.name) or "candle"]
+
+            if self.size:
+                parts.append(slugify(self.size))
+            if self.color_id:
+                parts.append(slugify(self.color.name))
+
+            base_slug = "-".join(parts)
+            slug = base_slug
+            counter = 2
+
+            while Candle.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        label = self.name
+
+        if self.size:
+            label = f"{label} ({self.size})"
+        if self.color_id:
+            label = f"{label} — {self.color.name}"
+
+        return label
+
+
+# ======================================================
+# VARIANTS
+# ======================================================
+class CandleVariant(models.Model):
+    """Holds the price and stock for its candle.
+
+    Exactly one per candle now that each size is its own product; the
+    cart and orders still point here, which is why it stays.
+    """
+
+    candle = models.ForeignKey(
+        Candle,
+        on_delete=models.CASCADE,
+        related_name="variants",
+    )
+
+    size = models.CharField(max_length=50)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    stock_qty = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    # Shipping. Вес готового изделия без коробки — тару добавляет
+    # shipping.normalize.build_parcels из SHIPPO_BOXES.
+    weight_oz = models.DecimalField(
+        max_digits=7, decimal_places=2, default=Decimal("8.00"),
+        help_text="Вес одной штуки в унциях, без упаковки",
+    )
+    length_in = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("3.00"))
+    width_in = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("3.00"))
+    height_in = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("4.00"))
+
+    class Meta:
+        unique_together = ("candle", "size")
+
+    def __str__(self):
+        return f"{self.candle.name} - {self.size}"
+
+
+# ======================================================
+# IMAGES
+# ======================================================
+class CandleImage(models.Model):
+    candle = models.ForeignKey(
+        Candle,
+        on_delete=models.CASCADE,
+        related_name="images",
+    )
+    image = CloudinaryField("image")
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("sort_order", "id")
+
+    def __str__(self):
+        return f"{self.candle.name} #{self.id}"
+
+
+# ======================================================
+# GALLERY
+# ======================================================
+class GalleryItem(models.Model):
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "Image"
+        VIDEO = "video", "Video"
+
+    class ContentType(models.TextChoices):
+        GALLERY = "gallery", "Gallery"
+        REVIEW = "review", "Review"
+
+    title = models.CharField(max_length=180)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
+
+    media_type = models.CharField(max_length=20, choices=MediaType.choices)
+    content_type = models.CharField(
+        max_length=20,
+        choices=ContentType.choices,
+        default=ContentType.GALLERY,
+    )
+
+    media = CloudinaryField("media", resource_type="auto")
+    preview_image = CloudinaryField("preview_image", blank=True, null=True)
+
+    caption = models.TextField(blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("sort_order", "-id")
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.title) or "gallery-item"
+            slug = base_slug
+            counter = 2
+
+            while GalleryItem.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title

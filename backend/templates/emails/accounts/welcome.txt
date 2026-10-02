@@ -1,0 +1,17 @@
+Welcome to KFursenko Candles ✨
+
+Hi {{ first_name|default:"there" }},
+
+Thanks for creating an account — we’re happy you’re here.
+
+Your account is ready:
+Email: {{ email }}
+
+Browse the collection:
+{{ site_url }}/catalog
+
+If you didn’t create this account, you can safely ignore this email.
+
+— KFursenko Candles
+Hand-poured. Clean. Cozy.
+{{ support_email }}

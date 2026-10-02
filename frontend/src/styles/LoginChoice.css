@@ -1,0 +1,244 @@
+/* =====================================================
+   PAGE
+
+   The header is fixed and transparent — it sits on top of the photo
+   rather than pushing it down, so the page takes the full viewport and
+   nothing is subtracted from it. Subtracting the header height here is
+   what left a strip of empty page at the bottom for the footer to climb
+   into.
+   ===================================================== */
+
+.loginChoice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 100svh;
+  min-height: 100dvh;
+  color: #111111;
+  font-family: inherit;
+}
+
+/* =====================================================
+   MEDIA
+
+   Pinned to the viewport so the photo stays whole while the panel beside
+   it scrolls. `--photo-focus` nudges which part survives the crop.
+   `align-self: start` is required — a stretched grid item cannot stick.
+   ===================================================== */
+
+.loginChoice__media {
+  --photo-focus: center 55%;
+
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  height: 100dvh;
+  align-self: start;
+  overflow: hidden;
+  background: #e9e4dc;
+}
+
+.loginChoice__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--photo-focus);
+  display: block;
+}
+
+/* =====================================================
+   PANEL
+
+   Extra top padding keeps the eyebrow clear of the transparent header,
+   which would otherwise overlap it. The panel centres its content, so
+   this reads as a slight downward nudge rather than a gap.
+   ===================================================== */
+
+.loginChoice__panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(32px, 5vw, 64px);
+  padding-top: calc(var(--header-height, 0px) + clamp(32px, 5vw, 64px));
+}
+
+.loginChoice__inner {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* =====================================================
+   HEADER
+   ===================================================== */
+
+.loginChoice__header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loginChoice__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.loginChoice__title {
+  margin: 0;
+  font-size: clamp(2rem, 3.4vw, 2.8rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.loginChoice__subtitle {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  opacity: 0.72;
+}
+
+/* =====================================================
+   BUTTONS
+   ===================================================== */
+
+.loginChoice__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loginChoice__btn {
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 20px;
+  text-decoration: none;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.loginChoice__btn--primary {
+  background: #111111;
+  border: 1px solid #111111;
+  color: #ffffff;
+}
+
+.loginChoice__btn--primary:hover {
+  background: #2e2a26;
+  border-color: #2e2a26;
+}
+
+.loginChoice__btn--secondary {
+  background: transparent;
+  border: 1px solid rgba(17, 17, 17, 0.2);
+  color: #111111;
+}
+
+.loginChoice__btn--secondary:hover {
+  border-color: rgba(17, 17, 17, 0.5);
+  background: rgba(17, 17, 17, 0.04);
+}
+
+.loginChoice__btn:focus-visible {
+  outline: 2px solid rgba(17, 17, 17, 0.9);
+  outline-offset: 3px;
+}
+
+/* =====================================================
+   PERKS
+   ===================================================== */
+
+.loginChoice__perks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 22px 0 0;
+  border-top: 1px solid rgba(17, 17, 17, 0.12);
+  list-style: none;
+}
+
+.loginChoice__perk {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.loginChoice__perkTitle {
+  font-size: 0.92rem;
+}
+
+.loginChoice__perkText {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  opacity: 0.62;
+}
+
+/* =====================================================
+   TABLET — the photo becomes a banner so the buttons stay above the fold
+   ===================================================== */
+
+@media (max-width: 900px) {
+  .loginChoice {
+    grid-template-columns: 1fr;
+    grid-template-rows: 240px minmax(0, 1fr);
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+
+  .loginChoice__media {
+    position: static;
+    height: auto;
+  }
+
+  .loginChoice__panel {
+    padding: 32px 24px 56px;
+    align-items: flex-start;
+  }
+}
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 600px) {
+  .loginChoice {
+    grid-template-rows: 180px minmax(0, 1fr);
+  }
+
+  .loginChoice__media {
+    --photo-focus: center 65%;
+  }
+
+  .loginChoice__panel {
+    padding: 28px 18px 48px;
+  }
+
+  .loginChoice__inner {
+    gap: 22px;
+  }
+
+  .loginChoice__btn {
+    min-height: 50px;
+    font-size: 0.76rem;
+    letter-spacing: 0.13em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loginChoice__btn {
+    transition: none;
+  }
+}

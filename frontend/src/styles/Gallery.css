@@ -1,0 +1,68 @@
+.galleryPage {
+  padding: 40px 20px;
+}
+
+/* GRID */
+
+.galleryGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 80px;
+}
+
+/* CARD */
+
+.galleryCard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: center;
+}
+
+/* ШАХМАТКА */
+
+.galleryCard.reverse {
+  direction: rtl;
+}
+
+.galleryCard.reverse * {
+  direction: ltr;
+}
+
+/* MEDIA */
+
+.galleryCard__image,
+.galleryCard__video {
+  width: 100%;
+  height: 520px;
+  object-fit: cover;
+  border-radius: 20px;
+}
+
+/* TEXT */
+
+.galleryCard__body h2 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.galleryCard__body p {
+  line-height: 1.6;
+}
+
+/* MOBILE */
+
+@media (max-width: 768px) {
+  .galleryCard {
+    grid-template-columns: 1fr;
+  }
+
+  .galleryCard.reverse {
+    direction: ltr;
+  }
+
+  .galleryCard__image,
+  .galleryCard__video {
+    height: 420px;
+  }
+}

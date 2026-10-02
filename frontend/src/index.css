@@ -1,0 +1,80 @@
+/* =====================================================
+   GLOBAL LAYOUT
+   ===================================================== */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+/* =====================================================
+   THEME TOKENS
+   ===================================================== */
+
+:root {
+  --color-bg: #f6f1ea;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: rgba(17, 17, 17, 0.7);
+  --color-border: rgba(17, 17, 17, 0.12);
+
+  --color-surface: rgba(255, 255, 255, 0.6);
+  --color-surface-glass: rgba(244, 236, 223, 0.78);
+
+  --font-primary: "Times New Roman", Times, serif;
+}
+
+[data-theme="dark"] {
+  --color-bg: #8f8a84;
+  --color-text-primary: #f7f1e8;
+  --color-text-secondary: rgba(247, 241, 232, 0.78);
+  --color-border: rgba(255, 255, 255, 0.2);
+
+  --color-surface: rgba(80, 76, 70, 0.54);
+  --color-surface-glass: rgba(90, 86, 80, 0.68);
+}
+
+/* =====================================================
+   BASE
+   ===================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: var(--font-primary);
+  line-height: 1.5;
+  overflow-x: hidden;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =====================================================
+   GLOBAL ELEMENTS
+   ===================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}

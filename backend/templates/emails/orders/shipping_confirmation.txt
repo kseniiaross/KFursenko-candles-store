@@ -1,0 +1,15 @@
+Your order is on the way 🚚
+Order #{{ order_number }}
+
+Hi {{ first_name|default:"there" }},
+
+Good news — your order has shipped.
+
+Tracking number: {{ tracking_number }}
+Track your package:
+{{ tracking_url }}
+
+Thanks again for supporting small-batch candles.
+
+— KFursenko Candles
+{{ site_url }}

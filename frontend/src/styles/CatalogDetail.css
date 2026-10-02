@@ -1,0 +1,417 @@
+/* Left edge lines up with the header logo. If the header uses a
+   different padding, change this one value to match it. */
+.catalogDetail {
+  --detail-side-padding: clamp(16px, 2vw, 32px);
+
+  width: 100%;
+  padding: 0 var(--detail-side-padding) 96px;
+  color: #111111;
+}
+
+.catalogDetail__inner {
+  width: 100%;
+  margin: 0;
+}
+
+/* Photos scroll, the buying panel does not — hence align-items: start,
+   which is what lets position: sticky work in the second column. */
+.catalogDetail__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  gap: clamp(32px, 4vw, 64px);
+  align-items: start;
+}
+
+/* GALLERY */
+
+/* Two frames per row, capped so they stay readable rather than
+   ballooning on a wide monitor. A third photo wraps underneath. */
+.catalogDetail__gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 380px));
+  justify-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.catalogDetail__frame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.catalogDetail__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* INFO */
+
+.catalogDetail__info {
+  min-width: 0;
+}
+
+.catalogDetail__panel {
+  position: sticky;
+  top: calc(var(--header-height) + 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.catalogDetail__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.catalogDetail__title {
+  margin: 0;
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: 0.01em;
+}
+
+.catalogDetail__priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.catalogDetail__price {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.catalogDetail__meta {
+  font-size: 0.9rem;
+  opacity: 0.55;
+}
+
+.catalogDetail__block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.catalogDetail__label {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.catalogDetail__pillRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* SIZE + SCENT PILLS */
+
+.catalogDetail__sizeBtn,
+.catalogDetail__scentBtn {
+  border-radius: 999px;
+  border: 1px solid rgba(17, 17, 17, 0.18);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.catalogDetail__sizeBtn {
+  padding: 11px 22px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.catalogDetail__scentBtn {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+}
+
+.catalogDetail__sizeBtn:hover,
+.catalogDetail__scentBtn:hover {
+  border-color: rgba(17, 17, 17, 0.5);
+  background: rgba(17, 17, 17, 0.04);
+}
+
+.catalogDetail__sizeBtn.is-active {
+  background: #111111;
+  color: #ffffff;
+  border-color: #111111;
+  cursor: default;
+}
+
+/* COLOR SWATCHES */
+
+.catalogDetail__colorOptions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.catalogDetail__colorBtn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(17, 17, 17, 0.18);
+  cursor: pointer;
+  transition: transform 160ms ease;
+}
+
+.catalogDetail__colorBtn:hover {
+  transform: scale(1.08);
+}
+
+.catalogDetail__colorBtn.is-active {
+  outline: 2px solid #111111;
+  outline-offset: 3px;
+  cursor: default;
+}
+.catalogDetail__priceWas {
+  font-size: 1.1rem;
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+.catalogDetail__price--sale {
+  color: #b73a3a;
+}
+/* BUY */
+
+.catalogDetail__btn {
+  width: 100%;
+  padding: 17px 26px;
+  border-radius: 999px;
+  border: none;
+  background: #111111;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    opacity 180ms ease,
+    background-color 180ms ease;
+}
+
+.catalogDetail__btn:hover {
+  background: #2e2a26;
+}
+
+.catalogDetail__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* DETAILS */
+
+.catalogDetail__details {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(17, 17, 17, 0.12);
+}
+
+.catalogDetail__desc {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  opacity: 0.78;
+  white-space: pre-line;
+}
+
+.catalogDetail__tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.catalogDetail__tag {
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.06);
+  font-size: 0.8rem;
+}
+
+.catalogDetail__facts {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  row-gap: 10px;
+  column-gap: 16px;
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.catalogDetail__facts dt {
+  opacity: 0.5;
+}
+
+.catalogDetail__facts dd {
+  margin: 0;
+}
+
+.catalogDetail__related {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(17, 17, 17, 0.12);
+}
+
+/* ZOOM */
+
+.catalogDetail__zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.catalogDetail__zoomBackdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(17, 17, 17, 0.82);
+  cursor: zoom-out;
+}
+
+.catalogDetail__zoomContent {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 900px);
+  max-height: 92vh;
+}
+
+.catalogDetail__zoomImg {
+  width: 100%;
+  max-height: 92vh;
+  object-fit: contain;
+  display: block;
+}
+
+.catalogDetail__zoomClose {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 1.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* ACCESSIBILITY */
+
+.catalogDetail__frame:focus-visible,
+.catalogDetail__sizeBtn:focus-visible,
+.catalogDetail__scentBtn:focus-visible,
+.catalogDetail__colorBtn:focus-visible,
+.catalogDetail__btn:focus-visible,
+.catalogDetail__zoomClose:focus-visible,
+.catalogDetail__zoomBackdrop:focus-visible {
+  outline: 2px solid rgba(17, 17, 17, 0.92);
+  outline-offset: 3px;
+}
+
+/* LAPTOP — the info column needs its width back before the photos do */
+
+@media (max-width: 1280px) {
+  .catalogDetail__layout {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+    gap: 36px;
+  }
+
+  .catalogDetail__gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* TABLET */
+
+@media (max-width: 1000px) {
+  .catalogDetail__layout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  /* Sticky needs a scrolling sibling to stick against; in one column
+     there is none, so it just adds a stale offset. */
+  .catalogDetail__panel {
+    position: static;
+  }
+
+  /* Photos become a swipe strip so the buy button stays near the top. */
+  .catalogDetail__gallery {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 calc(var(--detail-side-padding) * -1);
+    padding: 0 var(--detail-side-padding);
+    scrollbar-width: none;
+  }
+
+  .catalogDetail__gallery::-webkit-scrollbar {
+    display: none;
+  }
+
+  .catalogDetail__frame {
+    flex: 0 0 min(78%, 420px);
+    scroll-snap-align: center;
+  }
+}
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+  .catalogDetail {
+    --detail-side-padding: 16px;
+
+    padding-bottom: 72px;
+  }
+
+  .catalogDetail__facts {
+    grid-template-columns: 84px minmax(0, 1fr);
+    font-size: 0.88rem;
+  }
+
+  .catalogDetail__zoom {
+    padding: 16px;
+  }
+}
+
+/* REDUCED MOTION */
+
+@media (prefers-reduced-motion: reduce) {
+  .catalogDetail__btn,
+  .catalogDetail__sizeBtn,
+  .catalogDetail__scentBtn,
+  .catalogDetail__colorBtn {
+    transition: none;
+  }
+}
