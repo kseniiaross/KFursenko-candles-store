@@ -90,11 +90,17 @@ const App: React.FC = () => {
 
   const isHomePage = location.pathname === "/";
 
+  // These pages run a full-height photo under the transparent header and
+  // clear it themselves, so the shell must not add its own offset.
+  const isFullBleed =
+    isHomePage ||
+    ["/login", "/login-choice", "/register"].includes(location.pathname);
+
   return (
     <div
       className={`appShell ${
         isHomePage ? "appShell--home" : "appShell--inner"
-      }`}
+      }${isFullBleed ? " appShell--bleed" : ""}`}
     >
       <Header
         firstName={firstName}

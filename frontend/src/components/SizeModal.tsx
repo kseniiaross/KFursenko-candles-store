@@ -31,14 +31,18 @@ const SizeModal: React.FC = () => {
       if (!isLoggedIn) {
         dispatch(
           addToCart({
-            variant_id: variant.id,
-            candle_id: candle.id,
-            name: candle.name,
-            price: Number(variant.price) || 0,
-            image: candle.image ?? undefined,
-            size: variant.size,
-            quantity: 1,
-            isGift: false,
+            item: {
+              variant_id: variant.id,
+              candle_id: candle.id,
+              name: candle.name,
+              price: Number(variant.price) || 0,
+              image: candle.image ?? undefined,
+              size: variant.size,
+              quantity: 1,
+              isGift: false,
+            },
+            // This branch is guests only; signed-in adds go to the server.
+            persistAsGuest: true,
           })
         );
 

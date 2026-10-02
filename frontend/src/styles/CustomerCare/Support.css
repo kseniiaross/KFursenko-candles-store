@@ -5,8 +5,9 @@
   --support-soft: rgba(17, 17, 17, 0.58);
   --support-surface: rgba(255, 255, 255, 0.55);
   --support-shadow: 0 24px 60px rgba(0, 0, 0, 0.08);
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* The shell already pads the header's height above this block. */
+  min-height: calc(100vh - var(--header-height));
+  min-height: calc(100dvh - var(--header-height));
   padding: 0 24px 80px;
   font-family: inherit;
   color: var(--support-text);

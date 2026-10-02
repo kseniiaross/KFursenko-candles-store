@@ -1,6 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
+import { logout } from "./authSlice";
+
 export type CartLine = {
   item_id?: number;
   variant_id: number;
@@ -16,6 +18,13 @@ export type CartLine = {
 type CartState = {
   items: CartLine[];
 };
+
+/** Whether a change should be written to the guest copy in localStorage.
+ *  Only a guest's cart lives there; a signed-in cart lives on the server,
+ *  and writing it here gets merged back into the server cart on the next
+ *  load — counting every line twice. The slice cannot see auth state, so
+ *  the caller decides, and the field is required so none can forget. */
+type GuestPersistence = { persistAsGuest: boolean };
 
 const STORAGE_KEY = "guest_cart_items";
 
@@ -113,8 +122,11 @@ const cartSlice = createSlice({
       saveGuestCart(state.items);
     },
 
-    addToCart: (state, action: PayloadAction<CartLine>) => {
-      const item = normalizeCartLine(action.payload);
+    addToCart: (
+      state,
+      action: PayloadAction<{ item: CartLine } & GuestPersistence>
+    ) => {
+      const item = normalizeCartLine(action.payload.item);
 
       if (!item.variant_id || !item.candle_id) return;
 
@@ -126,7 +138,7 @@ const cartSlice = createSlice({
         state.items[idx].quantity += item.quantity;
       }
 
-      saveGuestCart(state.items);
+      if (action.payload.persistAsGuest) saveGuestCart(state.items);
     },
 
     updateQty: (
@@ -134,7 +146,7 @@ const cartSlice = createSlice({
       action: PayloadAction<{
         variant_id: number;
         quantity: number;
-      }>
+      } & GuestPersistence>
     ) => {
       const variant_id = Number(action.payload.variant_id) || 0;
       const idx = findIndex(state.items, variant_id);
@@ -142,7 +154,7 @@ const cartSlice = createSlice({
       if (idx === -1) return;
 
       state.items[idx].quantity = Math.max(1, Number(action.payload.quantity) || 1);
-      saveGuestCart(state.items);
+      if (action.payload.persistAsGuest) saveGuestCart(state.items);
     },
 
     setGiftOption: (
@@ -150,7 +162,7 @@ const cartSlice = createSlice({
       action: PayloadAction<{
         variant_id: number;
         isGift: boolean;
-      }>
+      } & GuestPersistence>
     ) => {
       const variant_id = Number(action.payload.variant_id) || 0;
       const idx = findIndex(state.items, variant_id);
@@ -158,14 +170,14 @@ const cartSlice = createSlice({
       if (idx === -1) return;
 
       state.items[idx].isGift = Boolean(action.payload.isGift);
-      saveGuestCart(state.items);
+      if (action.payload.persistAsGuest) saveGuestCart(state.items);
     },
 
     removeFromCart: (
       state,
       action: PayloadAction<{
         variant_id: number;
-      }>
+      } & GuestPersistence>
     ) => {
       const variant_id = Number(action.payload.variant_id) || 0;
 
@@ -173,13 +185,23 @@ const cartSlice = createSlice({
         (item) => Number(item.variant_id) !== variant_id
       );
 
-      saveGuestCart(state.items);
+      if (action.payload.persistAsGuest) saveGuestCart(state.items);
     },
 
     clearCart: (state) => {
       state.items = [];
       clearGuestCartStorageInternal();
     },
+  },
+
+  extraReducers: (builder) => {
+    // Signing out leaves the server cart in memory. Without this, the next
+    // guest change would save those lines as the guest cart and the next
+    // sign-in would merge them back in a second time. The server keeps the
+    // cart; it returns on the next sign-in.
+    builder.addCase(logout, (state) => {
+      state.items = [];
+    });
   },
 });
 

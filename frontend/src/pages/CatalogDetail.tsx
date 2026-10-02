@@ -200,7 +200,7 @@ const CatalogDetail: React.FC = () => {
     if (!cartItem) return;
 
     setAdding(true);
-    dispatch(addToCart(cartItem));
+    dispatch(addToCart({ item: cartItem, persistAsGuest: !isLoggedIn }));
 
     try {
       if (!isLoggedIn) return;

@@ -141,7 +141,8 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
   const closeLanguage = useCallback(() => setIsLanguageOpen(false), []);
 
   const focusVisibleMenuTrigger = useCallback(() => {
-    if (typeof window !== "undefined" && window.innerWidth <= 600) {
+    // Same breakpoint as the mobile header in Header.css.
+    if (typeof window !== "undefined" && window.innerWidth <= 700) {
       menuMobileTriggerRef.current?.focus();
       return;
     }

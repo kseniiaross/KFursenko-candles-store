@@ -270,7 +270,9 @@
 @media (max-width: 900px) {
   .register {
     grid-template-columns: 1fr;
-    grid-template-rows: 200px minmax(0, 1fr);
+    /* The photo runs under the transparent header, so the banner row
+       includes it; 200px is what shows below the header. */
+    grid-template-rows: calc(var(--header-height) + 200px) minmax(0, 1fr);
     min-height: 100svh;
     min-height: 100dvh;
   }
@@ -278,6 +280,9 @@
   .register__media {
     position: static;
     height: auto;
+    /* Undo the desktop align-self: start, or the photo keeps its natural
+       4:5 height and runs under the panel. */
+    align-self: stretch;
   }
 
   .register__panel {
@@ -292,7 +297,7 @@
 
 @media (max-width: 600px) {
   .register {
-    grid-template-rows: 150px minmax(0, 1fr);
+    grid-template-rows: calc(var(--header-height) + 150px) minmax(0, 1fr);
   }
 
   .register__media {

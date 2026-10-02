@@ -62,8 +62,7 @@ const Cart: React.FC = () => {
     variantId: number,
     itemId?: number
   ): Promise<void> => {
-    dispatch(removeFromCart({ variant_id: variantId }));
-    clearGuestCartStorage();
+    dispatch(removeFromCart({ variant_id: variantId, persistAsGuest: !isLoggedIn }));
 
     if (!isLoggedIn || !itemId) return;
 
@@ -73,7 +72,6 @@ const Cart: React.FC = () => {
       const serverItems = await deleteCartItem(itemId);
 
       dispatch(setCart(serverItems));
-      clearGuestCartStorage();
     } catch (error) {
       console.error("Failed to remove cart item from backend:", error);
     } finally {
@@ -92,10 +90,9 @@ const Cart: React.FC = () => {
       updateQty({
         variant_id: variantId,
         quantity,
+        persistAsGuest: !isLoggedIn,
       })
     );
-
-    clearGuestCartStorage();
 
     if (!isLoggedIn || !itemId) return;
 
@@ -107,7 +104,6 @@ const Cart: React.FC = () => {
       });
 
       dispatch(setCart(serverItems));
-      clearGuestCartStorage();
     } catch (error) {
       console.error("Failed to update cart item quantity:", error);
     } finally {
@@ -124,10 +120,9 @@ const Cart: React.FC = () => {
       setGiftOption({
         variant_id: variantId,
         isGift,
+        persistAsGuest: !isLoggedIn,
       })
     );
-
-    clearGuestCartStorage();
 
     if (!isLoggedIn || !itemId) return;
 
@@ -139,7 +134,6 @@ const Cart: React.FC = () => {
       });
 
       dispatch(setCart(serverItems));
-      clearGuestCartStorage();
     } catch (error) {
       console.error("Failed to update gift option:", error);
     } finally {

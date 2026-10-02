@@ -193,7 +193,9 @@
 @media (max-width: 900px) {
   .loginChoice {
     grid-template-columns: 1fr;
-    grid-template-rows: 240px minmax(0, 1fr);
+    /* The photo runs under the transparent header, so the banner row
+       includes it; 240px is what shows below the header. */
+    grid-template-rows: calc(var(--header-height) + 240px) minmax(0, 1fr);
     min-height: 100svh;
     min-height: 100dvh;
   }
@@ -201,6 +203,9 @@
   .loginChoice__media {
     position: static;
     height: auto;
+    /* Undo the desktop align-self: start, or the photo keeps its natural
+       4:5 height and runs under the panel. */
+    align-self: stretch;
   }
 
   .loginChoice__panel {
@@ -215,7 +220,7 @@
 
 @media (max-width: 600px) {
   .loginChoice {
-    grid-template-rows: 180px minmax(0, 1fr);
+    grid-template-rows: calc(var(--header-height) + 180px) minmax(0, 1fr);
   }
 
   .loginChoice__media {

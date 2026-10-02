@@ -1,4 +1,4 @@
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
 from django.db import transaction
 from rest_framework import serializers
@@ -7,8 +7,11 @@ from candles.models import CandleVariant
 from shipping.normalize import payload_to_address
 from shipping.services import resolve_shipping_cost
 
-from .discounts import get_welcome_offer, welcome_percent_for
+from .discounts import compute_line_discounts
 from .models import Order, OrderItem
+
+ORDER_LABEL_MAX = Order._meta.get_field("discount_label").max_length
+ITEM_LABEL_MAX = OrderItem._meta.get_field("discount_label").max_length
 
 
 class OrderItemReadSerializer(serializers.ModelSerializer):
@@ -36,6 +39,8 @@ class OrderItemReadSerializer(serializers.ModelSerializer):
             "quantity",
             "line_total",
             "is_gift",
+            "discount_amount",
+            "discount_label",
         )
 
     def get_line_total(self, obj):
@@ -156,8 +161,8 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
     """The single place an order is assembled.
 
     Both entry points — an explicit item list and the server-side cart —
-    run through here, so stock checks, the shipping cost and the welcome
-    discount cannot drift apart between them.
+    run through here, so stock checks, the shipping cost and the discounts
+    cannot drift apart between them.
     """
     merged: dict[int, dict[str, int | bool]] = {}
 
@@ -227,8 +232,21 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
     )
 
     # Resolved before the order row exists, so the order being created
-    # cannot disqualify its own discount.
-    welcome_offer = get_welcome_offer(user)
+    # cannot disqualify its own welcome discount. Campaign percentages,
+    # buy-two-get-three and the welcome offer are all decided here, per line,
+    # from the prices just locked above — nothing the storefront sends.
+    line_discounts, discount_summary = compute_line_discounts(
+        user=user,
+        lines=[
+            {
+                "variant_id": variant_id,
+                "candle": variant_map[variant_id].candle,
+                "unit_price": variant_map[variant_id].price,
+                "quantity": int(payload["quantity"]),
+            }
+            for variant_id, payload in merged.items()
+        ],
+    )
 
     order = Order.objects.create(
         user=user,
@@ -273,6 +291,9 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
         variant.stock_qty -= qty
         variant.save(update_fields=["stock_qty"])
 
+        line_discount = line_discounts.get(variant_id)
+        line_discount_amount = line_discount.amount if line_discount else Decimal("0.00")
+
         OrderItem.objects.create(
             order=order,
             candle=candle,
@@ -281,21 +302,21 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
             unit_price=variant.price,
             quantity=qty,
             is_gift=is_gift,
+            discount_amount=line_discount_amount,
+            discount_label=(line_discount.label if line_discount else "")[:ITEM_LABEL_MAX],
         )
 
-        line_total = variant.price * qty
-        subtotal += line_total
-
-        percent = welcome_percent_for(candle, welcome_offer)
-
-        if percent:
-            discount += line_total * percent / Decimal("100")
-
-    discount = discount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        subtotal += variant.price * qty
+        # Already rounded per line, so the order discount is exactly the sum
+        # of what the lines carry — a refund can never hand back more or
+        # less than was taken off.
+        discount += line_discount_amount
 
     order.subtotal_amount = subtotal
     order.discount_amount = discount
-    order.discount_label = welcome_offer.title if discount > 0 else ""
+    # Several promotions can apply to one basket ("Spring B2G3 + Welcome
+    # 10%"), and the column is shorter than their titles combined.
+    order.discount_label = discount_summary[:ORDER_LABEL_MAX] if discount > 0 else ""
     order.total_amount = subtotal - discount + order.shipping_amount + order.tax_amount
     order.save(
         update_fields=[

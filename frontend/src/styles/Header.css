@@ -53,18 +53,21 @@
    DESKTOP LAYOUT
    ===================================================== */
 
+/* Neither group shrinks: above the 700px mobile breakpoint the row fits,
+   and letting one squeeze made its buttons' click areas run into the
+   other group's. */
 .header__desktopLeft {
   display: flex;
   align-items: center;
   gap: 0;
+  flex-shrink: 0;
 }
 
 .header__desktopRight {
   display: flex;
   align-items: center;
   gap: 0;
-  flex-shrink: 1;
-  min-width: 0;
+  flex-shrink: 0;
   margin-right: 48px;
 }
 
@@ -524,9 +527,14 @@
 
 /* =====================================================
    MOBILE
+
+   The one-row desktop header needs ~667px in English (measured), so the
+   two-row layout takes over at 700px with room for longer labels. Keep in
+   step with --header-height in variables.css and focusVisibleMenuTrigger
+   in pages/Header.tsx.
    ===================================================== */
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
   .header {
     padding: 0 16px;
     height: var(--header-height);

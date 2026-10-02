@@ -62,7 +62,7 @@ body {
   padding-top: var(--header-height);
   overflow: visible;
 }
-.appShell--home .appShell__body {
+.appShell--bleed .appShell__body {
   padding-top: 0;
 }
 

@@ -225,7 +225,9 @@
 @media (max-width: 900px) {
   .login {
     grid-template-columns: 1fr;
-    grid-template-rows: 220px minmax(0, 1fr);
+    /* The photo runs under the transparent header, so the banner row
+       includes it; 220px is what shows below the header. */
+    grid-template-rows: calc(var(--header-height) + 220px) minmax(0, 1fr);
     min-height: 100svh;
     min-height: 100dvh;
   }
@@ -233,6 +235,9 @@
   .login__media {
     position: static;
     height: auto;
+    /* Undo the desktop align-self: start, or the photo keeps its natural
+       4:5 height and runs under the panel. */
+    align-self: stretch;
   }
 
   .login__panel {
@@ -247,7 +252,7 @@
 
 @media (max-width: 600px) {
   .login {
-    grid-template-rows: 170px minmax(0, 1fr);
+    grid-template-rows: calc(var(--header-height) + 170px) minmax(0, 1fr);
   }
 
   .login__media {

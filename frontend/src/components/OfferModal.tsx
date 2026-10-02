@@ -168,14 +168,17 @@ const OfferModal: React.FC = () => {
 
     dispatch(
       addToCart({
-        variant_id: suggestion.variant_id,
-        candle_id: suggestion.candle_id,
-        name: suggestion.name,
-        price: Number(suggestion.price) || 0,
-        image: suggestion.image || undefined,
-        size: suggestion.size,
-        quantity: 1,
-        isGift: false,
+        item: {
+          variant_id: suggestion.variant_id,
+          candle_id: suggestion.candle_id,
+          name: suggestion.name,
+          price: Number(suggestion.price) || 0,
+          image: suggestion.image || undefined,
+          size: suggestion.size,
+          quantity: 1,
+          isGift: false,
+        },
+        persistAsGuest: !isLoggedIn,
       })
     );
 
