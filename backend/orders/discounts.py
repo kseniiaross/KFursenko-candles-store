@@ -30,6 +30,10 @@ class LineDiscount:
 
     amount: Decimal
     label: str
+    # Units on this line given away by buy-two-get-three. `amount` is then
+    # exactly that many at the line's unit price — the line shows "Free" or
+    # "1 free", and the stored discount says the same thing.
+    free_quantity: int = 0
 
 
 def _round(value: Decimal) -> Decimal:
@@ -140,8 +144,8 @@ def get_welcome_offer(user):
 # ======================================================
 # BUY 2, GET 3
 # ======================================================
-def _free_units(unit_prices: list[Decimal]) -> Decimal:
-    """Value given away across a group of eligible units.
+def _free_prices(unit_prices: list[Decimal]) -> list[Decimal]:
+    """The prices of the units a group of eligible units gets free.
 
     Sorted dearest first, then every third unit is free — so each complete
     trio surrenders its cheapest member. Taking the N cheapest overall
@@ -152,19 +156,23 @@ def _free_units(unit_prices: list[Decimal]) -> Decimal:
     """
     ordered = sorted(unit_prices, reverse=True)
 
-    return sum(
-        (price for index, price in enumerate(ordered) if index % 3 == 2),
-        Decimal("0.00"),
-    )
+    return [price for index, price in enumerate(ordered) if index % 3 == 2]
 
 
 def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
-    """Spread one B2G3 offer's saving across the lines that earned it.
+    """Give one B2G3 offer's free units to the lines that hold them.
 
-    The saving belongs to a group of units, not to any single line, so it
-    is distributed proportionally to what each line contributed. Without
-    that, a refund of one line could not tell how much of the freebie to
-    claw back.
+    The free units' own prices are the discount, on the lines those units
+    sit on: a line with a free candle shows "Free" (or "1 free" when it
+    holds more than one), and the stored discount says exactly the same.
+    Spreading the saving across every line instead would leave the cart
+    saying "Tidal Bore — Free" while the order row carried a third of it.
+
+    Which unit is free when several share the free price is decided by
+    variant id, highest first — never by basket order, which differs
+    between a guest's browser, the server cart and the merge on sign-in.
+    The same basket therefore marks the same candle free in the cart, at
+    checkout and on the stored order.
     """
     group = [line for line in lines if line["campaign"] is offer]
 
@@ -176,33 +184,31 @@ def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
     for line in group:
         units.extend([line["unit_price"]] * line["quantity"])
 
-    saving = _free_units(units)
+    free_prices = _free_prices(units)
 
-    if saving <= 0:
+    if not free_prices:
         return False
 
-    group_total = sum(
-        (line["unit_price"] * line["quantity"] for line in group), Decimal("0.00")
-    )
+    remaining = {line["variant_id"]: line["quantity"] for line in group}
+    free_count: dict[int, int] = defaultdict(int)
+    highest_id_first = sorted(group, key=lambda line: line["variant_id"], reverse=True)
 
-    if group_total <= 0:
-        return False
+    for price in free_prices:
+        for line in highest_id_first:
+            if line["unit_price"] == price and remaining[line["variant_id"]] > 0:
+                free_count[line["variant_id"]] += 1
+                remaining[line["variant_id"]] -= 1
+                break
 
-    label = offer.title
-    running = Decimal("0.00")
+    for line in group:
+        count = free_count[line["variant_id"]]
 
-    for index, line in enumerate(group):
-        line_total = line["unit_price"] * line["quantity"]
-
-        if index == len(group) - 1:
-            # Last line absorbs the rounding so the parts always sum to
-            # the saving the shopper was shown.
-            share = saving - running
-        else:
-            share = _round(saving * line_total / group_total)
-            running += share
-
-        discounts[line["variant_id"]] = LineDiscount(amount=share, label=label)
+        if count:
+            discounts[line["variant_id"]] = LineDiscount(
+                amount=_round(line["unit_price"] * count),
+                label=offer.title,
+                free_quantity=count,
+            )
 
     return True
 
@@ -322,6 +328,10 @@ class PricedLine:
     line_total: Decimal
     discount_amount: Decimal
     discount_label: str
+    # Units on this line that buy-two-get-three made free. A line carries at
+    # most one promotion, so line_total - discount_amount is always what the
+    # line costs — the figure the cart shows and the order stores.
+    free_quantity: int
 
 
 @dataclass(frozen=True)
@@ -361,6 +371,7 @@ def price_basket(*, user, lines, offers=None, welcome_offer=_RESOLVE) -> BasketP
                 line_total=unit_price * quantity,
                 discount_amount=found.amount if found else Decimal("0.00"),
                 discount_label=found.label if found else "",
+                free_quantity=found.free_quantity if found else 0,
             )
         )
 

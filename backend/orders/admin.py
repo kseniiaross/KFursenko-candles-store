@@ -15,8 +15,27 @@ class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
     autocomplete_fields = ("candle",)
-    fields = ("candle", "product_name", "unit_price", "quantity", "line_total_display")
-    readonly_fields = ("product_name", "unit_price", "quantity", "line_total_display")
+    # The discount columns are what the shopper's cart showed for each line —
+    # what a person handling a partial refund needs to see.
+    fields = (
+        "candle",
+        "product_name",
+        "unit_price",
+        "quantity",
+        "line_total_display",
+        "free_quantity",
+        "discount_amount",
+        "discount_label",
+    )
+    readonly_fields = (
+        "product_name",
+        "unit_price",
+        "quantity",
+        "line_total_display",
+        "free_quantity",
+        "discount_amount",
+        "discount_label",
+    )
 
     def line_total_display(self, obj):
         if not obj.pk:

@@ -41,6 +41,7 @@ class OrderItemReadSerializer(serializers.ModelSerializer):
             "is_gift",
             "discount_amount",
             "discount_label",
+            "free_quantity",
         )
 
     def get_line_total(self, obj):
@@ -298,6 +299,7 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
             is_gift=bool(merged[line.variant_id]["is_gift"]),
             discount_amount=line.discount_amount,
             discount_label=line.discount_label[:ITEM_LABEL_MAX],
+            free_quantity=line.free_quantity,
         )
 
     # The basket discount is the sum of what the lines carry, each rounded

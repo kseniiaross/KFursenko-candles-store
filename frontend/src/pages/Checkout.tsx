@@ -7,7 +7,9 @@ import type { StripeElementLocale } from "@stripe/stripe-js";
 
 import api from "../api/axiosInstance";
 import CheckoutPaymentBlock from "../components/CheckoutPaymentBlock";
+import Price from "../components/Price";
 import ShippingRates, { type ShippingRate } from "../components/ShippingRates";
+import { usePricePreview } from "../hooks/usePricePreview";
 import { useAppSelector } from "../store/hooks";
 import {
   clearCheckoutOrder,
@@ -334,9 +336,20 @@ const Checkout: React.FC = () => {
       .filter((item) => item.candle_id > 0 && item.variant_id > 0);
   }, [cartItems]);
 
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  }, [items]);
+  /** Prices for the summary before the order exists, from the same function
+   *  checkout charges with. Once the order exists its own figures are used —
+   *  identical, since both come from that function. */
+  const previewLines = useMemo(
+    () =>
+      items.map((item) => ({
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+      })),
+    [items]
+  );
+  const userId = useAppSelector((state) => state.auth?.user?.id ?? null);
+  const pricing = usePricePreview(previewLines, `user:${userId ?? "?"}`);
+  const preview = pricing.preview;
 
   const itemCount = useMemo(() => {
     return items.reduce((sum, item) => sum + item.quantity, 0);
@@ -395,8 +408,13 @@ const Checkout: React.FC = () => {
   const orderId = current?.orderId ?? null;
   const clientSecret = current?.clientSecret ?? "";
   const serverShipping = current ? current.shipping : null;
-  const discount = current?.discount ?? 0;
-  const discountLabel = current?.discountLabel ?? "";
+  const discount = current
+    ? current.discount
+    : Number(preview?.discount ?? 0) || 0;
+  const discountLabel = current ? current.discountLabel : preview?.label ?? "";
+  /** Items after discounts, before shipping and tax. Null until priced. */
+  const itemsTotal =
+    preview !== null ? Number(preview.items_total) : null;
   const tax = current ? current.tax : null;
   const total = current ? current.total : null;
 
@@ -567,6 +585,7 @@ const Checkout: React.FC = () => {
             <ul className="checkout__items" role="list">
               {items.map((item) => {
                 const name = item.name?.trim() || `Candle #${item.candle_id}`;
+                const priced = pricing.line(item.variant_id);
 
                 return (
                   <li
@@ -602,7 +621,14 @@ const Checkout: React.FC = () => {
                     </div>
 
                     <div className="checkoutItem__lineTotal">
-                      {money(item.price * item.quantity)}
+                      {priced ? (
+                        <Price
+                          price={priced.line_total}
+                          discountPrice={priced.line_total_after_discount}
+                        />
+                      ) : (
+                        "—"
+                      )}
                     </div>
                   </li>
                 );
@@ -617,7 +643,9 @@ const Checkout: React.FC = () => {
 
               <div className="checkout__totalRow">
                 <span>Subtotal</span>
-                <span>{money(subtotal)}</span>
+                <span>
+                  {preview ? money(Number(preview.subtotal)) : "—"}
+                </span>
               </div>
 
               {discount > 0 && (
@@ -652,9 +680,11 @@ const Checkout: React.FC = () => {
                 <span>
                   {total !== null
                     ? money(total)
-                    : shippingToShow === null
-                      ? money(subtotal)
-                      : money(subtotal + shippingToShow)}
+                    : itemsTotal === null
+                      ? "—"
+                      : shippingToShow === null
+                        ? money(itemsTotal)
+                        : money(itemsTotal + shippingToShow)}
                 </span>
               </div>
             </div>

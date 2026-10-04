@@ -109,14 +109,13 @@ class TestBuyTwoGetThree:
         assert order.discount_amount == Decimal(expected_free)
         _assert_lines_sum_to_order(order)
 
-        if order.discount_amount > 0:
-            assert order.discount_label == b2g3.title
-            assert all(
-                item.discount_label == b2g3.title for item in order.items.all()
-            )
-        else:
-            assert order.discount_label == ""
-            assert all(item.discount_label == "" for item in order.items.all())
+        # The discount sits on the lines holding the free units, as exactly
+        # their price; every other line in the group is charged in full.
+        for item in order.items.all():
+            assert item.discount_amount == item.unit_price * item.free_quantity
+            assert item.discount_label == (b2g3.title if item.free_quantity else "")
+
+        assert order.discount_label == (b2g3.title if order.discount_amount > 0 else "")
 
 
 @pytest.mark.django_db

@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { deleteCartItem, patchCartItem } from "../api/cart";
+import Price from "../components/Price";
+import { usePricePreview } from "../hooks/usePricePreview";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   clearGuestCartStorage,
@@ -25,6 +27,7 @@ const Cart: React.FC = () => {
 
   const items = useAppSelector((state) => state.cart.items);
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth.isLoggedIn));
+  const userId = useAppSelector((state) => state.auth.user?.id ?? null);
 
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
@@ -32,14 +35,24 @@ const Cart: React.FC = () => {
     return items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   }, [items]);
 
-  const totalAmount = useMemo(() => {
-    return items.reduce((sum, item) => {
-      const price = Number(item.price) || 0;
-      const quantity = Math.max(1, Number(item.quantity) || 1);
+  /** Every amount on this page comes from the server, priced the way
+   *  checkout will charge — never multiplied out here. */
+  const basketLines = useMemo(
+    () =>
+      items.map((item) => ({
+        variant_id: Number(item.variant_id),
+        quantity: Math.max(1, Number(item.quantity) || 1),
+      })),
+    [items]
+  );
 
-      return sum + price * quantity;
-    }, 0);
-  }, [items]);
+  const pricing = usePricePreview(
+    basketLines,
+    isLoggedIn ? `user:${userId ?? "?"}` : "guest"
+  );
+  const preview = pricing.preview;
+  const amount = (value: string | undefined): string =>
+    value === undefined ? "—" : money(Number(value));
 
   const hasGiftItems = useMemo(() => {
     return items.some((item) => Boolean(item.isGift));
@@ -167,9 +180,11 @@ const Cart: React.FC = () => {
                 const variantId = Number(item.variant_id);
                 const itemId = item.item_id;
                 const quantity = Math.max(1, Number(item.quantity) || 1);
-                const price = Number(item.price) || 0;
                 const name = item.name?.trim() || `Candle #${item.candle_id}`;
-                const itemTotal = price * quantity;
+                const priced = pricing.line(variantId);
+                const unavailable = Boolean(
+                  preview?.unavailable.includes(variantId)
+                );
                 const isUpdating = updatingId === variantId;
 
                 return (
@@ -202,6 +217,12 @@ const Cart: React.FC = () => {
 
                           {item.size && (
                             <p className="cartItem__meta">Size: {item.size}</p>
+                          )}
+
+                          {unavailable && (
+                            <p className="cartItem__unavailable" role="note">
+                              No longer available — remove it to check out.
+                            </p>
                           )}
 
                           <label className="cartItem__giftOption">
@@ -246,7 +267,9 @@ const Cart: React.FC = () => {
                             Unit Price
                           </span>
 
-                          <span className="cartItem__price">{money(price)}</span>
+                          <span className="cartItem__price">
+                            {amount(priced?.unit_price)}
+                          </span>
                         </div>
 
                         <div className="cartItem__qty">
@@ -286,9 +309,26 @@ const Cart: React.FC = () => {
                         <div className="cartItem__lineTotalBlock">
                           <span className="cartItem__priceLabel">Total</span>
 
-                          <span className="cartItem__lineTotal">
-                            {money(itemTotal)}
+                          <span
+                            className={`cartItem__lineTotal${
+                              pricing.updating ? " is-updating" : ""
+                            }`}
+                          >
+                            {priced ? (
+                              <Price
+                                price={priced.line_total}
+                                discountPrice={priced.line_total_after_discount}
+                              />
+                            ) : (
+                              "—"
+                            )}
                           </span>
+
+                          {priced && Number(priced.discount_amount) > 0 && (
+                            <span className="cartItem__offer">
+                              {priced.discount_label}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -298,7 +338,10 @@ const Cart: React.FC = () => {
             </ul>
 
             <section className="cart__footer">
-                         <div className="cart__summary">
+              <div
+                className={`cart__summary${pricing.updating ? " is-updating" : ""}`}
+                aria-busy={pricing.updating}
+              >
                 <div className="cart__summaryRow">
                   <span className="cart__summaryLabel">Items</span>
                   <span className="cart__summaryValue">{totalItems}</span>
@@ -311,18 +354,35 @@ const Cart: React.FC = () => {
                   </div>
                 )}
 
-                {/* Shipping, tax and any discount are worked out server-side
-                    at checkout, so this is a subtotal — calling it a total
-                    would understate what the shopper actually pays. */}
-                <div className="cart__summaryRow cart__summaryRow--total">
+                <div className="cart__summaryRow">
                   <span className="cart__summaryLabel">Subtotal</span>
                   <span className="cart__summaryValue">
-                    {money(totalAmount)}
+                    {amount(preview?.subtotal)}
+                  </span>
+                </div>
+
+                {preview && Number(preview.discount) > 0 && (
+                  <div className="cart__summaryRow cart__summaryRow--discount">
+                    <span className="cart__summaryLabel">{preview.label}</span>
+                    <span className="cart__summaryValue">
+                      −{money(Number(preview.discount))}
+                    </span>
+                  </div>
+                )}
+
+                {/* Before shipping and tax — calling it a total would
+                    understate what the shopper actually pays. */}
+                <div className="cart__summaryRow cart__summaryRow--total">
+                  <span className="cart__summaryLabel">Before shipping</span>
+                  <span className="cart__summaryValue">
+                    {amount(preview?.items_total)}
                   </span>
                 </div>
 
                 <p className="cart__summaryNote">
-                  Shipping, tax and any discount are calculated at checkout.
+                  {pricing.failed
+                    ? "Prices couldn't be updated just now. Checkout will show the final amount."
+                    : "Shipping and tax are calculated at checkout."}
                 </p>
               </div>
         

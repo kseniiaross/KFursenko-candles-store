@@ -100,6 +100,7 @@ class PricePreviewAPIView(APIView):
                         "line_total": _money(line.line_total),
                         "discount_amount": _money(line.discount_amount),
                         "discount_label": line.discount_label,
+                        "free_quantity": line.free_quantity,
                         "line_total_after_discount": _money(
                             line.line_total - line.discount_amount
                         ),

@@ -188,16 +188,22 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     is_gift = models.BooleanField(default=False)
 
-    # This line's share of the order discount, so a partial refund knows how
-    # much of it travels back with a returned candle. The lines of an order
-    # always sum to Order.discount_amount. Zero on rows created before the
-    # field existed — their discount was only ever stored on the order.
+    # What came off this line, exactly as the shopper's cart showed it: the
+    # line's own percentage offer, or for buy-two-get-three the full price
+    # of the units it got free (free_quantity of them). A line carries at
+    # most one promotion. The lines of an order always sum to
+    # Order.discount_amount. Zero on rows created before the field existed —
+    # their discount was only ever stored on the order.
     discount_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=Decimal("0.00"),
     )
     discount_label = models.CharField(max_length=160, blank=True, default="")
+    free_quantity = models.PositiveIntegerField(
+        default=0,
+        help_text="Units on this line given free by buy-two-get-three.",
+    )
 
     def line_total(self):
         return (self.unit_price or Decimal("0.00")) * Decimal(self.quantity or 0)
