@@ -1,13 +1,58 @@
-from decimal import Decimal
-
 from rest_framework import serializers
 
 from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
                      Color, GalleryItem, Offer)
 
-from orders.discounts import get_welcome_offer, offer_applies_to
+from orders.discounts import (campaign_offer_for, get_active_offers,
+                              get_welcome_offer, offer_applies_to,
+                              unit_display_prices)
 
 SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
+
+
+# ======================================================
+# PRICES
+# ======================================================
+# Every price here comes from orders.discounts — the same functions checkout
+# charges with. Nothing in this module works out a discount itself.
+def _pricing(context):
+    """Offers, the shopper's welcome offer and the unit prices worked out so
+    far for this response.
+
+    Kept in the serializer context, which every candle in a list (and every
+    variant nested in it) shares, so a catalogue page looks offers up once.
+    """
+    pricing = context.get("_pricing")
+
+    if pricing is None:
+        request = context.get("request")
+        user = getattr(request, "user", None)
+        pricing = {
+            "user": user,
+            "offers": get_active_offers(),
+            "welcome": get_welcome_offer(user),
+            "units": {},
+        }
+        context["_pricing"] = pricing
+
+    return pricing
+
+
+def unit_price_for(context, variant):
+    """What one of this variant costs this shopper — as checkout charges it."""
+    pricing = _pricing(context)
+
+    if variant.id not in pricing["units"]:
+        pricing["units"].update(
+            unit_display_prices(
+                user=pricing["user"],
+                variants=[variant],
+                offers=pricing["offers"],
+                welcome_offer=pricing["welcome"],
+            )
+        )
+
+    return pricing["units"][variant.id]
 
 
 # ======================================================
@@ -110,9 +155,17 @@ class CandleImageSerializer(serializers.ModelSerializer):
 
 
 class CandleVariantSerializer(serializers.ModelSerializer):
+    # What one of this variant costs the shopper making the request, from
+    # the same function checkout charges with. Equal to `price` when no
+    # offer applies to a single unit (buy-two-get-three needs three).
+    display_price = serializers.SerializerMethodField()
+
     class Meta:
         model = CandleVariant
-        fields = ["id", "size", "price", "stock_qty", "is_active"]
+        fields = ["id", "size", "price", "display_price", "stock_qty", "is_active"]
+
+    def get_display_price(self, obj):
+        return str(unit_price_for(self.context, obj).display_price)
 
 
 class CandleBadgeSerializer(serializers.ModelSerializer):
@@ -245,64 +298,44 @@ class CandleSerializer(serializers.ModelSerializer):
             }
             for c in group
         ]
-    def _applicable_offers(self, obj):
-        """Offers this shopper actually gets on this candle.
-
-        The welcome offer is personal — a guest, or someone who has
-        ordered before, must not see a price they cannot pay.
-        """
-        request = self.context.get("request")
-        user = getattr(request, "user", None)
-        welcome = get_welcome_offer(user)
-
-        offers = []
-
-        for offer in Offer.objects.filter(is_active=True).order_by("priority"):
-            if not offer.is_currently_active:
-                continue
-
-            if offer.kind == Offer.Kind.NEW_SHOPPER:
-                if not welcome or offer.pk != welcome.pk:
-                    continue
-
-            if offer_applies_to(offer, obj):
-                offers.append(offer)
-
-        return offers
-
     def get_badges(self, obj):
-        visible = [
-            offer for offer in self._applicable_offers(obj) if offer.show_badge
-        ]
+        """The offer checkout would apply to this candle, if it shows a badge.
 
-        return CandleBadgeSerializer(visible, many=True).data
+        Same precedence as compute_line_discounts: a campaign claims the
+        candle; the welcome offer only lands on a candle with no campaign,
+        and only for a shopper who qualifies. Never both, so a card can't
+        advertise two offers when only one will apply.
+        """
+        pricing = _pricing(self.context)
+        campaign = campaign_offer_for(obj, pricing["offers"])
+        welcome = pricing["welcome"]
+
+        if campaign:
+            applies = [campaign]
+        elif welcome and offer_applies_to(welcome, obj):
+            applies = [welcome]
+        else:
+            applies = []
+
+        return CandleBadgeSerializer(
+            [offer for offer in applies if offer.show_badge], many=True
+        ).data
 
     def get_discount_price(self, obj):
-        """Price after discounts, or None when nothing applies.
+        """The card's sale price, or None when the card shows the full price.
 
-        Based on the variant price the storefront actually shows, not
-        Candle.price — otherwise the struck-through figure and the new one
-        would come from different places.
+        One unit of the cheapest active variant, priced the way checkout
+        charges it. Offer.discounted_price is never shown: checkout has never
+        applied it, so showing it promised a price nobody was charged.
         """
-        variant = (
-            obj.variants.filter(is_active=True).order_by("price").first()
-        )
-        base = variant.price if variant else obj.price
+        active = [v for v in obj.variants.all() if v.is_active]
 
-        if not base:
+        if not active:
             return None
 
-        base = Decimal(base)
+        unit = unit_price_for(self.context, min(active, key=lambda v: v.price))
 
-        for offer in self._applicable_offers(obj):
-            if offer.discount_percent:
-                return (base - base * Decimal(offer.discount_percent) / 100).quantize(
-                    Decimal("0.01")
-                )
-            if offer.discounted_price:
-                return offer.discounted_price
-
-        return None
+        return unit.display_price if unit.display_price < unit.price else None
 
 
 # ======================================================

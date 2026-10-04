@@ -386,14 +386,19 @@ class UnitPrice:
     discount_label: str
 
 
-def unit_display_prices(*, user, variants) -> dict[int, UnitPrice]:
+def unit_display_prices(
+    *, user, variants, offers=None, welcome_offer=_RESOLVE
+) -> dict[int, UnitPrice]:
     """The price to show for each variant: a one-unit basket each.
 
-    Offers and the welcome offer are looked up once for the whole batch.
+    Offers and the welcome offer are looked up once for the whole batch, or
+    taken from the caller when it prices several batches for one request.
     `variants` need their `candle` loaded.
     """
-    offers = get_active_offers()
-    welcome_offer = get_welcome_offer(user)
+    if offers is None:
+        offers = get_active_offers()
+    if welcome_offer is _RESOLVE:
+        welcome_offer = get_welcome_offer(user)
 
     result = {}
 
