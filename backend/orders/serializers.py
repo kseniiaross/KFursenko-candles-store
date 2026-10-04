@@ -7,7 +7,7 @@ from candles.models import CandleVariant
 from shipping.normalize import payload_to_address
 from shipping.services import resolve_shipping_cost
 
-from .discounts import compute_line_discounts
+from .discounts import price_basket
 from .models import Order, OrderItem
 
 ORDER_LABEL_MAX = Order._meta.get_field("discount_label").max_length
@@ -235,7 +235,9 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
     # cannot disqualify its own welcome discount. Campaign percentages,
     # buy-two-get-three and the welcome offer are all decided here, per line,
     # from the prices just locked above — nothing the storefront sends.
-    line_discounts, discount_summary = compute_line_discounts(
+    # price_basket is the same function the cart preview and the catalogue
+    # prices use, so what the shopper was shown is what this charges.
+    priced = price_basket(
         user=user,
         lines=[
             {
@@ -279,45 +281,34 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
             currency=rate["currency"].lower(),
         )
 
-    subtotal = Decimal("0.00")
-    discount = Decimal("0.00")
-
-    for variant_id, payload in merged.items():
-        variant = variant_map[variant_id]
+    for line in priced.lines:
+        variant = variant_map[line.variant_id]
         candle = variant.candle
-        qty = int(payload["quantity"])
-        is_gift = bool(payload["is_gift"])
 
-        variant.stock_qty -= qty
+        variant.stock_qty -= line.quantity
         variant.save(update_fields=["stock_qty"])
-
-        line_discount = line_discounts.get(variant_id)
-        line_discount_amount = line_discount.amount if line_discount else Decimal("0.00")
 
         OrderItem.objects.create(
             order=order,
             candle=candle,
             variant=variant,
             product_name=f"{candle.name} - {variant.size}",
-            unit_price=variant.price,
-            quantity=qty,
-            is_gift=is_gift,
-            discount_amount=line_discount_amount,
-            discount_label=(line_discount.label if line_discount else "")[:ITEM_LABEL_MAX],
+            unit_price=line.unit_price,
+            quantity=line.quantity,
+            is_gift=bool(merged[line.variant_id]["is_gift"]),
+            discount_amount=line.discount_amount,
+            discount_label=line.discount_label[:ITEM_LABEL_MAX],
         )
 
-        subtotal += variant.price * qty
-        # Already rounded per line, so the order discount is exactly the sum
-        # of what the lines carry — a refund can never hand back more or
-        # less than was taken off.
-        discount += line_discount_amount
-
-    order.subtotal_amount = subtotal
-    order.discount_amount = discount
+    # The basket discount is the sum of what the lines carry, each rounded
+    # on its own line — a refund can never hand back more or less than was
+    # taken off.
+    order.subtotal_amount = priced.subtotal
+    order.discount_amount = priced.discount
     # Several promotions can apply to one basket ("Spring B2G3 + Welcome
     # 10%"), and the column is shorter than their titles combined.
-    order.discount_label = discount_summary[:ORDER_LABEL_MAX] if discount > 0 else ""
-    order.total_amount = subtotal - discount + order.shipping_amount + order.tax_amount
+    order.discount_label = priced.label[:ORDER_LABEL_MAX]
+    order.total_amount = priced.items_total + order.shipping_amount + order.tax_amount
     order.save(
         update_fields=[
             "subtotal_amount",

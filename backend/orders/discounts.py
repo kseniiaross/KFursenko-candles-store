@@ -210,14 +210,24 @@ def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
 # ======================================================
 # ENTRY POINT
 # ======================================================
-def compute_line_discounts(*, user, lines):
+_RESOLVE = object()
+
+
+def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
     """Work out the discount for every line of an order.
 
     `lines` is a list of dicts with variant_id, candle, unit_price and
     quantity. Returns (discounts_by_variant_id, summary_label).
+
+    `offers` and `welcome_offer` are looked up when not given. Callers that
+    price many baskets for one shopper (a catalogue page) pass them in so the
+    lookups run once. `welcome_offer=None` means "this shopper gets none",
+    which is why "not given" needs its own sentinel.
     """
-    offers = get_active_offers()
-    welcome_offer = get_welcome_offer(user)
+    if offers is None:
+        offers = get_active_offers()
+    if welcome_offer is _RESOLVE:
+        welcome_offer = get_welcome_offer(user)
 
     enriched = [
         {
@@ -293,6 +303,122 @@ def compute_line_discounts(*, user, lines):
     summary_label = " + ".join(applied_labels)
 
     return discounts, summary_label
+
+
+# ======================================================
+# PRICES — THE ONE PLACE A SHOPPER'S PRICE IS DECIDED
+# ======================================================
+# Every price the shop shows or charges comes through price_basket: the
+# order itself (build_order), the cart and checkout preview, and — via
+# unit_display_prices — the catalogue card and the size picker. The
+# storefront never works out a discount on its own.
+
+
+@dataclass(frozen=True)
+class PricedLine:
+    variant_id: int
+    unit_price: Decimal
+    quantity: int
+    line_total: Decimal
+    discount_amount: Decimal
+    discount_label: str
+
+
+@dataclass(frozen=True)
+class BasketPrice:
+    lines: tuple[PricedLine, ...]
+    subtotal: Decimal
+    discount: Decimal
+    # What the items cost after discounts; shipping and tax come on top.
+    items_total: Decimal
+    # Every promotion that applied, joined, e.g. "Spring B2G3 + Welcome 10%".
+    label: str
+
+
+def price_basket(*, user, lines, offers=None, welcome_offer=_RESOLVE) -> BasketPrice:
+    """Price a basket exactly as checkout will charge it.
+
+    `lines` as for compute_line_discounts. Each line's discount is rounded
+    on that line, and the basket discount is their sum, so the parts always
+    add up to the whole.
+    """
+    discounts, label = compute_line_discounts(
+        user=user, lines=lines, offers=offers, welcome_offer=welcome_offer
+    )
+
+    priced = []
+
+    for line in lines:
+        unit_price = Decimal(line["unit_price"])
+        quantity = int(line["quantity"])
+        found = discounts.get(line["variant_id"])
+
+        priced.append(
+            PricedLine(
+                variant_id=line["variant_id"],
+                unit_price=unit_price,
+                quantity=quantity,
+                line_total=unit_price * quantity,
+                discount_amount=found.amount if found else Decimal("0.00"),
+                discount_label=found.label if found else "",
+            )
+        )
+
+    subtotal = sum((p.line_total for p in priced), Decimal("0.00"))
+    discount = sum((p.discount_amount for p in priced), Decimal("0.00"))
+
+    return BasketPrice(
+        lines=tuple(priced),
+        subtotal=subtotal,
+        discount=discount,
+        items_total=subtotal - discount,
+        label=label if discount > 0 else "",
+    )
+
+
+@dataclass(frozen=True)
+class UnitPrice:
+    price: Decimal
+    # What one of these costs this shopper on its own. Equal to `price`
+    # when nothing applies to a single unit — including buy-two-get-three,
+    # which needs three in the basket.
+    display_price: Decimal
+    discount_label: str
+
+
+def unit_display_prices(*, user, variants) -> dict[int, UnitPrice]:
+    """The price to show for each variant: a one-unit basket each.
+
+    Offers and the welcome offer are looked up once for the whole batch.
+    `variants` need their `candle` loaded.
+    """
+    offers = get_active_offers()
+    welcome_offer = get_welcome_offer(user)
+
+    result = {}
+
+    for variant in variants:
+        priced = price_basket(
+            user=user,
+            lines=[
+                {
+                    "variant_id": variant.id,
+                    "candle": variant.candle,
+                    "unit_price": variant.price,
+                    "quantity": 1,
+                }
+            ],
+            offers=offers,
+            welcome_offer=welcome_offer,
+        ).lines[0]
+
+        result[variant.id] = UnitPrice(
+            price=priced.unit_price,
+            display_price=priced.line_total - priced.discount_amount,
+            discount_label=priced.discount_label,
+        )
+
+    return result
 
 
 # ======================================================

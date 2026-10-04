@@ -194,6 +194,11 @@ const resources = {
         openScent: "Open scent",
         size: "Size",
         color: "Color",
+        scent: "Scent",
+        mood: "Mood",
+        bestFor: "Best for",
+        season: "Season",
+        details: "Details",
       },
 
       login: {
@@ -663,6 +668,11 @@ const resources = {
         openScent: "Открыть аромат",
         size: "Размер",
         color: "Цвет",
+        scent: "Аромат",
+        mood: "Настроение",
+        bestFor: "Подходит для",
+        season: "Сезон",
+        details: "Детали",
       },
 
       login: {
@@ -1131,6 +1141,11 @@ const resources = {
         openScent: "Abrir aroma",
          size: "Tamaño",
          color: "Color",
+        scent: "Aroma",
+        mood: "Ambiente",
+        bestFor: "Ideal para",
+        season: "Temporada",
+        details: "Detalles",
       },
 
       reviews: {
@@ -1603,6 +1618,11 @@ const resources = {
         openScent: "Ouvrir le parfum",
         size: "Taille",
         color: "Couleur",
+        scent: "Parfum",
+        mood: "Ambiance",
+        bestFor: "Idéal pour",
+        season: "Saison",
+        details: "Détails",
       },
 
       reviews: {
