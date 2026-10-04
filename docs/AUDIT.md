@@ -281,3 +281,49 @@ The brief says it is; `git check-ignore .local/x` says otherwise. I used the ses
 ## Permissions check (every DRF view)
 
 All correct for their purpose. Staff-only views (`StaffOrdersAPIView`, `OrderStatusUpdateAPIView`, `PurchaseLabelAPIView`) check `is_staff` explicitly. Order, cart and payment-intent views filter by `request.user`. Catalog viewsets use `IsStaffOrReadOnly`. `AllowAny` is used only where intended: register, newsletter subscribe, Lumière, offer progress. No view trusts a client-sent price, amount or percentage. The one client-sent value that isn't fully verified is the shipping `rate_id` (B3).
+
+---
+
+## Follow-up findings (2026-10-02)
+
+Found while fixing the order lifecycle (order reuse, stock restoration, intent cancellation). Not fixed yet.
+
+### F1. SERIOUS — the Stripe webhook marks any order PAID, whatever its status, and re-sends the confirmation
+
+**Where:** `orders/views_stripe.py:237-263`, the `payment_intent.succeeded` branch:
+
+```python
+if order and order.status != Order.Status.PAID:
+    order.status = Order.Status.PAID
+    order.save(update_fields=["status", "updated_at"])
+    order_to_email = order
+```
+
+The guard only excludes PAID. It writes the status directly, bypassing `Order.transition_to`, and so bypasses `ALLOWED_TRANSITIONS` and the stock accounting that now lives there. It also never compares the amount Stripe received with `order.total_amount`.
+
+**What breaks, and when:**
+
+- **Redelivered events roll a shipped order back.** Stripe delivers webhooks *at least once*. It retries for up to three days after a timeout or 5xx, and the dashboard can resend any event. A `succeeded` event that arrives again after the order has moved on turns SHIPPED or COMPLETED back into PAID, and the shopper gets a second "Order confirmed" email. Nothing stops this today; it only needs one redelivery.
+- **A REFUNDED order becomes PAID again.** The same redelivery after a refund flips it back. Since 2026-10-02 a refund also returns stock, so the order would read as paid with its stock already back on the shelf.
+- **A CANCELED order becomes PAID with its stock released.** Cancelling now closes the PaymentIntent before the order (`orders/payments.py`), which removes the ordinary path. What remains:
+  - orders cancelled **before** that change, whose intents were never closed — an old payment form left open can still pay them;
+  - an intent that succeeds in the moment between Stripe confirming the cancellation and the shopper's browser completing a payment it had already submitted (Stripe should refuse this, but the webhook would not notice if it didn't).
+
+  In each case money is taken for an order that will never be fulfilled. Its stock is already back on sale, so the candle may be sold twice.
+- **An amount mismatch would be recorded as paid.** Totals don't change after creation today, so this is latent. But nothing checks it, and Fix 4 just changed how totals are computed.
+
+**What fixing it involves (about half a day with tests):**
+
+1. **Only PENDING → PAID moves the order:** `order.transition_to(PAID)` when it's PENDING, and do nothing for PAID, SHIPPED and COMPLETED. That makes redeliveries harmless and stops the duplicate email, because the email is sent only when the transition actually happens.
+2. **CANCELED or REFUNDED plus a `succeeded` event means money was taken for an order that won't ship.** It needs a decision, not a status write. Options:
+   - refund automatically through Stripe and log it (simplest; the shopper is never out of pocket);
+   - re-reserve the stock if it's still available and reinstate the order. This needs a new CANCELED → PAID transition, and the `stock_qty >= 0` constraint means it can fail if the candle has since sold.
+
+   Recommended: an automatic refund plus a staff alert.
+3. **Compare `amount_received` and `currency` with the order** before marking it paid. On a mismatch, leave it PENDING and alert.
+4. **Tests:**
+   - a redelivered event on PAID, SHIPPED and COMPLETED changes nothing and sends no email;
+   - `succeeded` on CANCELED takes the chosen action;
+   - an amount mismatch is not marked paid.
+
+   The webhook tests were previously skipped as "requires PostgreSQL". Since 2026-10-02 they run on SQLite, so these can sit alongside them.

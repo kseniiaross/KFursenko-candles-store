@@ -5,12 +5,6 @@ from decimal import ROUND_HALF_UP, Decimal
 
 import pytest
 
-# stripe_webhook() itself uses select_for_update() once past signature
-# verification, which SQLite doesn't support (see cart/test_cart.py and
-# orders/test_orders.py for the same limitation) - the two guard-clause
-# tests below return before ever touching the database, so they run fine
-# here; tests that need to reach the event-handling code are marked skip.
-SELECT_FOR_UPDATE_SKIP_REASON = "requires PostgreSQL"
 
 WEBHOOK_URL = "/api/orders/webhook/"
 TEST_SECRET = "whsec_test_dummy"
@@ -50,7 +44,6 @@ class TestStripeWebhookSecretGuard:
         assert response.status_code == 400
 
 
-@pytest.mark.skip(reason=SELECT_FOR_UPDATE_SKIP_REASON)
 @pytest.mark.django_db
 class TestStripeWebhookMetadataGuard:
     def test_event_with_no_metadata_key_is_ignored_not_500(self, api_client, settings):

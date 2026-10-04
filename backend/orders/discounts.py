@@ -120,11 +120,19 @@ def get_welcome_offer(user):
     # module level would close the loop.
     from .models import Order
 
-    already_ordered = (
-        Order.objects.filter(user=user)
-        .exclude(status=Order.Status.CANCELED)
-        .exists()
-    )
+    # Only an order that was paid for and went out uses up the welcome offer.
+    # PENDING is an unpaid attempt (a typo fixed at checkout, a declined
+    # card); CANCELED and REFUNDED never shipped — REFUNDED can only follow
+    # PAID, never SHIPPED — so counting them would take the offer away
+    # because of our own cancellation.
+    already_ordered = Order.objects.filter(
+        user=user,
+        status__in=[
+            Order.Status.PAID,
+            Order.Status.SHIPPED,
+            Order.Status.COMPLETED,
+        ],
+    ).exists()
 
     return None if already_ordered else offer
 

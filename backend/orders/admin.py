@@ -1,4 +1,5 @@
-from django.contrib import admin
+import stripe
+from django.contrib import admin, messages
 from django.db.models import Count, DecimalField, F, Sum, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
@@ -6,6 +7,7 @@ from django.http import HttpResponse
 from django.urls import path
 
 from .models import Order, OrderItem
+from .payments import IntentRelease, cancel_pending_order
 
 
 class OrderItemInline(admin.TabularInline):
@@ -30,8 +32,49 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ("id", "user__email", "stripe_payment_intent_id")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
-    readonly_fields = ("total_amount", "stripe_payment_intent_id", "created_at", "updated_at")
+    # Status is read-only here: editing it directly would skip
+    # Order.transition_to, and with it the stock that a cancellation or
+    # refund returns. Cancel with the action below; other moves go through
+    # the staff status endpoint.
+    readonly_fields = (
+        "status",
+        "total_amount",
+        "stripe_payment_intent_id",
+        "created_at",
+        "updated_at",
+    )
     inlines = (OrderItemInline,)
+    actions = ("cancel_unpaid_orders",)
+
+    @admin.action(description="Cancel selected unpaid orders (returns stock)")
+    def cancel_unpaid_orders(self, request, queryset):
+        cancelled = 0
+        skipped = queryset.exclude(status=Order.Status.PENDING).count()
+
+        for order in queryset.filter(status=Order.Status.PENDING):
+            try:
+                outcome = cancel_pending_order(order)
+            except (ValueError, stripe.StripeError) as error:
+                self.message_user(
+                    request, f"Order #{order.pk} not cancelled: {error}", messages.ERROR
+                )
+                continue
+
+            if outcome is IntentRelease.IN_PROGRESS:
+                self.message_user(
+                    request,
+                    f"Order #{order.pk} not cancelled: a payment is in progress.",
+                    messages.WARNING,
+                )
+                continue
+
+            cancelled += 1
+
+        self.message_user(
+            request,
+            f"Cancelled {cancelled} order(s)."
+            + (f" Skipped {skipped} that were not pending." if skipped else ""),
+        )
 
     def get_urls(self):
         urls = super().get_urls()

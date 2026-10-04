@@ -1,7 +1,10 @@
 from decimal import Decimal
 
+from collections import defaultdict
+
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
+from django.db.models import F
 
 
 class Order(models.Model):
@@ -98,15 +101,60 @@ class Order(models.Model):
         Status.REFUNDED: set(),
     }
 
+    # Transitions after which the goods will never ship, so the stock that
+    # build_order reserved goes back on the shelf. PAID -> REFUNDED belongs
+    # here because SHIPPED -> REFUNDED is not allowed: a refunded order was
+    # never sent. Anything after shipping is a return, and whether a returned
+    # candle is sellable is a person's call, not this method's.
+    STOCK_RELEASING_TRANSITIONS = {
+        (Status.PENDING, Status.CANCELED),
+        (Status.PAID, Status.REFUNDED),
+    }
+
     def can_transition(self, new_status: str) -> bool:
         return new_status in self.ALLOWED_TRANSITIONS.get(self.status, set())
 
     def transition_to(self, new_status: str):
-        if not self.can_transition(new_status):
-            raise ValueError(f"Cannot transition from {self.status} to {new_status}")
+        """Move to `new_status`, releasing stock when the goods won't ship.
+
+        The row is re-read under a lock, so two concurrent cancels cannot
+        both pass the check and restore the stock twice.
+        """
+        with transaction.atomic():
+            locked = Order.objects.select_for_update().get(pk=self.pk)
+
+            if not locked.can_transition(new_status):
+                raise ValueError(
+                    f"Cannot transition from {locked.status} to {new_status}"
+                )
+
+            previous = locked.status
+            locked.status = new_status
+            locked.save(update_fields=["status", "updated_at"])
+
+            if (previous, new_status) in self.STOCK_RELEASING_TRANSITIONS:
+                locked._release_stock()
 
         self.status = new_status
-        self.save(update_fields=["status"])
+        self.updated_at = locked.updated_at
+
+    def _release_stock(self):
+        """Return every item's quantity to its variant. Call inside the
+        transaction that changed the status — never on its own."""
+        from candles.models import CandleVariant
+
+        per_variant = defaultdict(int)
+
+        for item in self.items.all():
+            # Every row has a variant since migration 0010; a null here would
+            # mean a row nobody can restock automatically.
+            if item.variant_id:
+                per_variant[item.variant_id] += item.quantity
+
+        for variant_id, quantity in per_variant.items():
+            CandleVariant.objects.filter(pk=variant_id).update(
+                stock_qty=F("stock_qty") + quantity
+            )
 
     def __str__(self) -> str:
         return f"Order #{self.id} ({self.status})"

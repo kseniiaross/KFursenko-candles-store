@@ -3,15 +3,6 @@ import pytest
 from cart.models import Cart, CartItem
 from cart.serializers import CartItemSerializer, MergeCartSerializer
 
-# Endpoints below use transaction.atomic()+select_for_update() (AddCartItemAPIView,
-# UpdateCartItemAPIView, MergeCartAPIView) which SQLite's backend does not support
-# (django.db.NotSupportedError). The test bodies are written and ready to run
-# against Postgres; they're skipped here because the suite runs on SQLite
-# (see pytest.ini / config/settings_test.py).
-SELECT_FOR_UPDATE_SKIP_REASON = (
-    "uses select_for_update() to lock variant/cart-item rows; "
-    "unsupported on the SQLite test database"
-)
 
 
 def _cart_item(cart, variant, quantity=1, is_gift=False):
@@ -66,7 +57,6 @@ class TestMyCartAPIView:
 # ======================================================
 # AddCartItemAPIView (POST /api/cart/items/add/)
 # ======================================================
-@pytest.mark.skip(reason=SELECT_FOR_UPDATE_SKIP_REASON)
 @pytest.mark.django_db
 class TestAddCartItemAPIView:
     url = "/api/cart/items/add/"
@@ -146,7 +136,6 @@ class TestAddCartItemAPIView:
 # ======================================================
 # UpdateCartItemAPIView (PATCH /api/cart/items/<item_id>/)
 # ======================================================
-@pytest.mark.skip(reason=SELECT_FOR_UPDATE_SKIP_REASON)
 @pytest.mark.django_db
 class TestUpdateCartItemAPIView:
     def url(self, item_id):
@@ -273,7 +262,6 @@ class TestClearCartAPIView:
 # ======================================================
 # MergeCartAPIView (POST /api/cart/merge/)
 # ======================================================
-@pytest.mark.skip(reason=SELECT_FOR_UPDATE_SKIP_REASON)
 @pytest.mark.django_db
 class TestMergeCartAPIView:
     url = "/api/cart/merge/"

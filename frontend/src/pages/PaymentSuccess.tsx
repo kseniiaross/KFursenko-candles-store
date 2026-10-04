@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { clearServerCart } from "../api/cart";
 import { clearCart } from "../store/cartSlice";
 import { useAppDispatch } from "../store/hooks";
+import { clearCheckoutOrder } from "../utils/checkoutOrder";
 
 import "../styles/PaymentSuccess.css";
 
@@ -18,6 +19,8 @@ const PaymentSuccess: React.FC = () => {
 
     async function clearAllCarts(): Promise<void> {
       dispatch(clearCart());
+      // The paid order must never be reused or cancelled by a later checkout.
+      clearCheckoutOrder();
 
       try {
         localStorage.removeItem("guest_cart_items");

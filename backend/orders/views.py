@@ -1,3 +1,6 @@
+import logging
+
+import stripe
 from django.db import transaction
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, permissions, status
@@ -8,9 +11,38 @@ from rest_framework.throttling import UserRateThrottle
 from cart.models import Cart, CartItem
 
 from .models import Order
+from .payments import IntentRelease, cancel_pending_order
 from .serializers import (OrderCreateSerializer, OrderFromCartSerializer,
                           OrderReadSerializer, OrderStatusUpdateSerializer,
                           build_order)
+
+logger = logging.getLogger(__name__)
+
+
+def _cancel_response(order):
+    """Cancel through the one path that closes the PaymentIntent first.
+
+    Shared by the shopper's cancel and the staff status endpoint so neither
+    can leave a cancelled order that is still payable.
+    """
+    try:
+        outcome = cancel_pending_order(order)
+    except ValueError as error:
+        raise ValidationError({"status": str(error)})
+    except stripe.StripeError:
+        logger.exception("Could not reach Stripe to cancel order %s", order.pk)
+        return Response(
+            {"detail": "Could not cancel the order right now. Please try again."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    if outcome is IntentRelease.IN_PROGRESS:
+        return Response(
+            {"detail": "A payment for this order is already being processed."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    return Response(OrderReadSerializer(order).data, status=status.HTTP_200_OK)
 
 
 class OrderCreateThrottle(UserRateThrottle):
@@ -218,9 +250,43 @@ class OrderStatusUpdateAPIView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         new_status = serializer.validated_data["status"]
 
+        if new_status == Order.Status.CANCELED:
+            return _cancel_response(order)
+
         try:
             order.transition_to(new_status)
         except ValueError as error:
             raise ValidationError({"status": str(error)})
 
         return Response(OrderReadSerializer(order).data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=["Orders"],
+    summary="Cancel my unpaid order",
+    description=(
+        "Cancels one of the shopper's own PENDING orders and returns its "
+        "stock. Checkout calls this when the basket, address or shipping "
+        "rate changes, before creating the replacement order.\n\n"
+        "400 if the order is no longer pending, 404 if it is not the "
+        "shopper's, 409 if a payment for it is already being processed."
+    ),
+    request=None,
+    responses={200: OrderReadSerializer},
+)
+class CancelMyOrderAPIView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderReadSerializer
+
+    def post(self, request, *args, **kwargs):
+        try:
+            order = Order.objects.get(pk=kwargs.get("pk"), user=request.user)
+        except Order.DoesNotExist:
+            return Response(
+                {"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if order.status != Order.Status.PENDING:
+            raise ValidationError({"status": "Only an unpaid order can be cancelled."})
+
+        return _cancel_response(order)

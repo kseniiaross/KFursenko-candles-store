@@ -6,15 +6,6 @@ from cart.models import Cart, CartItem
 from orders.models import Order, OrderItem
 from orders.serializers import OrderReadSerializer
 
-# CreateOrderAPIView (via OrderCreateSerializer) and CreateOrderFromCartAPIView both
-# use transaction.atomic()+select_for_update() to lock CandleVariant/CartItem rows,
-# which SQLite's backend does not support (django.db.NotSupportedError). The test
-# bodies are written and ready to run against Postgres; they're skipped here
-# because the suite runs on SQLite (see pytest.ini / config/settings_test.py).
-SELECT_FOR_UPDATE_SKIP_REASON = (
-    "uses select_for_update() to lock variant/cart-item rows; "
-    "unsupported on the SQLite test database"
-)
 
 VALID_SHIPPING = {
     "full_name": "Ada Lovelace",
@@ -38,7 +29,6 @@ def _order(user, status=Order.Status.PENDING, total="24.00"):
 # ======================================================
 # CreateOrderAPIView (POST /api/orders/)
 # ======================================================
-@pytest.mark.skip(reason=SELECT_FOR_UPDATE_SKIP_REASON)
 @pytest.mark.django_db
 class TestCreateOrderAPIView:
     url = "/api/orders/"
@@ -92,6 +82,7 @@ class TestCreateOrderAPIView:
             format="json",
         )
         assert response.status_code == 400
+        assert "items" in response.data
 
     def test_inactive_variant_rejected(self, auth_client, inactive_variant):
         response = auth_client.post(
@@ -103,6 +94,7 @@ class TestCreateOrderAPIView:
             format="json",
         )
         assert response.status_code == 400
+        assert "items" in response.data
 
     def test_nonexistent_variant_id_rejected(self, auth_client):
         response = auth_client.post(
@@ -111,6 +103,7 @@ class TestCreateOrderAPIView:
             format="json",
         )
         assert response.status_code == 400
+        assert "items" in response.data
 
 
 # ======================================================
@@ -169,7 +162,6 @@ class TestStaffOrdersAPIView:
 # ======================================================
 # CreateOrderFromCartAPIView (POST /api/orders/from-cart/)
 # ======================================================
-@pytest.mark.skip(reason=SELECT_FOR_UPDATE_SKIP_REASON)
 @pytest.mark.django_db
 class TestCreateOrderFromCartAPIView:
     url = "/api/orders/from-cart/"
@@ -178,9 +170,23 @@ class TestCreateOrderFromCartAPIView:
         response = api_client.post(self.url)
         assert response.status_code == 401
 
+    # The endpoint requires a shipping address. Every request below sends
+    # one, so a 400 can only come from the thing each test is about.
+    def _post(self, client):
+        return client.post(self.url, {"shipping": VALID_SHIPPING}, format="json")
+
+    def test_missing_shipping_is_invalid(self, auth_client, user, variant):
+        cart = Cart.objects.create(user=user)
+        CartItem.objects.create(cart=cart, variant=variant, quantity=1)
+
+        response = auth_client.post(self.url)
+
+        assert response.status_code == 400
+        assert "shipping" in response.data
+
     def test_empty_cart_is_invalid(self, auth_client, user):
         Cart.objects.create(user=user)
-        response = auth_client.post(self.url)
+        response = self._post(auth_client)
         assert response.status_code == 400
         assert "cart" in response.data
 
@@ -190,7 +196,7 @@ class TestCreateOrderFromCartAPIView:
         cart = Cart.objects.create(user=user)
         CartItem.objects.create(cart=cart, variant=variant, quantity=3)
 
-        response = auth_client.post(self.url)
+        response = self._post(auth_client)
 
         assert response.status_code == 201
         assert len(response.data["items"]) == 1
@@ -204,17 +210,19 @@ class TestCreateOrderFromCartAPIView:
         cart = Cart.objects.create(user=user)
         CartItem.objects.create(cart=cart, variant=variant, quantity=999)
 
-        response = auth_client.post(self.url)
+        response = self._post(auth_client)
 
         assert response.status_code == 400
+        assert "items" in response.data
 
     def test_inactive_variant_rejected(self, auth_client, user, inactive_variant):
         cart = Cart.objects.create(user=user)
         CartItem.objects.create(cart=cart, variant=inactive_variant, quantity=1)
 
-        response = auth_client.post(self.url)
+        response = self._post(auth_client)
 
         assert response.status_code == 400
+        assert "items" in response.data
 
 
 # ======================================================

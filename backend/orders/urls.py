@@ -1,8 +1,9 @@
 from django.urls import path
 
-from .views import (CreateOrderAPIView, CreateOrderFromCartAPIView,
-                    MyOrdersAPIView, OrderDetailAPIView,
-                    OrderStatusUpdateAPIView, StaffOrdersAPIView)
+from .views import (CancelMyOrderAPIView, CreateOrderAPIView,
+                    CreateOrderFromCartAPIView, MyOrdersAPIView,
+                    OrderDetailAPIView, OrderStatusUpdateAPIView,
+                    StaffOrdersAPIView)
 from .views_offers import OfferProgressAPIView
 from .views_stripe import CreatePaymentIntentView, stripe_webhook
 
@@ -21,6 +22,11 @@ urlpatterns = [
         "<int:pk>/status/",
         OrderStatusUpdateAPIView.as_view(),
         name="order-status-update",
+    ),
+    path(
+        "<int:pk>/cancel/",
+        CancelMyOrderAPIView.as_view(),
+        name="order-cancel",
     ),
     path(
         "create-intent/",

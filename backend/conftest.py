@@ -1,9 +1,19 @@
 import pytest
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from candles.models import Candle, CandleVariant, Category
 from orders.models import Order
+
+
+@pytest.fixture(autouse=True)
+def fresh_throttles():
+    """DRF throttles count requests in the default cache, which outlives a
+    single test. Without this, one test's order creations use up the next
+    test's quota and it gets a 429 instead of the response it is about."""
+    cache.clear()
+    yield
 
 
 @pytest.fixture

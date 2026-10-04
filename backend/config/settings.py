@@ -15,10 +15,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ------------------------------------------------------------
 # Core security
 # ------------------------------------------------------------
-SECRET_KEY = config(
-    "SECRET_KEY",
-    default="django-insecure-+u3x!jorapg=_t+61hsh4$n-7qlyk6wclxyz(x3mjksw^3vz$v",
-)
+# No default on purpose. This key also signs every JWT, and the repository
+# has been public, so any fallback written here is known to everyone: a
+# deployment that lost the variable would start normally and accept forged
+# staff tokens. Without a default, a missing key stops the process at
+# startup instead.
+SECRET_KEY = config("SECRET_KEY")
 
 DEBUG = config("DEBUG", default=False, cast=bool)
 

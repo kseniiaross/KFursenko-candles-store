@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale } from "@stripe/stripe-js";
@@ -8,6 +9,11 @@ import api from "../api/axiosInstance";
 import CheckoutPaymentBlock from "../components/CheckoutPaymentBlock";
 import ShippingRates, { type ShippingRate } from "../components/ShippingRates";
 import { useAppSelector } from "../store/hooks";
+import {
+  clearCheckoutOrder,
+  loadCheckoutOrder,
+  saveCheckoutOrder,
+} from "../utils/checkoutOrder";
 import { PROFILE_STORAGE_KEY } from "./Profile";
 import i18n from "../i18n";
 
@@ -166,6 +172,100 @@ function getErrorMessage(error: unknown): string {
   return fallback;
 }
 
+/* ================= ORDER REUSE =================
+   An order is defined by exactly what POST /orders/ receives: the items,
+   the address and the shipping rate. If the shopper clicks again and that
+   body is identical, the existing order is reused — no second stock
+   reservation, and a first order keeps its welcome discount. If anything in
+   it differs, the old order is cancelled (which returns its stock) and a new
+   one is created. Comparing the request body is the whole rule. */
+
+type OrderPayload = {
+  items: Array<{ variant_id: number; quantity: number; is_gift: boolean }>;
+  shipping: Record<string, string>;
+  shipping_rate_id: string;
+};
+
+type OrderData = {
+  id: number;
+  status?: string;
+  shipping_amount?: unknown;
+  discount_amount?: unknown;
+  discount_label?: unknown;
+};
+
+/** Everything the server returned for the order behind the payment form,
+ *  tagged with the request that produced it. */
+type PreparedOrder = {
+  key: string;
+  orderId: number;
+  clientSecret: string;
+  shipping: number;
+  discount: number;
+  discountLabel: string;
+  tax: number;
+  total: number | null;
+};
+
+/** Shown instead of the generic message: the shopper should wait, not edit. */
+class CheckoutBlockedError extends Error {}
+
+async function fetchPendingOrder(orderId: number): Promise<OrderData | null> {
+  try {
+    const response = await api.get(`/orders/${orderId}/`);
+    return response.data?.status === "pending"
+      ? { ...response.data, id: orderId }
+      : null;
+  } catch {
+    // Gone, or belongs to whoever was signed in before: start afresh.
+    return null;
+  }
+}
+
+async function cancelSupersededOrder(orderId: number): Promise<void> {
+  try {
+    await api.post(`/orders/${orderId}/cancel/`);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 409) {
+      throw new CheckoutBlockedError(
+        "Your previous payment is still being processed. Please wait a moment before changing your order."
+      );
+    }
+    // 400 (already paid or cancelled), 404 (not this shopper's) or Stripe
+    // trouble: the old order is settled, or the expiry job will cancel it.
+    // Neither should stop the shopper placing the order they now want.
+  }
+}
+
+async function reuseOrCreateOrder(
+  payload: OrderPayload,
+  key: string
+): Promise<OrderData> {
+  const saved = loadCheckoutOrder();
+
+  if (saved) {
+    if (saved.key === key) {
+      const existing = await fetchPendingOrder(saved.orderId);
+      if (existing) return existing;
+    } else {
+      await cancelSupersededOrder(saved.orderId);
+    }
+
+    clearCheckoutOrder();
+  }
+
+  const response = await api.post("/orders/", payload);
+  const orderId = Number(response.data?.id);
+
+  if (!orderId) {
+    throw new Error("Could not create order.");
+  }
+
+  saveCheckoutOrder({ orderId, key });
+
+  return { ...response.data, id: orderId };
+}
+
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY as
   | string
   | undefined;
@@ -187,10 +287,6 @@ const Checkout: React.FC = () => {
   );
 
   const [loading, setLoading] = useState(false);
-  const [clientSecret, setClientSecret] = useState("");
-  const [orderId, setOrderId] = useState<number | null>(null);
-  const [tax, setTax] = useState<number | null>(null);
-  const [total, setTotal] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   /** The rate the shopper picked. Only its id travels to the server —
@@ -198,15 +294,11 @@ const Checkout: React.FC = () => {
    *  from this page would change nothing. */
   const [selectedRate, setSelectedRate] = useState<ShippingRate | null>(null);
 
-  /** What the order actually ended up charging for shipping. May differ
-   *  from the picked rate when the carrier API was unreachable and the
-   *  server fell back to its flat rate. */
-  const [serverShipping, setServerShipping] = useState<number | null>(null);
-
-  /** Worked out by the server when the order is created. The storefront
-   *  only displays it — a percentage sent from here would be forgeable. */
-  const [discount, setDiscount] = useState(0);
-  const [discountLabel, setDiscountLabel] = useState("");
+  /** The order behind the payment form, as the server priced it. Shipping
+   *  may differ from the picked rate when the carrier API was unreachable
+   *  and the server fell back to its flat rate; the discount is worked out
+   *  server-side — a percentage sent from here would be forgeable. */
+  const [prepared, setPrepared] = useState<PreparedOrder | null>(null);
 
   const savedProfile = useMemo(() => loadProfileFromStorage(), []);
 
@@ -274,6 +366,40 @@ const Checkout: React.FC = () => {
     [form]
   );
 
+  /** Exactly what POST /orders/ will receive. Items are sorted so the same
+   *  basket always serialises the same way, whatever order it was built in. */
+  const orderPayload = useMemo<OrderPayload>(
+    () => ({
+      items: [...items]
+        .sort((a, b) => a.variant_id - b.variant_id)
+        .map((item) => ({
+          variant_id: item.variant_id,
+          quantity: item.quantity,
+          is_gift: Boolean(item.isGift),
+        })),
+      shipping: rateAddress,
+      // Empty when the carrier API was unreachable; the server then
+      // falls back to its flat rate rather than failing the sale.
+      shipping_rate_id: selectedRate?.rate_id ?? "",
+    }),
+    [items, rateAddress, selectedRate]
+  );
+
+  const orderKey = useMemo(() => JSON.stringify(orderPayload), [orderPayload]);
+
+  /** The prepared order only counts while the form still describes it. Any
+   *  edit to the basket, address or rate takes the payment form away, so a
+   *  corrected address can never be paid against the old order. */
+  const current = prepared && prepared.key === orderKey ? prepared : null;
+
+  const orderId = current?.orderId ?? null;
+  const clientSecret = current?.clientSecret ?? "";
+  const serverShipping = current ? current.shipping : null;
+  const discount = current?.discount ?? 0;
+  const discountLabel = current?.discountLabel ?? "";
+  const tax = current ? current.tax : null;
+  const total = current ? current.total : null;
+
   // Stable identity, or ShippingRates would rebuild its fetch on every
   // render and defeat the debounce.
   const handleRateSelect = useCallback((rate: ShippingRate | null) => {
@@ -333,42 +459,20 @@ const Checkout: React.FC = () => {
   const createOrderAndIntent = async (): Promise<void> => {
     if (!canPreparePayment || loading) return;
 
+    // Captured now: the form can change while the requests are in flight,
+    // and the result must be tagged with the request that produced it.
+    const payload = orderPayload;
+    const key = orderKey;
+
     setLoading(true);
     setErrorMsg("");
-    setClientSecret("");
-    setOrderId(null);
-    setTax(null);
-    setTotal(null);
-    setServerShipping(null);
-    setDiscount(0);
-    setDiscountLabel("");
+    setPrepared(null);
 
     try {
-      const orderResponse = await api.post("/orders/", {
-        items: items.map((item) => ({
-          variant_id: item.variant_id,
-          quantity: item.quantity,
-          is_gift: Boolean(item.isGift),
-        })),
-        shipping: rateAddress,
-        // Empty when the carrier API was unreachable; the server then
-        // falls back to its flat rate rather than failing the sale.
-        shipping_rate_id: selectedRate?.rate_id ?? "",
-      });
-
-      const createdOrderId = Number(orderResponse.data?.id);
-
-      if (!createdOrderId) {
-        throw new Error("Could not create order.");
-      }
-
-      setOrderId(createdOrderId);
-      setServerShipping(Number(orderResponse.data?.shipping_amount) || 0);
-      setDiscount(Number(orderResponse.data?.discount_amount) || 0);
-      setDiscountLabel(String(orderResponse.data?.discount_label ?? ""));
+      const order = await reuseOrCreateOrder(payload, key);
 
       const intentResponse = await api.post("/orders/create-intent/", {
-        order_id: createdOrderId,
+        order_id: order.id,
       });
 
       const clientSecretValue = intentResponse.data?.client_secret;
@@ -377,12 +481,23 @@ const Checkout: React.FC = () => {
         throw new Error("Payment initialization failed.");
       }
 
-      setClientSecret(clientSecretValue);
-      setTax(Number(intentResponse.data?.tax_amount) || 0);
-      setTotal(Number(intentResponse.data?.total_amount) || null);
+      setPrepared({
+        key,
+        orderId: order.id,
+        clientSecret: clientSecretValue,
+        shipping: Number(order.shipping_amount) || 0,
+        discount: Number(order.discount_amount) || 0,
+        discountLabel: String(order.discount_label ?? ""),
+        tax: Number(intentResponse.data?.tax_amount) || 0,
+        total: Number(intentResponse.data?.total_amount) || null,
+      });
     } catch (error) {
       console.error("Checkout error:", error);
-      setErrorMsg(getErrorMessage(error));
+      setErrorMsg(
+        error instanceof CheckoutBlockedError
+          ? error.message
+          : getErrorMessage(error)
+      );
     } finally {
       setLoading(false);
     }
