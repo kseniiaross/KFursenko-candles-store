@@ -78,6 +78,11 @@ export interface CandleVariant {
   id: number;
   size: string;
   price: string;
+  /** What one of these costs the signed-in shopper (or a guest), worked out
+   *  by the server with the same function checkout charges with. Equal to
+   *  `price` when no offer applies to a single unit. Show this, never a
+   *  discount computed here. */
+  display_price: string;
   stock_qty: number;
   is_active: boolean;
 }

@@ -6,6 +6,7 @@ import { addToCart as addToCartApi } from "../api/cart";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 import type { CartLine } from "../store/cartSlice";
+import Price from "./Price";
 
 import "../styles/OfferModal.css";
 
@@ -16,6 +17,8 @@ type Suggestion = {
   slug: string;
   size: string;
   price: string;
+  /** What one costs this shopper at checkout, from the server. */
+  display_price: string;
   image: string;
 };
 
@@ -286,7 +289,11 @@ const OfferModal: React.FC = () => {
                   <span className="offerCard__name">{suggestion.name}</span>
 
                   <span className="offerCard__meta">
-                    {suggestion.size} · ${Number(suggestion.price).toFixed(2)}
+                    {suggestion.size} ·{" "}
+                    <Price
+                      price={suggestion.price}
+                      discountPrice={suggestion.display_price}
+                    />
                   </span>
 
                   {held > 0 && (

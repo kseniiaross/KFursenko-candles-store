@@ -159,6 +159,15 @@ const CatalogDetail: React.FC = () => {
     return Number(variant.price) || 0;
   }, [variant]);
 
+  /** The selected variant's own checkout price, from the server. The
+   *  candle-level discount_price is the cheapest variant's, so it would be
+   *  wrong for any other size. Null when there is no sale. */
+  const salePrice = useMemo(() => {
+    if (!variant) return null;
+    const shown = Number(variant.display_price);
+    return Number.isFinite(shown) && shown < price ? shown : null;
+  }, [variant, price]);
+
   const gallery = useMemo(() => {
     if (!item) return [];
 
@@ -289,13 +298,13 @@ const CatalogDetail: React.FC = () => {
               <h1 className="catalogDetail__title">{item.name}</h1>
 
                             <div className="catalogDetail__priceRow">
-                {item.discount_price ? (
+                {salePrice !== null ? (
                   <>
                     <span className="catalogDetail__priceWas">
                       ${price.toFixed(2)}
                     </span>
                     <span className="catalogDetail__price catalogDetail__price--sale">
-                      ${Number(item.discount_price).toFixed(2)}
+                      ${salePrice.toFixed(2)}
                     </span>
                   </>
                 ) : (

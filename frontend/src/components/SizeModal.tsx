@@ -3,6 +3,7 @@ import { addToCart as addToCartApi } from "../api/cart";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 import { closeSizeModal } from "../store/modalSlice";
+import Price from "./Price";
 
 import "../styles/SizeModal.css";
 
@@ -99,7 +100,15 @@ const SizeModal: React.FC = () => {
                 <span className="sizeModal__size">{variant.size}</span>
 
                 <span className="sizeModal__price">
-                  {isAdding ? "Adding..." : `$${variant.price}`}
+                  {isAdding ? (
+                    "Adding..."
+                  ) : (
+                    // Same price the card shows and checkout charges for one.
+                    <Price
+                      price={variant.price}
+                      discountPrice={variant.display_price}
+                    />
+                  )}
                 </span>
               </button>
             );
