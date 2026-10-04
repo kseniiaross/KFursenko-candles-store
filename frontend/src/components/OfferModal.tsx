@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import api from "../api/axiosInstance";
@@ -44,6 +44,16 @@ const OfferModal: React.FC = () => {
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
   const cartItems = useAppSelector(
     (state) => (state.cart.items ?? []) as CartLine[]
+  );
+
+  /** Quantity already in the basket, by variant. The server lists those
+   *  variants first; picking one adds to the same line. */
+  const heldByVariant = useMemo(
+    () =>
+      new Map(
+        cartItems.map((item) => [Number(item.variant_id), Number(item.quantity) || 0])
+      ),
+    [cartItems]
   );
 
   const [promotion, setPromotion] = useState<Promotion | null>(null);
@@ -248,40 +258,52 @@ const OfferModal: React.FC = () => {
         </header>
 
         <ul className="offerModal__grid" role="list">
-          {promotion.suggestions.map((suggestion) => (
-            <li key={suggestion.variant_id} className="offerCard">
-              <button
-                type="button"
-                className="offerCard__btn"
-                onClick={() => void onPick(suggestion)}
-                disabled={adding !== null}
-              >
-                <span className="offerCard__media">
-                  {suggestion.image ? (
-                    <img
-                      src={suggestion.image}
-                      alt=""
-                      className="offerCard__img"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <span className="offerCard__img offerCard__img--empty" />
+          {promotion.suggestions.map((suggestion) => {
+            const held = heldByVariant.get(suggestion.variant_id) ?? 0;
+
+            return (
+              <li key={suggestion.variant_id} className="offerCard">
+                <button
+                  type="button"
+                  className="offerCard__btn"
+                  onClick={() => void onPick(suggestion)}
+                  disabled={adding !== null}
+                >
+                  <span className="offerCard__media">
+                    {suggestion.image ? (
+                      <img
+                        src={suggestion.image}
+                        alt=""
+                        className="offerCard__img"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <span className="offerCard__img offerCard__img--empty" />
+                    )}
+                  </span>
+
+                  <span className="offerCard__name">{suggestion.name}</span>
+
+                  <span className="offerCard__meta">
+                    {suggestion.size} · ${Number(suggestion.price).toFixed(2)}
+                  </span>
+
+                  {held > 0 && (
+                    <span className="offerCard__held">In your basket ×{held}</span>
                   )}
-                </span>
 
-                <span className="offerCard__name">{suggestion.name}</span>
-
-                <span className="offerCard__meta">
-                  {suggestion.size} · ${Number(suggestion.price).toFixed(2)}
-                </span>
-
-                <span className="offerCard__action">
-                  {adding === suggestion.variant_id ? "Adding…" : "Add"}
-                </span>
-              </button>
-            </li>
-          ))}
+                  <span className="offerCard__action">
+                    {adding === suggestion.variant_id
+                      ? "Adding…"
+                      : held > 0
+                        ? "Add another"
+                        : "Add"}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
 
         <footer className="offerModal__footer">

@@ -170,6 +170,15 @@
   opacity: 0.6;
 }
 
+/* Full-strength text, not the faded meta line: it's the reason this card
+   is at the front of the list. */
+.offerCard__held {
+  display: block;
+  padding: 0 10px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
 .offerCard__action {
   display: block;
   padding: 0 10px;

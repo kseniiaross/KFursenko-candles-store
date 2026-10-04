@@ -59,8 +59,9 @@ def _serialize_suggestion(variant) -> dict:
         "buy-two-get-three offer the basket has partly earned.\n\n"
         'Body: {"items": [{"variant_id": 12, "quantity": 2}]}\n\n'
         "`needed` is how many more qualifying candles complete the next "
-        "trio. `suggestions` lists candles that would count, excluding "
-        "what is already in the cart."
+        "trio. `suggestions` lists up to six candles that would count: the "
+        "basket's own qualifying variants first (most-held first, when "
+        "there is stock for one more), then every other eligible candle."
     ),
     request=OfferProgressRequestSerializer,
 )
@@ -88,7 +89,7 @@ class OfferProgressAPIView(APIView):
 
         offers = get_active_offers()
 
-        # offer pk -> {"offer": Offer, "count": int, "candle_ids": set}
+        # offer pk -> {"offer": Offer, "count": int, "in_basket": [(variant, qty)]}
         buckets: dict[int, dict] = {}
 
         for variant in variants:
@@ -98,11 +99,11 @@ class OfferProgressAPIView(APIView):
                 continue
 
             bucket = buckets.setdefault(
-                offer.pk, {"offer": offer, "count": 0, "candle_ids": set()}
+                offer.pk, {"offer": offer, "count": 0, "in_basket": []}
             )
 
             bucket["count"] += quantities[variant.id]
-            bucket["candle_ids"].add(variant.candle_id)
+            bucket["in_basket"].append((variant, quantities[variant.id]))
 
         promotions = []
 
@@ -125,29 +126,49 @@ class OfferProgressAPIView(APIView):
                     "needed": 3 - remainder,
                     "free_so_far": count // 3,
                     "suggestions": self._suggestions(
-                        offer, offers, bucket["candle_ids"]
+                        offer, offers, bucket["in_basket"]
                     ),
                 }
             )
 
         return Response({"promotions": promotions}, status=status.HTTP_200_OK)
 
-    def _suggestions(self, offer, offers, exclude_candle_ids):
+    def _suggestions(self, offer, offers, in_basket):
         """Candles that would count towards this offer's next trio.
 
-        Candles already in the cart are left out: the shopper can raise
-        their quantity from the cart itself, and repeating them here
-        makes the prompt look like it did not read the basket.
+        Candles already in the basket come first — another of the same scent
+        is the likeliest third pick — as the exact variant the basket holds,
+        so picking one raises that line's quantity rather than adding a
+        second line in a different size. Most-held first. They are left out
+        when there is no stock for one more.
+
+        Then every other eligible candle, one variant each. The basket's
+        candles aren't repeated there.
         """
+        picked = []
+
+        for variant, quantity in sorted(
+            in_basket, key=lambda pair: (-pair[1], pair[0].candle.name)
+        ):
+            if (
+                variant.is_active
+                and not variant.candle.is_sold_out
+                and variant.stock_qty > quantity
+            ):
+                picked.append(_serialize_suggestion(variant))
+
+        if len(picked) >= MAX_SUGGESTIONS:
+            return picked[:MAX_SUGGESTIONS]
+
+        basket_candle_ids = {variant.candle_id for variant, _ in in_basket}
+
         candidates = (
-            Candle.objects.exclude(id__in=exclude_candle_ids)
+            Candle.objects.exclude(id__in=basket_candle_ids)
             .filter(is_sold_out=False)
             .select_related("category")
             .prefetch_related("collections", "offers", "variants")
             .order_by("-is_bestseller", "name")
         )
-
-        picked = []
 
         for candle in candidates:
             if campaign_offer_for(candle, offers) is not offer:

@@ -6,15 +6,11 @@
   position: fixed;
   inset: 0;
   z-index: 500;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 20px;
-
   background: rgba(0, 0, 0, 0.35);
-
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -25,18 +21,11 @@
 
 .sizeModal {
   position: relative;
-
   width: 100%;
   max-width: 420px;
-
   padding: 36px 32px;
-
-  background: rgba(244, 236, 223, 0.95);
-
-  border-radius: 14px;
-
+  background: #ffffff;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-
   font-family: "Times New Roman", Times, serif;
 }
 
@@ -53,20 +42,15 @@
   position: absolute;
   top: 14px;
   right: 14px;
-
   width: 32px;
   height: 32px;
-
   border: none;
   background: transparent;
-
   font-size: 22px;
   line-height: 1;
   color: inherit;
-
   cursor: pointer;
   opacity: 0.6;
-
   transition: opacity 150ms ease;
 }
 
@@ -110,20 +94,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-
   padding: 14px 18px;
-
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.1);
-
   background: #ffffff;
   color: inherit;
-
   font-family: "Times New Roman", Times, serif;
   font-size: 0.95rem;
-
   cursor: pointer;
-
   transition:
     transform 150ms ease,
     box-shadow 150ms ease,
