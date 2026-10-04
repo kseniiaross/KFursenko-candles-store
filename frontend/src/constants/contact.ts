@@ -1,0 +1,1 @@
+export const SUPPORT_EMAIL = "k.fursenko.hc@gmail.com";

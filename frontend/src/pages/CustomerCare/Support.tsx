@@ -1,6 +1,8 @@
 import React from "react";
 import "../../styles/CustomerCare/Support.css";
 
+import { SUPPORT_EMAIL } from "../../constants/contact";
+
 const Support: React.FC = () => {
   return (
     <main className="cc-page">
@@ -107,8 +109,8 @@ const Support: React.FC = () => {
                 as possible and include all relevant details in your message.
                 <br />
                 Contact email:{" "}
-                <a href="mailto:k.fursenko.hc@gmail.com">
-                    k.fursenko.hc@gmail.com
+                <a href={`mailto:${SUPPORT_EMAIL}`}>
+                    {SUPPORT_EMAIL}
                 </a>
                 </p>
           </div>

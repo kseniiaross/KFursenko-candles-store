@@ -10,8 +10,8 @@ from rest_framework import permissions, status, throttling
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .emails import send_order_confirmation_email
 from .models import Order
+from .payments import refund_unfulfillable_payment
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +193,59 @@ class CreatePaymentIntentView(APIView):
             )
 
 
+def _payment_succeeded(order_id, intent_id, intent_data):
+    """Settle a successful payment according to where the order is now.
+
+    Stripe delivers webhooks at least once and retries for days, so this
+    sees the same event more than once and must only ever move an order
+    forward:
+
+    * PENDING  -> PAID. The normal case.
+    * PAID, SHIPPED, COMPLETED -> nothing. A redelivery; writing PAID here
+      used to roll shipped orders back.
+    * CANCELED, REFUNDED -> the shopper paid for an order that will never
+      ship and whose stock is already back on sale. Refund automatically and
+      raise a PaymentIncident so a person sees it the same day.
+    """
+    with transaction.atomic():
+        order = (
+            Order.objects.select_for_update()
+            .filter(id=order_id, stripe_payment_intent_id=intent_id)
+            .first()
+        )
+
+        if order is None:
+            logger.warning(
+                "payment_intent.succeeded for order %s / intent %s matched no order.",
+                order_id,
+                intent_id,
+            )
+            return HttpResponse(status=200)
+
+        if order.status == Order.Status.PENDING:
+            order.transition_to(Order.Status.PAID)
+            return HttpResponse(status=200)
+
+        if order.status not in (Order.Status.CANCELED, Order.Status.REFUNDED):
+            logger.info(
+                "payment_intent.succeeded redelivered for order %s (%s); ignoring.",
+                order.pk,
+                order.status,
+            )
+            return HttpResponse(status=200)
+
+    # Outside the lock: the refund is a network call, and the incident row
+    # it writes is unique per intent, which is what makes a redelivery safe.
+    try:
+        refund_unfulfillable_payment(order, intent_id, intent_data)
+    except stripe.StripeError:
+        # Recorded and alerted already. 500 makes Stripe redeliver, which
+        # retries the refund.
+        return HttpResponse(status=500)
+
+    return HttpResponse(status=200)
+
+
 @csrf_exempt
 def stripe_webhook(request):
     if request.method != "POST":
@@ -235,32 +288,14 @@ def stripe_webhook(request):
         return HttpResponse(status=200)
 
     if event_type == "payment_intent.succeeded":
-        order_to_email = None
-
-        with transaction.atomic():
-            order = (
-                Order.objects.select_for_update()
-                .select_related("user")
-                .prefetch_related("items")
-                .filter(id=order_id, stripe_payment_intent_id=intent_id)
-                .first()
-            )
-
-            if order and order.status != Order.Status.PAID:
-                order.status = Order.Status.PAID
-                order.save(update_fields=["status", "updated_at"])
-                order_to_email = order
-
-        # Outside the transaction: an SMTP timeout must not roll back a
-        # payment we have already taken.
-        if order_to_email:
-            try:
-                send_order_confirmation_email(order_to_email)
-            except Exception:
-                logger.exception(
-                    "Order confirmation email failed for order_id=%s",
-                    order_to_email.id,
-                )
+        # No confirmation email is sent from here, on purpose. The shop sends
+        # order confirmations by hand, and tracking emails come from Shippo.
+        # The old automatic send rendered emails/orders/order_confirmation.txt
+        # with a context that filled none of its variables, so every paying
+        # customer got a blank order number, total and address. Do not
+        # reinstate a send here without building the context that template
+        # actually uses (see the note at the top of the template).
+        return _payment_succeeded(order_id, intent_id, data)
 
     elif event_type == "payment_intent.payment_failed":
         # A declined card is not a cancelled order. Cancelling here is

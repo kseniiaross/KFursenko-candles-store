@@ -1,15 +1,22 @@
-"""Closing an order's PaymentIntent before the order itself is cancelled.
+"""Stripe-side money handling for orders that won't ship.
 
-Order matters: cancel the intent first, then the order. The other way round,
-a payment form still open in another tab could complete after the stock has
-gone back on the shelf, and the webhook would mark a cancelled order paid.
+Two jobs:
+
+* Closing an order's PaymentIntent before the order itself is cancelled.
+  Order matters: cancel the intent first, then the order. The other way
+  round, a payment form still open in another tab could complete after the
+  stock has gone back on the shelf.
+* Refunding a payment that succeeded anyway on an order that is already
+  CANCELED or REFUNDED — and making sure a person hears about it.
 """
 
 import enum
 import logging
+from decimal import Decimal
 
 import stripe
 from django.conf import settings
+from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -116,3 +123,155 @@ def cancel_pending_order(order) -> IntentRelease:
 
     order.transition_to(Order.Status.CANCELED)
     return outcome
+
+
+# ======================================================
+# PAYMENTS ON ORDERS THAT WON'T SHIP
+# ======================================================
+def refund_unfulfillable_payment(order, intent_id: str, intent_data: dict):
+    """Refund a payment that succeeded on a CANCELED or REFUNDED order.
+
+    Records a PaymentIncident and alerts staff. Safe to call again for the
+    same intent (Stripe redelivers webhooks): it finds the existing incident,
+    doesn't refund twice, and only alerts when the outcome changes.
+
+    Returns the incident, or None when Stripe says the money was already
+    refunded (a redelivery after a refund someone made by hand — nothing
+    went wrong). Re-raises stripe.StripeError after recording a failed
+    refund, so the webhook can answer 500 and Stripe retries later.
+    """
+    from .models import Order, PaymentIncident
+
+    kind = (
+        PaymentIncident.Kind.PAID_AFTER_REFUND
+        if order.status == Order.Status.REFUNDED
+        else PaymentIncident.Kind.PAID_AFTER_CANCEL
+    )
+    amount = (Decimal(int(intent_data.get("amount_received") or 0)) / 100).quantize(
+        Decimal("0.01")
+    )
+    currency = (intent_data.get("currency") or order.currency or "usd").lower()
+
+    incident = PaymentIncident.objects.filter(
+        stripe_payment_intent_id=intent_id
+    ).first()
+
+    if incident and incident.outcome == PaymentIncident.Outcome.REFUNDED:
+        return incident
+
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+
+    try:
+        refund = stripe.Refund.create(
+            payment_intent=intent_id,
+            # Shown on the refund in the Stripe dashboard.
+            metadata={"order_id": str(order.pk), "reason": kind},
+            idempotency_key=f"unfulfillable-{intent_id}",
+        )
+    except stripe.InvalidRequestError as error:
+        if getattr(error, "code", None) == "charge_already_refunded":
+            logger.info(
+                "Payment %s on order %s was already refunded; nothing to do.",
+                intent_id,
+                order.pk,
+            )
+            if incident:
+                incident.outcome = PaymentIncident.Outcome.REFUNDED
+                incident.detail = "Already refunded at Stripe (by hand or an earlier attempt)."
+                incident.save(update_fields=["outcome", "detail", "updated_at"])
+            return incident
+        _record_failure(order, intent_id, kind, amount, currency, incident, error)
+        raise
+    except stripe.StripeError as error:
+        _record_failure(order, intent_id, kind, amount, currency, incident, error)
+        raise
+
+    if incident is None:
+        incident = PaymentIncident(
+            order=order,
+            stripe_payment_intent_id=intent_id,
+            kind=kind,
+            amount=amount,
+            currency=currency,
+        )
+
+    incident.outcome = PaymentIncident.Outcome.REFUNDED
+    incident.stripe_refund_id = refund.id
+    incident.detail = ""
+    incident.save()
+
+    _alert(incident)
+    return incident
+
+
+def _record_failure(order, intent_id, kind, amount, currency, incident, error):
+    """Keep one row per payment; alert only the first time it fails, so a
+    Stripe outage retried for three days doesn't send hundreds of emails."""
+    from .models import PaymentIncident
+
+    if incident is None:
+        incident = PaymentIncident.objects.create(
+            order=order,
+            stripe_payment_intent_id=intent_id,
+            kind=kind,
+            outcome=PaymentIncident.Outcome.REFUND_FAILED,
+            amount=amount,
+            currency=currency,
+            detail=str(error),
+        )
+        _alert(incident)
+    else:
+        incident.detail = str(error)
+        incident.save(update_fields=["detail", "updated_at"])
+
+
+def _alert(incident):
+    """Tell a person, today. Logged at ERROR, and emailed to SUPPORT_EMAIL.
+
+    The email is best-effort: with no SMTP credentials in production,
+    settings.py falls back to the console backend and this lands in the log
+    only. The PaymentIncident row in the admin is the record that can't be
+    lost.
+    """
+    order = incident.order
+    refunded = incident.outcome == incident.Outcome.REFUNDED
+
+    subject = (
+        f"[KFursenko] Refunded {incident.amount} {incident.currency.upper()} "
+        f"paid on {order.get_status_display().lower()} order #{order.pk}"
+        if refunded
+        else f"[KFursenko] ACTION NEEDED: refund failed for order #{order.pk}"
+    )
+    body = "\n".join(
+        [
+            incident.get_kind_display() + ".",
+            "",
+            f"Order:           #{order.pk} ({order.get_status_display()})",
+            f"Amount:          {incident.amount} {incident.currency.upper()}",
+            f"PaymentIntent:   {incident.stripe_payment_intent_id}",
+            f"Refund:          {incident.stripe_refund_id or '— none —'}",
+            f"Outcome:         {incident.get_outcome_display()}",
+            *([f"Stripe said:     {incident.detail}"] if incident.detail else []),
+            "",
+            "The order stays as it is and its stock has already been returned.",
+            (
+                "The customer has their money back; check the refund in the Stripe dashboard."
+                if refunded
+                else "Refund this payment by hand in the Stripe dashboard, then mark the incident resolved."
+            ),
+            f"Admin: /admin/orders/paymentincident/{incident.pk}/change/",
+        ]
+    )
+
+    logger.error("%s\n%s", subject, body)
+
+    try:
+        send_mail(
+            subject,
+            body,
+            settings.DEFAULT_FROM_EMAIL,
+            [settings.SUPPORT_EMAIL],
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception("Could not email the payment incident alert for order %s", order.pk)

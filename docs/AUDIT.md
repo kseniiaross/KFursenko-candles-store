@@ -288,7 +288,9 @@ All correct for their purpose. Staff-only views (`StaffOrdersAPIView`, `OrderSta
 
 Found while fixing the order lifecycle (order reuse, stock restoration, intent cancellation). Not fixed yet.
 
-### F1. SERIOUS — the Stripe webhook marks any order PAID, whatever its status, and re-sends the confirmation
+### F1. SERIOUS — the Stripe webhook marks any order PAID, whatever its status
+
+**Status 2026-10-04: mostly fixed.** The webhook now moves only PENDING → PAID (through `Order.transition_to`) and ignores redeliveries on PAID, SHIPPED and COMPLETED. A payment on a CANCELED or REFUNDED order is refunded automatically and recorded as a `PaymentIncident`: it's shown in the admin and on the order, emailed to `SUPPORT_EMAIL` and logged at ERROR. **Still open:** item 3 below, comparing `amount_received` with the order total.
 
 **Where:** `orders/views_stripe.py:237-263`, the `payment_intent.succeeded` branch:
 
@@ -303,7 +305,7 @@ The guard only excludes PAID. It writes the status directly, bypassing `Order.tr
 
 **What breaks, and when:**
 
-- **Redelivered events roll a shipped order back.** Stripe delivers webhooks *at least once*. It retries for up to three days after a timeout or 5xx, and the dashboard can resend any event. A `succeeded` event that arrives again after the order has moved on turns SHIPPED or COMPLETED back into PAID, and the shopper gets a second "Order confirmed" email. Nothing stops this today; it only needs one redelivery.
+- **Redelivered events roll a shipped order back.** Stripe delivers webhooks *at least once*. It retries for up to three days after a timeout or 5xx, and the dashboard can resend any event. A `succeeded` event that arrives again after the order has moved on turns SHIPPED or COMPLETED back into PAID. (Until 2026-10-04 it also sent a second, blank "Order confirmed" email; the webhook no longer sends any email.) Nothing stops the status rollback today; it only needs one redelivery.
 - **A REFUNDED order becomes PAID again.** The same redelivery after a refund flips it back. Since 2026-10-02 a refund also returns stock, so the order would read as paid with its stock already back on the shelf.
 - **A CANCELED order becomes PAID with its stock released.** Cancelling now closes the PaymentIntent before the order (`orders/payments.py`), which removes the ordinary path. What remains:
   - orders cancelled **before** that change, whose intents were never closed — an old payment form left open can still pay them;
@@ -314,7 +316,7 @@ The guard only excludes PAID. It writes the status directly, bypassing `Order.tr
 
 **What fixing it involves (about half a day with tests):**
 
-1. **Only PENDING → PAID moves the order:** `order.transition_to(PAID)` when it's PENDING, and do nothing for PAID, SHIPPED and COMPLETED. That makes redeliveries harmless and stops the duplicate email, because the email is sent only when the transition actually happens.
+1. **Only PENDING → PAID moves the order:** `order.transition_to(PAID)` when it's PENDING, and do nothing for PAID, SHIPPED and COMPLETED. That makes redeliveries harmless. If an automatic email is ever reinstated, send it only when that transition actually happens, so a redelivery can't repeat it.
 2. **CANCELED or REFUNDED plus a `succeeded` event means money was taken for an order that won't ship.** It needs a decision, not a status write. Options:
    - refund automatically through Stripe and log it (simplest; the shopper is never out of pocket);
    - re-reserve the stock if it's still available and reinstate the order. This needs a new CANCELED → PAID transition, and the `stock_qty >= 0` constraint means it can fail if the candle has since sold.
@@ -322,7 +324,7 @@ The guard only excludes PAID. It writes the status directly, bypassing `Order.tr
    Recommended: an automatic refund plus a staff alert.
 3. **Compare `amount_received` and `currency` with the order** before marking it paid. On a mismatch, leave it PENDING and alert.
 4. **Tests:**
-   - a redelivered event on PAID, SHIPPED and COMPLETED changes nothing and sends no email;
+   - a redelivered event on PAID, SHIPPED and COMPLETED changes nothing;
    - `succeeded` on CANCELED takes the chosen action;
    - an amount mismatch is not marked paid.
 

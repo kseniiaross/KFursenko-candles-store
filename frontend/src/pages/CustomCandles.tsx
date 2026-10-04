@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import "../styles/Promo.css";
 
-const CONTACT_EMAIL = "k.fursenko.hc@gmail.com";
+import { SUPPORT_EMAIL } from "../constants/contact";
 
 const STEPS: Array<{ title: string; text: string }> = [
   {
@@ -70,9 +70,9 @@ const CustomCandles: React.FC = () => {
 
           <a
             className="promo__email"
-            href={`mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`}
+            href={`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`}
           >
-            {CONTACT_EMAIL}
+            {SUPPORT_EMAIL}
           </a>
 
           <p className="promo__ctaNote">

@@ -23,6 +23,16 @@ DATABASES = {
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
+# Production serves static files through WhiteNoise's manifest storage,
+# which only works after collectstatic. Tests that render admin pages need
+# the plain storage instead.
+STORAGES = {
+    **STORAGES,  # noqa: F405
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 # Nothing in the suite may reach a real service. These would otherwise be
 # inherited from a developer's .env — which has held a live Stripe key.
 # With no Shippo token, quoting raises ShippoNotConfigured and build_order

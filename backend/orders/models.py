@@ -204,3 +204,45 @@ class OrderItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product_name} x{self.quantity}"
+
+class PaymentIncident(models.Model):
+    """Money Stripe took for an order that will never ship, and what was done.
+
+    Written by the webhook when a payment succeeds on an order that is
+    already CANCELED or REFUNDED. The payment is refunded automatically; this
+    row is what makes that visible in the admin rather than only in the logs,
+    and it stays "unresolved" until a person has looked at it.
+    """
+
+    class Kind(models.TextChoices):
+        PAID_AFTER_CANCEL = "paid_after_cancel", "Paid after the order was cancelled"
+        PAID_AFTER_REFUND = "paid_after_refund", "Paid again after the order was refunded"
+
+    class Outcome(models.TextChoices):
+        REFUNDED = "refunded", "Refunded automatically"
+        REFUND_FAILED = "refund_failed", "Refund FAILED — refund it by hand in Stripe"
+
+    order = models.ForeignKey(
+        Order, on_delete=models.PROTECT, related_name="payment_incidents"
+    )
+    kind = models.CharField(max_length=32, choices=Kind.choices)
+    outcome = models.CharField(max_length=32, choices=Outcome.choices, db_index=True)
+
+    # One incident per payment: Stripe redelivers webhooks, and a redelivery
+    # must find this row rather than refund or alert a second time.
+    stripe_payment_intent_id = models.CharField(max_length=255, unique=True)
+    stripe_refund_id = models.CharField(max_length=255, blank=True, default="")
+
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default="usd")
+    detail = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} — order #{self.order_id} ({self.get_outcome_display()})"

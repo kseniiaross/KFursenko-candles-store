@@ -1,4 +1,14 @@
-Order confirmed — thank you ✨
+{% comment %}
+Not sent by the app. Order confirmations go out by hand and tracking emails
+come from Shippo, so nothing renders this template today.
+
+Whoever wires it up must pass exactly these, all already formatted:
+  order_number, first_name, order_total, shipping_name, shipping_address,
+  order_url, support_email
+The previous sender (orders/emails.py, removed — it is in git history)
+passed order/user/items/frontend_url instead, and every customer got an
+email with a blank order number, total and address.
+{% endcomment %}Order confirmed — thank you ✨
 Order #{{ order_number }}
 
 Hi {{ first_name|default:"there" }},

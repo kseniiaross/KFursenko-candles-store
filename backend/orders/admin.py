@@ -5,8 +5,9 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.urls import path
+from django.utils import timezone
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, PaymentIncident
 from .payments import IntentRelease, cancel_pending_order
 
 
@@ -23,6 +24,19 @@ class OrderItemInline(admin.TabularInline):
         return obj.line_total()
 
     line_total_display.short_description = "Line total"
+
+
+class PaymentIncidentInline(admin.TabularInline):
+    """Shown on the order itself, so whoever opens it sees the refund."""
+
+    model = PaymentIncident
+    extra = 0
+    can_delete = False
+    fields = ("created_at", "kind", "outcome", "amount", "stripe_refund_id", "resolved_at")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Order)
@@ -43,7 +57,7 @@ class OrderAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
-    inlines = (OrderItemInline,)
+    inlines = (OrderItemInline, PaymentIncidentInline)
     actions = ("cancel_unpaid_orders",)
 
     @admin.action(description="Cancel selected unpaid orders (returns stock)")
@@ -176,3 +190,77 @@ class OrderItemAdmin(admin.ModelAdmin):
         return obj.line_total()
 
     line_total_display.short_description = "Line total"
+
+
+
+class UnresolvedFilter(admin.SimpleListFilter):
+    title = "status"
+    parameter_name = "state"
+
+    def lookups(self, request, model_admin):
+        return (("open", "Unresolved"), ("resolved", "Resolved"), ("all", "All"))
+
+    def choices(self, changelist):
+        # Open on unresolved by default: that list is the to-do.
+        for value, label in self.lookup_choices:
+            yield {
+                "selected": (self.value() or "open") == value,
+                "query_string": changelist.get_query_string({self.parameter_name: value}),
+                "display": label,
+            }
+
+    def queryset(self, request, queryset):
+        value = self.value() or "open"
+        if value == "open":
+            return queryset.filter(resolved_at__isnull=True)
+        if value == "resolved":
+            return queryset.filter(resolved_at__isnull=False)
+        return queryset
+
+
+@admin.register(PaymentIncident)
+class PaymentIncidentAdmin(admin.ModelAdmin):
+    """Payments taken for orders that will never ship.
+
+    Each was refunded automatically (or the refund failed and says so). The
+    list opens on the unresolved ones; mark them resolved once checked
+    against the Stripe dashboard.
+    """
+
+    list_display = (
+        "created_at",
+        "order",
+        "kind",
+        "outcome",
+        "amount",
+        "currency",
+        "stripe_refund_id",
+        "resolved_at",
+    )
+    list_filter = (UnresolvedFilter, "outcome", "kind")
+    search_fields = ("order__id", "stripe_payment_intent_id", "stripe_refund_id")
+    readonly_fields = (
+        "order",
+        "kind",
+        "outcome",
+        "amount",
+        "currency",
+        "stripe_payment_intent_id",
+        "stripe_refund_id",
+        "detail",
+        "created_at",
+        "updated_at",
+        "resolved_at",
+    )
+    actions = ("mark_resolved",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.action(description="Mark selected incidents resolved")
+    def mark_resolved(self, request, queryset):
+        updated = queryset.filter(resolved_at__isnull=True).update(resolved_at=timezone.now())
+        self.message_user(request, f"Marked {updated} incident(s) resolved.")

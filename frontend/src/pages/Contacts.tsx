@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import "../styles/Contacts.css";
 
-const SUPPORT_EMAIL = "k.fursenko.hc@gmail.com";
+import { SUPPORT_EMAIL } from "../constants/contact";
 
 const Contacts: React.FC = () => {
   const { t } = useTranslation();
