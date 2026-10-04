@@ -5,6 +5,7 @@ from .views import (CancelMyOrderAPIView, CreateOrderAPIView,
                     OrderDetailAPIView, OrderStatusUpdateAPIView,
                     StaffOrdersAPIView)
 from .views_offers import OfferProgressAPIView
+from .views_pricing import PricePreviewAPIView
 from .views_stripe import CreatePaymentIntentView, stripe_webhook
 
 urlpatterns = [
@@ -41,5 +42,13 @@ urlpatterns = [
         "offer-progress/",
         OfferProgressAPIView.as_view(),
         name="offer-progress",
+    ),
+
+    # Open to guests too: the cart and checkout summary show these prices,
+    # computed the same way build_order charges.
+    path(
+        "price-preview/",
+        PricePreviewAPIView.as_view(),
+        name="price-preview",
     ),
 ]

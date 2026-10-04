@@ -13,7 +13,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from .discounts import campaign_offer_for, get_active_offers
+from .discounts import (campaign_offer_for, get_active_offers,
+                        get_welcome_offer, unit_display_prices)
 
 # How many alternatives to offer in the prompt. More than a handful turns a
 # nudge into a second catalogue page.
@@ -37,7 +38,7 @@ def _image_url(candle) -> str:
         return ""
 
 
-def _serialize_suggestion(variant) -> dict:
+def _serialize_suggestion(variant, unit) -> dict:
     candle = variant.candle
 
     return {
@@ -47,6 +48,10 @@ def _serialize_suggestion(variant) -> dict:
         "slug": candle.slug,
         "size": variant.size,
         "price": str(variant.price),
+        # What one costs this shopper, from the function checkout charges
+        # with. For a buy-two-get-three candle that is always `price` — one
+        # unit earns nothing — but the prompt shouldn't rely on knowing that.
+        "display_price": str(unit.display_price),
         "image": _image_url(candle),
     }
 
@@ -106,6 +111,8 @@ class OfferProgressAPIView(APIView):
             bucket["in_basket"].append((variant, quantities[variant.id]))
 
         promotions = []
+        welcome = None
+        welcome_loaded = False
 
         for bucket in buckets.values():
             offer = bucket["offer"]
@@ -117,6 +124,19 @@ class OfferProgressAPIView(APIView):
             if remainder == 0:
                 continue
 
+            suggested = self._suggestions(offer, offers, bucket["in_basket"])
+
+            if not welcome_loaded:
+                welcome = get_welcome_offer(request.user)
+                welcome_loaded = True
+
+            units = unit_display_prices(
+                user=request.user,
+                variants=suggested,
+                offers=offers,
+                welcome_offer=welcome,
+            )
+
             promotions.append(
                 {
                     "offer_slug": offer.slug,
@@ -125,9 +145,10 @@ class OfferProgressAPIView(APIView):
                     "in_cart": count,
                     "needed": 3 - remainder,
                     "free_so_far": count // 3,
-                    "suggestions": self._suggestions(
-                        offer, offers, bucket["in_basket"]
-                    ),
+                    "suggestions": [
+                        _serialize_suggestion(variant, units[variant.id])
+                        for variant in suggested
+                    ],
                 }
             )
 
@@ -143,7 +164,8 @@ class OfferProgressAPIView(APIView):
         when there is no stock for one more.
 
         Then every other eligible candle, one variant each. The basket's
-        candles aren't repeated there.
+        candles aren't repeated there. Returns variants; the caller prices
+        them in one batch.
         """
         picked = []
 
@@ -155,7 +177,7 @@ class OfferProgressAPIView(APIView):
                 and not variant.candle.is_sold_out
                 and variant.stock_qty > quantity
             ):
-                picked.append(_serialize_suggestion(variant))
+                picked.append(variant)
 
         if len(picked) >= MAX_SUGGESTIONS:
             return picked[:MAX_SUGGESTIONS]
@@ -186,7 +208,7 @@ class OfferProgressAPIView(APIView):
             if not variant:
                 continue
 
-            picked.append(_serialize_suggestion(variant))
+            picked.append(variant)
 
             if len(picked) >= MAX_SUGGESTIONS:
                 break
