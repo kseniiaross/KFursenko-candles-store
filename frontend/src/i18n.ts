@@ -90,6 +90,10 @@ const resources = {
         perkCheckoutText: "Your address is saved and orders are easy to track",
       },
 
+      offerModal: {
+        rewardNote: "Choose any one of these — it costs nothing.",
+      },
+
       footer: {
         brand: "KFursenko Candles",
         tagline: "Handmade. Minimal. Cozy.",
@@ -562,6 +566,10 @@ const resources = {
         perkMoodText: "Пройдите квиз — подберём аромат под ваше",
         perkCheckoutTitle: "Быстрое оформление",
         perkCheckoutText: "Адрес сохранён, заказы легко отслеживать",
+      },
+
+      offerModal: {
+        rewardNote: "Выберите любую из них — она ничего не стоит.",
       },
 
       footer: {
@@ -1038,6 +1046,10 @@ const resources = {
         perkCheckoutText: "Tu dirección se guarda y sigues tus pedidos",
       },
 
+      offerModal: {
+        rewardNote: "Elige cualquiera de estas: no te cuesta nada.",
+      },
+
       footer: {
         brand: "KFursenko Candles",
         tagline: "Hecho a mano. Minimalista. Acogedor.",
@@ -1512,6 +1524,10 @@ const resources = {
         perkMoodText: "Faites le quiz, nous trouverons la vôtre",
         perkCheckoutTitle: "Paiement plus rapide",
         perkCheckoutText: "Votre adresse est enregistrée, vos commandes suivies",
+      },
+
+      offerModal: {
+        rewardNote: "Choisissez celle que vous voulez : elle ne vous coûte rien.",
       },
 
       footer: {

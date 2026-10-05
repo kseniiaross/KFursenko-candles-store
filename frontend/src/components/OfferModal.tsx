@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import api from "../api/axiosInstance";
@@ -43,6 +44,7 @@ const CHECK_DELAY_MS = 900;
 const MUTED_PATHS = ["/checkout", "/payment", "/login", "/register"];
 
 const OfferModal: React.FC = () => {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -342,9 +344,8 @@ const OfferModal: React.FC = () => {
 
         <p className="offerModal__note">
           {promotion.reward_group
-            ? "The free candle never costs more than the two it comes with."
-            : "The free candle is the lowest-priced of the three."}{" "}
-          This offer does not combine with other discounts.
+            ? t("offerModal.rewardNote")
+            : "The free candle is the lowest-priced of the three. This offer does not combine with other discounts."}
         </p>
       </div>
     </div>

@@ -21,7 +21,7 @@ import "../../styles/offers/PromoBuy2Get3.css";
  * Slug of the badge set in the admin panel. Any candle carrying this badge
  * appears on this page. Change it here if the slug in the admin differs.
  */
-const PROMO_BADGE_SLUG = "buy-2-get-3";
+const PROMO_BADGE_SLUG = "buy-two-get-three";
 
 function buildOptimizedImageUrl(url: string, width: number): string {
   if (!url) return "";
@@ -43,29 +43,39 @@ function hasPromoBadge(candle: Candle): boolean {
 
 const TERMS: Array<{ rule: string; detail: string }> = [
   {
+    rule: "How it works",
+    detail:
+      "Add two of the large candles below to your basket and a small candle comes free. Buy four and two come free, and so on.",
+  },
+  {
+    rule: "Which candles are free",
+    detail:
+      "The free candle is one of the 8 oz Spring scents — Mango Island, Matcha Chill, Sweet Lemon Dew or Tidal Bore. You choose which one when the offer is ready.",
+  },
+  {
+    rule: "Which candles qualify",
+    detail:
+      "The 11.3 oz Spring candles shown on this page. They carry the offer badge in the catalogue. Small candles do not count towards the two.",
+  },
+  {
+    rule: "No code needed",
+    detail:
+      "The discount is applied at checkout. Your basket will show the free candle at $0.00 before you pay.",
+  },
+  {
     rule: "One promotion at a time",
     detail:
-      "This offer cannot be combined with any other discount, promo code or gift-card promotion.",
-  },
-  {
-    rule: "Eligible candles only",
-    detail:
-      "Candles that are already discounted or part of another campaign do not qualify. Only the candles shown on this page are eligible.",
-  },
-  {
-    rule: "The free candle",
-    detail:
-      "Add three eligible candles to your cart. The lowest-priced of the three is free — the discount is applied automatically at checkout.",
+      "This offer does not combine with other discounts. A candle already in a seasonal campaign keeps that campaign's price and cannot be the free one.",
   },
   {
     rule: "While stocks last",
     detail:
-      "The offer runs until the eligible candles sell out. Sold-out items cannot be substituted.",
+      "The offer runs until the eligible candles sell out. Sold-out candles cannot be substituted.",
   },
   {
     rule: "Returns",
     detail:
-      "If you return part of a promotional set, the free candle is re-priced at its regular value and deducted from the refund.",
+      "If you return part of a promotional set and the remaining candles no longer qualify, the free candle is charged at its regular price and deducted from the refund.",
   },
 ];
 
@@ -117,29 +127,30 @@ const PromoBuy2Get3: React.FC = () => {
         <header className="promo__header">
           <p className="promo__kicker">Offers</p>
           <h1 id="promo-title" className="promo__title">
-            Buy 2, Get 3
+            Buy Two, Get Three
           </h1>
           <p className="promo__lead">
-            Choose any three candles from the selection below and the
-            lowest-priced one is on us.
+            Take two of our large Spring candles and a small one is on us.
+            Nothing to enter at checkout — the free candle is already at zero
+            when you pay.
           </p>
         </header>
 
         <div className="promo__highlight" role="note">
           <span className="promo__highlightLabel">The deal</span>
           <span className="promo__highlightValue">
-            Three candles in the basket, two on the bill
+            Two 11.3 oz candles earn one 8 oz candle free
           </span>
         </div>
 
         <section className="promo__terms" aria-labelledby="promo-terms-title">
           <h2 id="promo-terms-title" className="promo__sectionTitle">
-            How it works
+            The details
           </h2>
 
-          {/* A definition list rather than a table: these are five
-              rule-and-explanation pairs, not tabular data, and a table
-              forces a two-column layout that collapses badly on a phone. */}
+          {/* A definition list rather than a table: these are rule-and-
+              explanation pairs, not tabular data, and a table forces a
+              two-column layout that collapses badly on a phone. */}
           <dl className="promo__termsList">
             {TERMS.map((item) => (
               <div key={item.rule} className="promo__term">
@@ -155,7 +166,7 @@ const PromoBuy2Get3: React.FC = () => {
           aria-labelledby="promo-products-title"
         >
           <h2 id="promo-products-title" className="promo__sectionTitle">
-            Candles in this offer
+            The candles that qualify
           </h2>
 
           {loading ? (
@@ -223,7 +234,7 @@ const PromoBuy2Get3: React.FC = () => {
                             </span>
                           ) : (
                             <span className="badge badge--promo">
-                              Buy 2, Get 3
+                              Buy Two Get Three
                             </span>
                           )}
                         </div>
