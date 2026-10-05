@@ -10,6 +10,8 @@ export type PreviewLine = {
   line_total: string;
   discount_amount: string;
   discount_label: string;
+  /** Units on this line given free by buy-two-get-three. */
+  free_quantity: number;
   line_total_after_discount: string;
 };
 

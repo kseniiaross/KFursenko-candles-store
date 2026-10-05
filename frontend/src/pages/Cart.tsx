@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { deleteCartItem, patchCartItem } from "../api/cart";
-import Price from "../components/Price";
+import LinePrice from "../components/LinePrice";
 import { usePricePreview } from "../hooks/usePricePreview";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
@@ -315,20 +315,17 @@ const Cart: React.FC = () => {
                             }`}
                           >
                             {priced ? (
-                              <Price
-                                price={priced.line_total}
-                                discountPrice={priced.line_total_after_discount}
+                              <LinePrice
+                                lineTotal={priced.line_total}
+                                lineTotalAfter={priced.line_total_after_discount}
+                                quantity={priced.quantity}
+                                freeQuantity={priced.free_quantity}
+                                discountLabel={priced.discount_label}
                               />
                             ) : (
                               "—"
                             )}
                           </span>
-
-                          {priced && Number(priced.discount_amount) > 0 && (
-                            <span className="cartItem__offer">
-                              {priced.discount_label}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -354,26 +351,10 @@ const Cart: React.FC = () => {
                   </div>
                 )}
 
-                <div className="cart__summaryRow">
-                  <span className="cart__summaryLabel">Subtotal</span>
-                  <span className="cart__summaryValue">
-                    {amount(preview?.subtotal)}
-                  </span>
-                </div>
-
-                {preview && Number(preview.discount) > 0 && (
-                  <div className="cart__summaryRow cart__summaryRow--discount">
-                    <span className="cart__summaryLabel">{preview.label}</span>
-                    <span className="cart__summaryValue">
-                      −{money(Number(preview.discount))}
-                    </span>
-                  </div>
-                )}
-
-                {/* Before shipping and tax — calling it a total would
-                    understate what the shopper actually pays. */}
+                {/* No discount row: each line already says what it costs,
+                    so the total is just their sum. */}
                 <div className="cart__summaryRow cart__summaryRow--total">
-                  <span className="cart__summaryLabel">Before shipping</span>
+                  <span className="cart__summaryLabel">Total</span>
                   <span className="cart__summaryValue">
                     {amount(preview?.items_total)}
                   </span>
@@ -382,7 +363,7 @@ const Cart: React.FC = () => {
                 <p className="cart__summaryNote">
                   {pricing.failed
                     ? "Prices couldn't be updated just now. Checkout will show the final amount."
-                    : "Shipping and tax are calculated at checkout."}
+                    : "Shipping and tax are added at checkout."}
                 </p>
               </div>
         

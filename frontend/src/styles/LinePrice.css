@@ -1,0 +1,26 @@
+/* =====================================================
+   LINE PRICE
+
+   An order line's price and, when it costs less, why. Shared by the cart,
+   checkout and the order history.
+   ===================================================== */
+
+.linePrice {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+/* Same red as the sale price (5.71:1 on white). */
+.linePrice__offer {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b73a3a;
+}
+
+/* "Free" / "1 free" reads as a marker rather than an offer name. */
+.linePrice__offer--free {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

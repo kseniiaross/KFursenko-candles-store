@@ -7,7 +7,7 @@ import type { StripeElementLocale } from "@stripe/stripe-js";
 
 import api from "../api/axiosInstance";
 import CheckoutPaymentBlock from "../components/CheckoutPaymentBlock";
-import Price from "../components/Price";
+import LinePrice from "../components/LinePrice";
 import ShippingRates, { type ShippingRate } from "../components/ShippingRates";
 import { usePricePreview } from "../hooks/usePricePreview";
 import { useAppSelector } from "../store/hooks";
@@ -192,8 +192,6 @@ type OrderData = {
   id: number;
   status?: string;
   shipping_amount?: unknown;
-  discount_amount?: unknown;
-  discount_label?: unknown;
 };
 
 /** Everything the server returned for the order behind the payment form,
@@ -203,8 +201,6 @@ type PreparedOrder = {
   orderId: number;
   clientSecret: string;
   shipping: number;
-  discount: number;
-  discountLabel: string;
   tax: number;
   total: number | null;
 };
@@ -408,10 +404,6 @@ const Checkout: React.FC = () => {
   const orderId = current?.orderId ?? null;
   const clientSecret = current?.clientSecret ?? "";
   const serverShipping = current ? current.shipping : null;
-  const discount = current
-    ? current.discount
-    : Number(preview?.discount ?? 0) || 0;
-  const discountLabel = current ? current.discountLabel : preview?.label ?? "";
   /** Items after discounts, before shipping and tax. Null until priced. */
   const itemsTotal =
     preview !== null ? Number(preview.items_total) : null;
@@ -504,8 +496,6 @@ const Checkout: React.FC = () => {
         orderId: order.id,
         clientSecret: clientSecretValue,
         shipping: Number(order.shipping_amount) || 0,
-        discount: Number(order.discount_amount) || 0,
-        discountLabel: String(order.discount_label ?? ""),
         tax: Number(intentResponse.data?.tax_amount) || 0,
         total: Number(intentResponse.data?.total_amount) || null,
       });
@@ -622,9 +612,12 @@ const Checkout: React.FC = () => {
 
                     <div className="checkoutItem__lineTotal">
                       {priced ? (
-                        <Price
-                          price={priced.line_total}
-                          discountPrice={priced.line_total_after_discount}
+                        <LinePrice
+                          lineTotal={priced.line_total}
+                          lineTotalAfter={priced.line_total_after_discount}
+                          quantity={priced.quantity}
+                          freeQuantity={priced.free_quantity}
+                          discountLabel={priced.discount_label}
                         />
                       ) : (
                         "—"
@@ -641,19 +634,12 @@ const Checkout: React.FC = () => {
                 <span>{itemCount}</span>
               </div>
 
+              {/* The sum of the lines above, each already at what it costs —
+                  so no separate discount row. */}
               <div className="checkout__totalRow">
-                <span>Subtotal</span>
-                <span>
-                  {preview ? money(Number(preview.subtotal)) : "—"}
-                </span>
+                <span>Items total</span>
+                <span>{itemsTotal === null ? "—" : money(itemsTotal)}</span>
               </div>
-
-              {discount > 0 && (
-                <div className="checkout__totalRow checkout__totalRow--discount">
-                  <span>{discountLabel || "Discount"}</span>
-                  <span>−{money(discount)}</span>
-                </div>
-              )}
 
               <div className="checkout__totalRow">
                 <span>

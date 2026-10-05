@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import api from "../api/axiosInstance";
+import LinePrice from "../components/LinePrice";
 import "../styles/Orders.css";
 
 type OrderItem = {
@@ -13,6 +14,11 @@ type OrderItem = {
   unit_price?: string | number;
   line_total?: string | number;
   is_gift?: boolean;
+  /** What came off this line, exactly as the cart showed it. */
+  discount_amount?: string | number;
+  discount_label?: string;
+  /** Units given free by buy-two-get-three. */
+  free_quantity?: number;
 };
 
 type Order = {
@@ -303,15 +309,9 @@ const Orders: React.FC = () => {
 
                           const quantity = Math.max(1, safeNumber(item.quantity));
                           const lineTotal = safeNumber(item.line_total);
-                          const unitPrice =
-                            safeNumber(item.price) || safeNumber(item.unit_price);
-
-                          const displayAmount =
-                            lineTotal > 0
-                              ? formatMoney(lineTotal, currency)
-                              : unitPrice > 0
-                                ? formatMoney(unitPrice * quantity, currency)
-                                : "";
+                          // As stored when the order was placed — the same
+                          // figures the cart showed for this line.
+                          const discount = safeNumber(item.discount_amount);
 
                           return (
                             <li
@@ -321,7 +321,13 @@ const Orders: React.FC = () => {
                               <span className="orderLine__name">{itemName}</span>
                               <span className="orderLine__qty">{quantity} ×</span>
                               <span className="orderLine__price">
-                                {displayAmount}
+                                <LinePrice
+                                  lineTotal={lineTotal}
+                                  lineTotalAfter={lineTotal - discount}
+                                  quantity={quantity}
+                                  freeQuantity={safeNumber(item.free_quantity)}
+                                  discountLabel={safeString(item.discount_label)}
+                                />
                               </span>
                             </li>
                           );

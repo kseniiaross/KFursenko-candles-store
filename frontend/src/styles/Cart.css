@@ -223,24 +223,10 @@
   transition: opacity 120ms ease;
 }
 
-/* Which offer a discounted line earned — same red as the sale price. */
-.cartItem__offer {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #b73a3a;
-}
-
 .cartItem__unavailable {
   margin: 4px 0 0;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #b73a3a;
-}
-
-.cart__summaryRow--discount .cart__summaryLabel,
-.cart__summaryRow--discount .cart__summaryValue {
   color: #b73a3a;
 }
 
