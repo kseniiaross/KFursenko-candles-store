@@ -26,6 +26,9 @@ type Promotion = {
   offer_slug: string;
   offer_title: string;
   badge_text: string;
+  /** The free candle comes from the offer's own group, not from the
+   *  candles that qualify. */
+  reward_group: boolean;
   in_cart: number;
   needed: number;
   free_so_far: number;
@@ -250,13 +253,24 @@ const OfferModal: React.FC = () => {
           </p>
 
           <h2 id={titleId} className="offerModal__title">
-            One more and the third is free
+            {promotion.reward_group
+              ? "Add one of these and it's free"
+              : "One more and the third is free"}
           </h2>
 
           <p className="offerModal__lead">
-            You have {promotion.in_cart} candles from this offer in your
-            basket. Add one more and the cheapest of the three costs nothing —
-            the discount is applied at checkout.
+            {promotion.reward_group ? (
+              <>
+                Your basket has earned a free candle. Pick one of these and it
+                costs nothing — the discount is applied at checkout.
+              </>
+            ) : (
+              <>
+                You have {promotion.in_cart} candles from this offer in your
+                basket. Add one more and the cheapest of the three costs
+                nothing — the discount is applied at checkout.
+              </>
+            )}
           </p>
         </header>
 
@@ -296,10 +310,6 @@ const OfferModal: React.FC = () => {
                     />
                   </span>
 
-                  {held > 0 && (
-                    <span className="offerCard__held">In your basket ×{held}</span>
-                  )}
-
                   <span className="offerCard__action">
                     {adding === suggestion.variant_id
                       ? "Adding…"
@@ -331,8 +341,10 @@ const OfferModal: React.FC = () => {
         </footer>
 
         <p className="offerModal__note">
-          The free candle is the lowest-priced of the three. This offer does
-          not combine with other discounts.
+          {promotion.reward_group
+            ? "The free candle never costs more than the two it comes with."
+            : "The free candle is the lowest-priced of the three."}{" "}
+          This offer does not combine with other discounts.
         </p>
       </div>
     </div>

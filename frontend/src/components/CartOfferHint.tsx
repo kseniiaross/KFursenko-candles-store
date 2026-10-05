@@ -11,6 +11,8 @@ type Promotion = {
   offer_slug: string;
   offer_title: string;
   badge_text: string;
+  /** The free candle comes from the offer's own group. */
+  reward_group: boolean;
   in_cart: number;
   needed: number;
   free_so_far: number;
@@ -103,7 +105,10 @@ const CartOfferHint: React.FC = () => {
                     ? "one more candle"
                     : `${promotion.needed} more candles`}
                 </strong>{" "}
-                from this offer and the cheapest of the three is free.
+                from this offer and{" "}
+                {promotion.reward_group
+                  ? "one of them is free."
+                  : "the cheapest of the three is free."}
               </>
             )}{" "}
             <Link

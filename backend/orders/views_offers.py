@@ -14,7 +14,8 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from .discounts import (campaign_offer_for, get_active_offers,
-                        get_welcome_offer, unit_display_prices)
+                        get_welcome_offer, has_reward_group, offer_rewards,
+                        offer_standing, reward_offer_for, unit_display_prices)
 
 # How many alternatives to offer in the prompt. More than a handful turns a
 # nudge into a second catalogue page.
@@ -63,10 +64,13 @@ def _serialize_suggestion(variant, unit) -> dict:
         "Given the cart's variant ids and quantities, reports every "
         "buy-two-get-three offer the basket has partly earned.\n\n"
         'Body: {"items": [{"variant_id": 12, "quantity": 2}]}\n\n'
-        "`needed` is how many more qualifying candles complete the next "
-        "trio. `suggestions` lists up to six candles that would count: the "
-        "basket's own qualifying variants first (most-held first, when "
-        "there is stock for one more), then every other eligible candle."
+        "`needed` is how many more candles earn the next free one. "
+        "`suggestions` lists up to six candles that can be the free one: the "
+        "basket's own variants first (most-held first, when there is stock "
+        "for one more), then every other. When `needed` is 1, only candles "
+        "that would actually come out free are listed. `reward_group` is "
+        "true when the offer's free candle comes from its own group rather "
+        "than from the candles that qualify."
     ),
     request=OfferProgressRequestSerializer,
 )
@@ -86,7 +90,7 @@ class OfferProgressAPIView(APIView):
 
         quantities = {line["variant_id"]: line["quantity"] for line in lines}
 
-        variants = (
+        variants = list(
             CandleVariant.objects.filter(id__in=quantities)
             .select_related("candle", "candle__category")
             .prefetch_related("candle__collections", "candle__offers")
@@ -94,37 +98,64 @@ class OfferProgressAPIView(APIView):
 
         offers = get_active_offers()
 
-        # offer pk -> {"offer": Offer, "count": int, "in_basket": [(variant, qty)]}
-        buckets: dict[int, dict] = {}
+        basket = [
+            {
+                "variant_id": variant.id,
+                "candle": variant.candle,
+                "unit_price": variant.price,
+                "quantity": quantities[variant.id],
+            }
+            for variant in variants
+        ]
+
+        # Offers this basket touches, in priority order, with the basket
+        # variants that can be the free one.
+        touched: dict[int, dict] = {}
 
         for variant in variants:
-            offer = campaign_offer_for(variant.candle, offers)
+            campaign = campaign_offer_for(variant.candle, offers)
 
-            if not offer or offer.kind != offer.Kind.B1G2:
+            if campaign is not None and campaign.kind == campaign.Kind.B1G2:
+                offer = campaign
+                rewards = offer_rewards(offer, variant.candle)
+            elif campaign is None:
+                offer = reward_offer_for(variant.candle, offers)
+                rewards = offer is not None
+            else:
                 continue
 
-            bucket = buckets.setdefault(
-                offer.pk, {"offer": offer, "count": 0, "in_basket": []}
-            )
+            if offer is None:
+                continue
 
-            bucket["count"] += quantities[variant.id]
-            bucket["in_basket"].append((variant, quantities[variant.id]))
+            bucket = touched.setdefault(offer.pk, {"offer": offer, "rewards": []})
+
+            if rewards:
+                bucket["rewards"].append((variant, quantities[variant.id]))
 
         promotions = []
         welcome = None
         welcome_loaded = False
 
-        for bucket in buckets.values():
-            offer = bucket["offer"]
-            count = bucket["count"]
-            remainder = count % 3
-
-            # Zero means every qualifying candle is already inside a
-            # complete trio — there is nothing to nudge about.
-            if remainder == 0:
+        for offer in offers:
+            if offer.pk not in touched:
                 continue
 
-            suggested = self._suggestions(offer, offers, bucket["in_basket"])
+            standing = offer_standing(offer=offer, lines=basket, offers=offers)
+
+            # Every unit is already matched into a free candle and its two
+            # payers: there is nothing to nudge about.
+            if standing.in_offer - 3 * standing.free <= 0:
+                continue
+
+            needed = self._needed(offer, standing)
+
+            suggested = self._suggestions(
+                offer,
+                offers,
+                touched[offer.pk]["rewards"],
+                basket,
+                standing.free if needed == 1 else None,
+            )
 
             if not welcome_loaded:
                 welcome = get_welcome_offer(request.user)
@@ -142,9 +173,10 @@ class OfferProgressAPIView(APIView):
                     "offer_slug": offer.slug,
                     "offer_title": offer.title,
                     "badge_text": offer.badge_text,
-                    "in_cart": count,
-                    "needed": 3 - remainder,
-                    "free_so_far": count // 3,
+                    "reward_group": has_reward_group(offer),
+                    "in_cart": standing.in_offer,
+                    "needed": needed,
+                    "free_so_far": standing.free,
                     "suggestions": [
                         _serialize_suggestion(variant, units[variant.id])
                         for variant in suggested
@@ -154,8 +186,27 @@ class OfferProgressAPIView(APIView):
 
         return Response({"promotions": promotions}, status=status.HTTP_200_OK)
 
-    def _suggestions(self, offer, offers, in_basket):
-        """Candles that would count towards this offer's next trio.
+    @staticmethod
+    def _needed(offer, standing):
+        """How many more candles earn the next free one.
+
+        Without a reward group every candle can pay or be free, so it is
+        whatever completes the next three. With one, the next free candle
+        needs two payers and a reward candle of its own; this counts what is
+        missing of each, assuming the candles added are priced to fit.
+        """
+        if not has_reward_group(offer):
+            return 3 - standing.in_offer % 3
+
+        target = standing.free + 1
+        payers_short = max(0, 2 * target - standing.can_pay)
+        rewards_short = max(0, target - standing.can_be_free)
+
+        # A candle in both groups can't be payer and free candle at once.
+        return max(1, payers_short + rewards_short, 3 * target - standing.in_offer)
+
+    def _suggestions(self, offer, offers, in_basket, basket, free_now):
+        """Candles that can be this offer's free one.
 
         Candles already in the basket come first — another of the same scent
         is the likeliest third pick — as the exact variant the basket holds,
@@ -163,11 +214,37 @@ class OfferProgressAPIView(APIView):
         second line in a different size. Most-held first. They are left out
         when there is no stock for one more.
 
-        Then every other eligible candle, one variant each. The basket's
-        candles aren't repeated there. Returns variants; the caller prices
-        them in one batch.
+        Then every other candle that can be the free one, one variant each.
+        The basket's candles aren't repeated there.
+
+        `free_now` is the basket's free count when one candle should earn
+        the next free one; then a candle is only listed if adding it really
+        does, so the prompt never offers a free candle that would be charged
+        (one dearer than the two it comes with, say). Returns variants; the
+        caller prices them in one batch.
         """
         picked = []
+
+        def earns(variant):
+            if free_now is None:
+                return True
+
+            held = next(
+                (line for line in basket if line["variant_id"] == variant.id), None
+            )
+            added = [line for line in basket if line is not held] + [
+                {
+                    "variant_id": variant.id,
+                    "candle": variant.candle,
+                    "unit_price": variant.price,
+                    "quantity": (held["quantity"] if held else 0) + 1,
+                }
+            ]
+
+            return (
+                offer_standing(offer=offer, lines=added, offers=offers).free
+                > free_now
+            )
 
         for variant, quantity in sorted(
             in_basket, key=lambda pair: (-pair[1], pair[0].candle.name)
@@ -176,6 +253,7 @@ class OfferProgressAPIView(APIView):
                 variant.is_active
                 and not variant.candle.is_sold_out
                 and variant.stock_qty > quantity
+                and earns(variant)
             ):
                 picked.append(variant)
 
@@ -183,6 +261,7 @@ class OfferProgressAPIView(APIView):
             return picked[:MAX_SUGGESTIONS]
 
         basket_candle_ids = {variant.candle_id for variant, _ in in_basket}
+        basket_candle_ids |= {line["candle"].id for line in basket}
 
         candidates = (
             Candle.objects.exclude(id__in=basket_candle_ids)
@@ -193,7 +272,12 @@ class OfferProgressAPIView(APIView):
         )
 
         for candle in candidates:
-            if campaign_offer_for(candle, offers) is not offer:
+            campaign = campaign_offer_for(candle, offers)
+
+            if campaign is offer:
+                if not offer_rewards(offer, candle):
+                    continue
+            elif campaign is not None or reward_offer_for(candle, offers) is not offer:
                 continue
 
             variant = next(
@@ -205,7 +289,7 @@ class OfferProgressAPIView(APIView):
                 None,
             )
 
-            if not variant:
+            if not variant or not earns(variant):
                 continue
 
             picked.append(variant)

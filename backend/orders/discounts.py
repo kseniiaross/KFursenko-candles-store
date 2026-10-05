@@ -12,7 +12,7 @@ Everything here runs server-side. A percentage or a rate sent by the
 storefront would be trivial to forge.
 """
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -74,7 +74,14 @@ def get_active_offers():
     """
     offers = (
         Offer.objects.filter(is_active=True)
-        .prefetch_related("categories", "collections", "candles")
+        .prefetch_related(
+            "categories",
+            "collections",
+            "candles",
+            "reward_categories",
+            "reward_collections",
+            "reward_candles",
+        )
         .order_by("priority")
     )
 
@@ -144,29 +151,197 @@ def get_welcome_offer(user):
 # ======================================================
 # BUY 2, GET 3
 # ======================================================
-def _free_prices(unit_prices: list[Decimal]) -> list[Decimal]:
-    """The prices of the units a group of eligible units gets free.
+def has_reward_group(offer) -> bool:
+    """Whether the offer names its own free candles. Cached on the offer,
+    which get_active_offers loads once per request."""
+    cached = getattr(offer, "_has_reward_group", None)
 
-    Sorted dearest first, then every third unit is free — so each complete
-    trio surrenders its cheapest member. Taking the N cheapest overall
-    instead would quietly under-reward a large basket: six candles at
-    10..60 would give away 30 rather than the 50 the customer is promised.
+    if cached is None:
+        cached = (
+            offer.reward_categories.exists()
+            or offer.reward_collections.exists()
+            or offer.reward_candles.exists()
+        )
+        offer._has_reward_group = cached
 
-    A quantity of two earns nothing. That is the offer, not a bug.
+    return cached
+
+
+def offer_rewards(offer, candle) -> bool:
+    """Whether this candle can be the free one in a buy-two-get-three offer.
+
+    An offer without a reward group gives away the candles that qualify,
+    exactly as before the group existed.
     """
-    ordered = sorted(unit_prices, reverse=True)
+    if not has_reward_group(offer):
+        return offer_applies_to(offer, candle)
 
-    return [price for index, price in enumerate(ordered) if index % 3 == 2]
+    if offer.reward_candles.filter(pk=candle.pk).exists():
+        return True
+
+    if (
+        candle.category_id
+        and offer.reward_categories.filter(pk=candle.category_id).exists()
+    ):
+        return True
+
+    collection_ids = candle.collections.values_list("pk", flat=True)
+
+    return offer.reward_collections.filter(pk__in=collection_ids).exists()
+
+
+def reward_offer_for(candle, offers):
+    """The buy-two-get-three offer that can give this candle away, for a
+    candle no campaign claims. A candle in a campaign is never given away by
+    a different one: it keeps its own promotion. Lowest priority number
+    wins, as for campaigns."""
+    for offer in offers:
+        if offer.kind != Offer.Kind.B1G2 or not has_reward_group(offer):
+            continue
+
+        if offer_rewards(offer, candle):
+            return offer
+
+    return None
+
+
+# How a unit can take part in one offer: it pays towards a free candle,
+# it can be the free candle, or either. At a tie in price, payers come
+# first so a free candle can lean on a payer of its own price.
+PAYS, EITHER, FREE_ONLY = 0, 1, 2
+
+
+def _free_units(runs) -> list[int]:
+    """How many units of each run are free.
+
+    `runs` are (unit_price, role, quantity), already sorted dearest first,
+    payers first at a tie. A free unit needs two paying units that cost at
+    least as much — the rule the offer has always had, where the cheapest
+    of each three was free — and the most the shopper can save under that
+    rule is what they get. When every unit is EITHER (an offer with no
+    reward group) this gives exactly the old answer: sort dearest first,
+    every third unit free.
+
+    Walks the runs keeping, for each number of payers still unmatched, the
+    best (saving in cents, free count per run) so far. Ties go to freeing
+    dearer runs first, which keeps the old answer when several give the
+    same saving. Payers beyond twice the free-able units still to come can
+    never be used, so the count is capped there.
+    """
+    can_be_free_after = [0] * (len(runs) + 1)
+
+    for index in range(len(runs) - 1, -1, -1):
+        _, role, quantity = runs[index]
+        can_be_free_after[index] = can_be_free_after[index + 1] + (
+            quantity if role != PAYS else 0
+        )
+
+    # Index: unmatched payers. None: not reachable.
+    best: list = [(0, ())]
+
+    for index, (price, role, quantity) in enumerate(runs):
+        cents = int(price * 100)
+
+        if role == PAYS:
+            step = [None] * quantity + [
+                None if state is None else (state[0], state[1] + (0,))
+                for state in best
+            ]
+        elif role == FREE_ONLY:
+            # Each free unit uses two payers.
+            step = _spread(best, stride=2, shift=0, quantity=quantity, cents=cents)
+        else:
+            # The run's other units pay, and can pay for its own free ones:
+            # they cost the same. Each free unit is one payer fewer and uses
+            # two.
+            step = _spread(best, stride=3, shift=quantity, quantity=quantity, cents=cents)
+
+        cap = 2 * can_be_free_after[index + 1]
+
+        if len(step) > cap + 1:
+            reachable = [state for state in step[cap:] if state is not None]
+            step = step[:cap] + [max(reachable) if reachable else None]
+
+        best = step
+
+    return list(max(state for state in best if state is not None)[1])
+
+
+def _spread(best, *, stride, shift, quantity, cents):
+    """One run where up to `quantity` units can be free.
+
+    Freeing x units with `p` unmatched payers leaves t = p + shift -
+    stride * x. So the best result for each t is the best over a window of
+    p, one residue class mod `stride` at a time — found with a sliding-window
+    maximum, so a run costs time in proportion to the payer count rather
+    than that times its quantity.
+    """
+    step = [None] * (len(best) + shift)
+
+    for residue in range(stride):
+        # p = (t - shift) + stride * x. Write t - shift = residue + stride * k;
+        # then p = residue + stride * j for j in [k, k + quantity].
+        highest = (len(best) - 1 - residue) // stride
+        lowest = -((shift + residue) // stride)
+        window: deque = deque()
+
+        for k in range(highest, lowest - 1, -1):
+            if k >= 0:
+                p = residue + stride * k
+                state = best[p]
+
+                if state is not None:
+                    # stride * (saving after freeing) differs from this by a
+                    # constant for a given t, so the largest key wins; then
+                    # the dearer-runs-first tie-break, then more freed here.
+                    key = (stride * state[0] + p * cents, state[1], p)
+
+                    while window and window[-1][0] < key:
+                        window.pop()
+
+                    window.append((key, k))
+
+            while window and window[0][1] > k + quantity:
+                window.popleft()
+
+            if not window:
+                continue
+
+            (_, counts, p), j = window[0]
+            free = j - k
+            t = residue + stride * k + shift
+            step[t] = (best[p][0] + free * cents, counts + (free,))
+
+    return step
+
+
+def _role(offer, line):
+    """PAYS, EITHER or FREE_ONLY for this line in this offer; None when the
+    offer doesn't count it. A line qualifies when the offer is its
+    campaign; it can be free when it is in the offer's reward group (the
+    qualifying candles, when the offer has none)."""
+    qualifies = line["campaign"] is offer
+    rewards = line["reward_offer"] is offer or (
+        qualifies and offer_rewards(offer, line["candle"])
+    )
+
+    if qualifies and rewards:
+        return EITHER
+    if qualifies:
+        return PAYS
+    if rewards:
+        return FREE_ONLY
+    return None
 
 
 def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
     """Give one B2G3 offer's free units to the lines that hold them.
 
-    The free units' own prices are the discount, on the lines those units
-    sit on: a line with a free candle shows "Free" (or "1 free" when it
-    holds more than one), and the stored discount says exactly the same.
-    Spreading the saving across every line instead would leave the cart
-    saying "Tidal Bore — Free" while the order row carried a third of it.
+    Lines that qualify are the ones the offer claims as their campaign;
+    lines that can be free are those in its reward group (the same lines,
+    when it has none). The free units' own prices are the discount, on the
+    lines those units sit on: a line with a free candle shows "Free" (or
+    "1 free"), and the stored discount says exactly the same.
 
     Which unit is free when several share the free price is decided by
     variant id, highest first — never by basket order, which differs
@@ -174,36 +349,44 @@ def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
     The same basket therefore marks the same candle free in the cart, at
     checkout and on the stored order.
     """
-    group = [line for line in lines if line["campaign"] is offer]
+    roles = {}
+
+    for line in lines:
+        role = _role(offer, line)
+
+        if role is not None:
+            roles[line["variant_id"]] = role
+
+    group = [line for line in lines if line["variant_id"] in roles]
 
     if not group:
         return False
 
-    units: list[Decimal] = []
+    # Highest variant id first within a run: those lines take its free units.
+    run_lines: dict[tuple[Decimal, int], list[dict]] = defaultdict(list)
 
-    for line in group:
-        units.extend([line["unit_price"]] * line["quantity"])
+    for line in sorted(group, key=lambda line: line["variant_id"], reverse=True):
+        run_lines[(line["unit_price"], roles[line["variant_id"]])].append(line)
 
-    free_prices = _free_prices(units)
+    keys = sorted(run_lines, key=lambda key: (-key[0], key[1]))
+    runs = [
+        (price, role, sum(line["quantity"] for line in run_lines[(price, role)]))
+        for price, role in keys
+    ]
 
-    if not free_prices:
+    free_per_run = _free_units(runs)
+
+    if not any(free_per_run):
         return False
 
-    remaining = {line["variant_id"]: line["quantity"] for line in group}
-    free_count: dict[int, int] = defaultdict(int)
-    highest_id_first = sorted(group, key=lambda line: line["variant_id"], reverse=True)
-
-    for price in free_prices:
-        for line in highest_id_first:
-            if line["unit_price"] == price and remaining[line["variant_id"]] > 0:
-                free_count[line["variant_id"]] += 1
-                remaining[line["variant_id"]] -= 1
+    for key, free in zip(keys, free_per_run):
+        for line in run_lines[key]:
+            if not free:
                 break
 
-    for line in group:
-        count = free_count[line["variant_id"]]
+            count = min(free, line["quantity"])
+            free -= count
 
-        if count:
             discounts[line["variant_id"]] = LineDiscount(
                 amount=_round(line["unit_price"] * count),
                 label=offer.title,
@@ -213,10 +396,78 @@ def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
     return True
 
 
+@dataclass(frozen=True)
+class OfferStanding:
+    """Where a basket stands with one buy-two-get-three offer."""
+
+    # Units in the basket the offer counts, as payer or free candle.
+    in_offer: int
+    # Of those, units that can pay towards a free one.
+    can_pay: int
+    # Of those, units that can be the free one.
+    can_be_free: int
+    free: int
+
+
+def offer_standing(*, offer, lines, offers) -> OfferStanding:
+    """How many units this offer makes free in this basket, and what it is
+    working with. Same rule as checkout: it runs the same allocation.
+    `lines` as for compute_line_discounts."""
+    enriched = _enrich(lines, offers)
+    discounts: dict[int, LineDiscount] = {}
+
+    _apply_buy_two_get_three(offer, enriched, discounts)
+
+    in_offer = can_pay = can_be_free = 0
+
+    for line in enriched:
+        role = _role(offer, line)
+
+        if role is None:
+            continue
+
+        in_offer += line["quantity"]
+        can_pay += line["quantity"] if role != FREE_ONLY else 0
+        can_be_free += line["quantity"] if role != PAYS else 0
+
+    return OfferStanding(
+        in_offer=in_offer,
+        can_pay=can_pay,
+        can_be_free=can_be_free,
+        free=sum(d.free_quantity for d in discounts.values()),
+    )
+
+
 # ======================================================
 # ENTRY POINT
 # ======================================================
 _RESOLVE = object()
+
+
+def _enrich(lines, offers):
+    """Each line with the campaign that claims it and, for a line no
+    campaign claims, the buy-two-get-three offer that can give it away."""
+    enriched = []
+
+    for line in lines:
+        campaign = campaign_offer_for(line["candle"], offers)
+
+        enriched.append(
+            {
+                "variant_id": line["variant_id"],
+                "candle": line["candle"],
+                "unit_price": Decimal(line["unit_price"]),
+                "quantity": int(line["quantity"]),
+                "campaign": campaign,
+                "reward_offer": (
+                    None
+                    if campaign is not None
+                    else reward_offer_for(line["candle"], offers)
+                ),
+            }
+        )
+
+    return enriched
 
 
 def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
@@ -235,26 +486,21 @@ def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
     if welcome_offer is _RESOLVE:
         welcome_offer = get_welcome_offer(user)
 
-    enriched = [
-        {
-            "variant_id": line["variant_id"],
-            "candle": line["candle"],
-            "unit_price": Decimal(line["unit_price"]),
-            "quantity": int(line["quantity"]),
-            "campaign": campaign_offer_for(line["candle"], offers),
-        }
-        for line in lines
-    ]
+    enriched = _enrich(lines, offers)
 
     discounts: dict[int, LineDiscount] = {}
     applied_labels: list[str] = []
 
     # --- Buy 2, get 3 ------------------------------------------------
-    b2g3_offers = {
-        line["campaign"]
-        for line in enriched
-        if line["campaign"] and line["campaign"].kind == Offer.Kind.B1G2
-    }
+    b2g3_offers = [
+        offer
+        for offer in offers
+        if offer.kind == Offer.Kind.B1G2
+        and any(
+            line["campaign"] is offer or line["reward_offer"] is offer
+            for line in enriched
+        )
+    ]
 
     for offer in b2g3_offers:
         if _apply_buy_two_get_three(offer, enriched, discounts):
@@ -290,6 +536,11 @@ def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
 
         for line in enriched:
             if line["campaign"] is not None:
+                continue
+
+            # A reward candle with a free unit is that offer's line now; one
+            # promotion per line, so its paid units stay full price.
+            if line["variant_id"] in discounts:
                 continue
 
             if not offer_applies_to(welcome_offer, line["candle"]):
@@ -435,51 +686,6 @@ def unit_display_prices(
         )
 
     return result
-
-
-# ======================================================
-# STOREFRONT HELPER
-# ======================================================
-def buy_two_get_three_progress(candles_in_cart):
-    """How close each B2G3 group is to earning a free candle.
-
-    Feeds the cart prompt: "add one more Spring candle and the cheapest of
-    the three is free". `candles_in_cart` is a list of (candle, quantity).
-    Returns a list of dicts, one per offer with an incomplete trio.
-    """
-    offers = get_active_offers()
-    counts: dict[int, int] = defaultdict(int)
-    by_id: dict[int, Offer] = {}
-
-    for candle, quantity in candles_in_cart:
-        offer = campaign_offer_for(candle, offers)
-
-        if not offer or offer.kind != Offer.Kind.B1G2:
-            continue
-
-        counts[offer.pk] += int(quantity)
-        by_id[offer.pk] = offer
-
-    progress = []
-
-    for offer_id, count in counts.items():
-        remainder = count % 3
-
-        # A remainder of zero means every candle is already in a complete
-        # trio; nothing to nudge about.
-        if remainder == 0:
-            continue
-
-        progress.append(
-            {
-                "offer": by_id[offer_id],
-                "in_cart": count,
-                "needed": 3 - remainder,
-                "free_so_far": count // 3,
-            }
-        )
-
-    return progress
 
 
 # ======================================================

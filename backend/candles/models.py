@@ -153,6 +153,19 @@ class Offer(models.Model):
     collections = models.ManyToManyField(Collection, blank=True)
     candles = models.ManyToManyField("Candle", blank=True)
 
+    # What buy-two-get-three can give away. Empty means "the same candles
+    # that qualify", which is how every offer worked before these existed.
+    # Set, they let an offer say "buy two 11.3 oz, the free one is an 8 oz".
+    reward_categories = models.ManyToManyField(
+        Category, blank=True, related_name="reward_offers"
+    )
+    reward_collections = models.ManyToManyField(
+        Collection, blank=True, related_name="reward_offers"
+    )
+    reward_candles = models.ManyToManyField(
+        "Candle", blank=True, related_name="reward_offers"
+    )
+
     offer_start = models.DateTimeField(null=True, blank=True)
     offer_end = models.DateTimeField(null=True, blank=True)
 

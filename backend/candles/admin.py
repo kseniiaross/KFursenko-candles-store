@@ -74,7 +74,14 @@ class OfferAdmin(admin.ModelAdmin):
     search_fields = ("title", "slug", "badge_text")
     ordering = ("priority", "title")
     prepopulated_fields = {"slug": ("title",)}
-    filter_horizontal = ("categories", "collections", "candles")
+    filter_horizontal = (
+        "categories",
+        "collections",
+        "candles",
+        "reward_categories",
+        "reward_collections",
+        "reward_candles",
+    )
 
     fieldsets = (
         (
@@ -105,6 +112,26 @@ class OfferAdmin(admin.ModelAdmin):
                     "the whole catalog. Otherwise pick the categories, "
                     "collections or individual candles it covers."
                 ),
+            },
+        ),
+        (
+            "Free candle (buy two, get three)",
+            {
+                "fields": (
+                    "reward_categories",
+                    "reward_collections",
+                    "reward_candles",
+                ),
+                "description": (
+                    "Which candles can be the free one. Leave all three empty "
+                    "and the free candle comes from the candles above, as "
+                    "before. Set them to say e.g. 'buy two 11.3 oz, the free "
+                    "one is an 8 oz'. The free candle never costs more than "
+                    "the two it comes with, and a candle another campaign "
+                    "covers is never given away here. Badges stay on the "
+                    "candles above."
+                ),
+                "classes": ("collapse",),
             },
         ),
         (
