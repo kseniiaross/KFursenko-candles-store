@@ -82,7 +82,7 @@ def get_active_offers():
             "reward_collections",
             "reward_candles",
         )
-        .order_by("priority")
+        .order_by("priority", "pk")
     )
 
     return [offer for offer in offers if offer.is_currently_active]

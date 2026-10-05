@@ -179,3 +179,32 @@ def test_mixed_basket_label_is_truncated_to_the_column(user, category):
     plain_item = order.items.get(variant=plain)
     assert plain_item.discount_amount == Decimal("1.01")
     assert plain_item.discount_label == "Welcome 10%"
+
+
+@pytest.mark.django_db
+def test_equal_priority_campaigns_resolve_by_lower_id(category):
+    """At equal priority the older offer (lower id) claims the candle, not
+    whichever row the database happens to return first. Production had
+    Spooky Season and Buy Two Get Three both at 100 on the same candles."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from orders.discounts import campaign_offer_for, get_active_offers
+
+    candle = Candle.objects.create(category=category, name="Mango Island", stock_qty=10)
+    older = Offer.objects.create(
+        title="Spooky Season Offer", kind=Offer.Kind.HOLIDAY, discount_percent=10, priority=100
+    )
+    newer = Offer.objects.create(title="Buy Two Get Three", kind=Offer.Kind.B1G2, priority=100)
+    for offer in (newer, older):
+        offer.candles.add(candle)
+
+    with CaptureQueriesContext(connection) as queries:
+        offers = get_active_offers()
+
+    assert campaign_offer_for(candle, offers) == older
+
+    # SQLite returns ties in id order anyway; Postgres promises nothing. So
+    # the query itself must ask for it.
+    sql = next(q["sql"] for q in queries.captured_queries if 'FROM "candles_offer"' in q["sql"])
+    assert sql.endswith('ORDER BY "candles_offer"."priority" ASC, "candles_offer"."id" ASC')
