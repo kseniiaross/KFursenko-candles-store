@@ -209,17 +209,18 @@ class TestTransitionsReleaseStock:
 
         assert _stock(amber) == [10]
 
-    def test_a_shipped_order_cannot_be_refunded_and_keeps_its_stock(
-        self, user, two_variants
-    ):
+    @pytest.mark.parametrize("shipped_to", [[Order.Status.SHIPPED], [Order.Status.SHIPPED, Order.Status.COMPLETED]])
+    def test_a_refund_after_shipping_never_returns_stock(self, user, two_variants, shipped_to):
+        """A return: a candle that has been lit can't be sold again."""
         amber, _ = two_variants
         order = _order(user, [(amber, 4)])
         order.transition_to(Order.Status.PAID)
-        order.transition_to(Order.Status.SHIPPED)
+        for status in shipped_to:
+            order.transition_to(status)
 
-        with pytest.raises(ValueError):
-            order.transition_to(Order.Status.REFUNDED)
+        order.transition_to(Order.Status.REFUNDED)
 
+        assert order.status == Order.Status.REFUNDED
         assert _stock(amber) == [6]
 
     def test_paying_does_not_touch_stock(self, user, two_variants):

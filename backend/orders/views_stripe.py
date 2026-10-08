@@ -1,8 +1,11 @@
 import logging
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 import stripe
 from django.conf import settings
+from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -294,6 +297,135 @@ def _payment_succeeded(order_id, intent_id, intent_data):
     return HttpResponse(status=200)
 
 
+# Orders whose payment the shop counts. A refund of anyone else's payment
+# is one of our own automatic refunds and says nothing about the order.
+_PAID_STATUSES = (
+    Order.Status.PAID,
+    Order.Status.SHIPPED,
+    Order.Status.COMPLETED,
+    Order.Status.REFUNDED,
+)
+
+
+def _charge_refunded(charge):
+    """A refund made in Stripe: the dashboard is where money goes back.
+
+    The order is found by the intent it was paid with, so refunding a stray
+    payment — our own automatic refunds after cancel, on a replaced intent
+    or for the wrong amount — never touches an order paid with another one.
+
+    Every refund records how much has gone back so far (the charge's running
+    total, so redelivered or out-of-order events can't lower it). A full
+    refund — `refunded` is true once nothing is left, including when partial
+    refunds add up — moves the order to REFUNDED: from PAID that puts the
+    stock back; after shipping it doesn't, because a candle that has been
+    lit can't be sold again. A partial refund leaves status and stock alone.
+    """
+    intent_id = charge.get("payment_intent")
+
+    if not intent_id:
+        logger.info("charge.refunded for %s has no payment intent; ignoring.", charge.get("id"))
+        return HttpResponse(status=200)
+
+    refunded_so_far = (Decimal(int(charge.get("amount_refunded") or 0)) / 100).quantize(
+        Decimal("0.01")
+    )
+    fully = bool(charge.get("refunded"))
+
+    with transaction.atomic():
+        order = (
+            Order.objects.select_for_update()
+            .filter(stripe_payment_intent_id=intent_id)
+            .first()
+        )
+
+        if order is None:
+            # A replaced intent we refunded ourselves, or not one of ours.
+            logger.info("Refund of %s matches no order's payment; ignoring.", intent_id)
+            return HttpResponse(status=200)
+
+        if order.status not in _PAID_STATUSES:
+            # PENDING or CANCELED: never paid — our own refund of a payment
+            # the order didn't count. Nothing to record on the order.
+            logger.info(
+                "Refund of %s on order %s (%s); nothing to change.",
+                intent_id,
+                order.pk,
+                order.status,
+            )
+            return HttpResponse(status=200)
+
+        if refunded_so_far > order.refunded_amount:
+            order.refunded_amount = refunded_so_far
+            order.save(update_fields=["refunded_amount", "updated_at"])
+
+        if fully and order.status != Order.Status.REFUNDED:
+            previous = order.status
+            order.transition_to(Order.Status.REFUNDED)
+            logger.info(
+                "Order %s refunded in full in Stripe (%s), was %s.",
+                order.pk,
+                intent_id,
+                previous,
+            )
+        elif not fully:
+            logger.info(
+                "Partial refund on order %s: %s of %s so far; status and stock unchanged.",
+                order.pk,
+                order.refunded_amount,
+                order.total_amount,
+            )
+
+    return HttpResponse(status=200)
+
+
+def _dispute_created(dispute):
+    """Stopgap until disputes have a design of their own: make sure a person
+    knows today. Logged as an error and emailed to support; nothing else
+    changes. The evidence deadline is Stripe's, and it's short."""
+    intent_id = dispute.get("payment_intent") or ""
+    order = (
+        Order.objects.filter(stripe_payment_intent_id=intent_id).first() if intent_id else None
+    )
+
+    amount = (Decimal(int(dispute.get("amount") or 0)) / 100).quantize(Decimal("0.01"))
+    currency = (dispute.get("currency") or "usd").upper()
+    due_by = (dispute.get("evidence_details") or {}).get("due_by")
+    due = (
+        datetime.fromtimestamp(int(due_by), tz=dt_timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        if due_by
+        else "see Stripe"
+    )
+    where = f"order #{order.pk}" if order else f"payment {intent_id or dispute.get('charge')}"
+
+    subject = f"[KFursenko] DISPUTE opened on {where}: {amount} {currency}"
+    body = "\n".join(
+        [
+            "A customer has disputed a payment. Stripe has taken the amount back until",
+            "the dispute is decided; respond with evidence in the Stripe dashboard.",
+            "",
+            f"Order:          {f'#{order.pk} ({order.get_status_display()})' if order else '— no order found —'}",
+            f"Amount:         {amount} {currency}",
+            f"Reason:         {dispute.get('reason') or '—'}",
+            f"Evidence due:   {due}",
+            f"Dispute:        {dispute.get('id')}",
+            f"PaymentIntent:  {intent_id or '—'}",
+        ]
+    )
+
+    logger.error("%s\n%s", subject, body)
+
+    try:
+        send_mail(
+            subject, body, settings.DEFAULT_FROM_EMAIL, [settings.SUPPORT_EMAIL],
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception("Could not email the dispute alert for %s", dispute.get("id"))
+
+    return HttpResponse(status=200)
+
+
 @csrf_exempt
 def stripe_webhook(request):
     if request.method != "POST":
@@ -326,6 +458,14 @@ def stripe_webhook(request):
 
     event_type = event["type"]
     data = event["data"]["object"]
+
+    # A Charge and a Dispute, not intents: found by their payment intent,
+    # before the metadata check below — they don't carry the intent's.
+    if event_type == "charge.refunded":
+        return _charge_refunded(data)
+
+    if event_type == "charge.dispute.created":
+        return _dispute_created(data)
 
     intent_id = data.get("id")
     order_id = (data.get("metadata") or {}).get("order_id")

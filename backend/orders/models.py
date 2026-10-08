@@ -68,6 +68,14 @@ class Order(models.Model):
         decimal_places=2,
         default=Decimal("0.00"),
     )
+    # What Stripe has refunded of this order's payment so far, from the
+    # charge's running total. Written by the webhook only: refunds are made
+    # in the Stripe dashboard. Equals total_amount once fully refunded.
+    refunded_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
 
     shipping_full_name = models.CharField(max_length=255, blank=True, default="")
     shipping_line1 = models.CharField(max_length=255, blank=True, default="")
@@ -92,20 +100,22 @@ class Order(models.Model):
         ]
         ordering = ["-created_at"]
 
+    # REFUNDED is only ever reached through the Stripe webhook, on a full
+    # refund: the staff status endpoint refuses it, so the status can't say
+    # the money went back when it didn't.
     ALLOWED_TRANSITIONS = {
         Status.PENDING: {Status.PAID, Status.CANCELED},
         Status.PAID: {Status.SHIPPED, Status.REFUNDED},
-        Status.SHIPPED: {Status.COMPLETED},
-        Status.COMPLETED: set(),
+        Status.SHIPPED: {Status.COMPLETED, Status.REFUNDED},
+        Status.COMPLETED: {Status.REFUNDED},
         Status.CANCELED: set(),
         Status.REFUNDED: set(),
     }
 
     # Transitions after which the goods will never ship, so the stock that
-    # build_order reserved goes back on the shelf. PAID -> REFUNDED belongs
-    # here because SHIPPED -> REFUNDED is not allowed: a refunded order was
-    # never sent. Anything after shipping is a return, and whether a returned
-    # candle is sellable is a person's call, not this method's.
+    # build_order reserved goes back on the shelf. A refund after shipping
+    # is a return, and a candle that has been lit can't be sold again:
+    # SHIPPED or COMPLETED -> REFUNDED never returns stock.
     STOCK_RELEASING_TRANSITIONS = {
         (Status.PENDING, Status.CANCELED),
         (Status.PAID, Status.REFUNDED),
@@ -147,9 +157,10 @@ class Order(models.Model):
 
         for item in self.items.all():
             # Every row has a variant since migration 0010; a null here would
-            # mean a row nobody can restock automatically.
+            # mean a row nobody can restock automatically. Units already put
+            # back by hand ("Return items to stock") aren't put back again.
             if item.variant_id:
-                per_variant[item.variant_id] += item.quantity
+                per_variant[item.variant_id] += item.quantity - item.restocked_quantity
 
         for variant_id, quantity in per_variant.items():
             CandleVariant.objects.filter(pk=variant_id).update(
@@ -200,6 +211,10 @@ class OrderItem(models.Model):
         default=Decimal("0.00"),
     )
     discount_label = models.CharField(max_length=160, blank=True, default="")
+    # Units of this line put back on the shelf by hand before the order
+    # shipped — one candle of three refunded, say. Never more than quantity.
+    restocked_quantity = models.PositiveIntegerField(default=0)
+
     free_quantity = models.PositiveIntegerField(
         default=0,
         help_text="Units on this line given free by buy-two-get-three.",

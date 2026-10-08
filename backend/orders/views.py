@@ -253,6 +253,17 @@ class OrderStatusUpdateAPIView(generics.GenericAPIView):
         if new_status == Order.Status.CANCELED:
             return _cancel_response(order)
 
+        # Marking an order refunded here moved no money, which made the
+        # status a promise nothing kept. Refunds are made in Stripe, and the
+        # webhook moves the order when Stripe confirms the full amount.
+        if new_status == Order.Status.REFUNDED:
+            raise ValidationError(
+                {
+                    "status": "Refund in the Stripe dashboard; the order updates "
+                    "itself when Stripe confirms it."
+                }
+            )
+
         try:
             order.transition_to(new_status)
         except ValueError as error:
