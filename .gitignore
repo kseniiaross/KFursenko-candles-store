@@ -1,26 +1,43 @@
-# Frontend
-node_modules/
-dist/
+# Secrets
 .env
+.env.local
+*.env.local
+*.local
 
-# Backend
-backend/.venv/
-.venv/
+# Python
 __pycache__/
 *.pyc
-.env
-db.sqlite3
-
-# Mac
-.DS_Store.env
 .venv/
-__pycache__/
-*.pyc
 .pytest_cache/
-htmlcov/
 .coverage
+htmlcov/
+db.sqlite3
 staticfiles/
 media/
+
+# Node / frontend
 node_modules/
 dist/
-.local/
+dist-ssr/
+test-results/
+playwright-report/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Tooling
+.claude/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sw?
+
+# macOS
+.DS_Store
