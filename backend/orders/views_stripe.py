@@ -106,8 +106,11 @@ class CreatePaymentIntentView(APIView):
 
         try:
             with transaction.atomic():
+                # Lock the order row only. The shipment may not exist, and
+                # Postgres refuses FOR UPDATE on the nullable side of the
+                # outer join select_related needs to read it.
                 order = (
-                    Order.objects.select_for_update()
+                    Order.objects.select_for_update(of=("self",))
                     .select_related("shipment")
                     .filter(id=order_id, user=request.user)
                     .first()

@@ -1,8 +1,15 @@
 """Settings override used for the pytest suite.
 
-Swaps the Postgres database for an in-memory SQLite DB so tests don't
-depend on a running Postgres container. Imported via pytest.ini's
-DJANGO_SETTINGS_MODULE.
+The suite runs on PostgreSQL, the database production runs on. SQLite
+ignores row locks, so a locking query Postgres refuses passed every test
+and failed every real checkout (see orders/test_create_intent.py).
+
+Postgres comes from docker-compose's `db` service: `docker compose up -d db`.
+pytest-django creates and drops its own `test_candles_db` there; the
+development database is never touched. `TEST_DB=sqlite pytest` still runs
+the suite without a container, but can't catch database-specific failures.
+
+Imported via pytest.ini's DJANGO_SETTINGS_MODULE.
 """
 
 import os
@@ -14,12 +21,38 @@ os.environ["SECRET_KEY"] = "test-only-secret-key-not-used-anywhere-else-01234567
 
 from .settings import *  # noqa: E402,F401,F403
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
+from django.core.exceptions import ImproperlyConfigured  # noqa: E402
+
+if os.environ.get("TEST_DB", "postgres") == "sqlite":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
     }
-}
+else:
+    # Spelled out rather than inherited: settings.py prefers DATABASE_URL,
+    # and a developer's .env may hold one for a real database. The test
+    # run creates and drops a database, so it may only ever talk to a local
+    # server. Defaults match docker-compose.yml.
+    _host = os.environ.get("TEST_DB_HOST", "127.0.0.1")
+
+    if _host not in ("127.0.0.1", "localhost", "::1"):
+        raise ImproperlyConfigured(
+            f"Tests only run against a local Postgres, not {_host!r}."
+        )
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("TEST_DB_NAME", "candles_db"),
+            "USER": os.environ.get("TEST_DB_USER", "candles_user"),
+            "PASSWORD": os.environ.get("TEST_DB_PASSWORD", "candles_pass"),
+            "HOST": _host,
+            "PORT": os.environ.get("TEST_DB_PORT", "5433"),
+            "TEST": {"NAME": "test_candles_db"},
+        }
+    }
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 

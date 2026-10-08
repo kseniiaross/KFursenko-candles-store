@@ -109,8 +109,11 @@ function loadProfileFromStorage(): SavedProfile | null {
 }
 
 function getErrorMessage(error: unknown): string {
+  // Reached when the server gives no reason the shopper can act on — a 500,
+  // a timeout, no connection. Nothing has been charged at this step: the
+  // card is only taken after the payment form appears and they press Pay.
   const fallback =
-    "Could not prepare payment. Please check your information and try again.";
+    "Something went wrong on our side, and your card has not been charged. Please try again in a moment.";
 
   if (
     typeof error !== "object" ||
