@@ -76,7 +76,8 @@ class ShippingRatesAPIView(generics.GenericAPIView):
         payload_items = data.get("items")
 
         if payload_items:
-            wanted = {int(i["variant_id"]): int(i["quantity"]) for i in payload_items}
+            # Validated: one line per candle, whole numbers, capped.
+            wanted = {i["variant_id"]: i["quantity"] for i in payload_items}
             variants = CandleVariant.objects.filter(id__in=wanted).select_related("candle")
             return [(v, wanted[v.id]) for v in variants]
 

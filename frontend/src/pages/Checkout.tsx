@@ -138,6 +138,14 @@ function getErrorMessage(error: unknown): string {
 
   const record = data as Record<string, unknown>;
 
+  // The delivery option has to be chosen again: Shippo doesn't know it,
+  // it isn't offered for this order, or it now costs more.
+  const rateError = record.shipping_rate_id;
+
+  if (Array.isArray(rateError) && typeof rateError[0] === "string") {
+    return rateError[0];
+  }
+
   const shipping = record.shipping;
 
   if (typeof shipping === "string") {
@@ -207,6 +215,15 @@ type PreparedOrder = {
   tax: number;
   total: number | null;
 };
+
+/** The server wants the delivery option chosen again (400 on
+ *  shipping_rate_id). */
+function isRateRejected(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || error.response?.status !== 400) return false;
+
+  const data = error.response.data as Record<string, unknown> | undefined;
+  return Boolean(data && typeof data === "object" && "shipping_rate_id" in data);
+}
 
 /** Shown instead of the generic message: the shopper should wait, not edit. */
 class CheckoutBlockedError extends Error {}
@@ -294,6 +311,10 @@ const Checkout: React.FC = () => {
    *  the price is re-read from the carrier there, so a tampered amount
    *  from this page would change nothing. */
   const [selectedRate, setSelectedRate] = useState<ShippingRate | null>(null);
+
+  /** Bumped when the server rejects the picked rate, so the delivery
+   *  options are fetched again and the shopper has something to choose. */
+  const [ratesReload, setRatesReload] = useState(0);
 
   /** The order behind the payment form, as the server priced it. Shipping
    *  may differ from the picked rate when the carrier API was unreachable
@@ -504,6 +525,11 @@ const Checkout: React.FC = () => {
       });
     } catch (error) {
       console.error("Checkout error:", error);
+
+      if (isRateRejected(error)) {
+        setRatesReload((n) => n + 1);
+      }
+
       setErrorMsg(
         error instanceof CheckoutBlockedError
           ? error.message
@@ -844,6 +870,7 @@ const Checkout: React.FC = () => {
                   address={rateAddress}
                   items={rateLines}
                   selectedRateId={selectedRate?.rate_id ?? ""}
+                  reloadKey={ratesReload}
                   disabled={loading}
                   onSelect={handleRateSelect}
                 />

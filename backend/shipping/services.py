@@ -126,20 +126,76 @@ def verify_rate(rate_id: str, client=None) -> dict:
     }
 
 
-def resolve_shipping_cost(*, address_to, lines, rate_id=None):
-    """Price used by build_order. Never raises for infrastructure reasons.
+class ShippingChoiceError(Exception):
+    """The shopper has to pick a delivery option again: the one they sent
+    isn't a rate Shippo knows, isn't offered for this order, or now costs
+    more than the price they were shown. The message is for them."""
 
-    A shipping API being down must not stop a customer paying us. Falls back to
-    the historical flat rate and returns None for the rate, so nothing
-    downstream believes it has a real quote.
+
+# Shippo answering, but refusing the token itself. Anything else — no
+# connection, 5xx, 429, our own token rejected — is Shippo being
+# unavailable, and the flat rate covers it.
+_TOKEN_REJECTED = frozenset({400, 404})
+
+
+def _same_service(rate, picked) -> bool:
+    return (
+        rate["carrier"].strip().lower() == picked["carrier"].strip().lower()
+        and rate["service_level"].strip().lower() == picked["service_level"].strip().lower()
+    )
+
+
+def resolve_shipping_cost(*, address_to, lines, rate_id=None):
+    """Price used by build_order.
+
+    The order is always quoted afresh for its own lines and address, and
+    that quote's price and rate are what it charges and stores. The token
+    the storefront sends only says which service the shopper picked: a rate
+    quoted for one candle, or for another address, is still a rate Shippo
+    will happily report a price for, so its own price can't be trusted.
+
+    Raises ShippingChoiceError when the shopper must choose again. Never
+    raises for infrastructure reasons: Shippo being unreachable must not
+    stop a customer paying us, so that falls back to the historical flat
+    rate and returns None for the rate, so nothing downstream believes it
+    has a real quote.
     """
     try:
+        picked = None
+
         if rate_id:
-            rate = verify_rate(rate_id)
-            return rate["amount"], rate
+            try:
+                picked = verify_rate(rate_id)
+            except ShippoNotConfigured:
+                raise
+            except ShippoError as exc:
+                if exc.status_code in _TOKEN_REJECTED:
+                    raise ShippingChoiceError(
+                        "Your delivery option is no longer available. "
+                        "Please choose one again."
+                    ) from exc
+                raise
 
         rates = quote_rates(address_to=address_to, lines=lines)
-        return rates[0]["amount"], rates[0]
+
+        if picked is None:
+            return rates[0]["amount"], rates[0]
+
+        rate = next((r for r in rates if _same_service(r, picked)), None)
+
+        if rate is None:
+            raise ShippingChoiceError(
+                f"{picked['carrier']} {picked['service_level']} isn't available "
+                "for this order. Please choose a delivery option again."
+            )
+
+        if rate["amount"] > picked["amount"]:
+            raise ShippingChoiceError(
+                f"Delivery for this order is now ${rate['amount']:.2f} "
+                f"(was ${picked['amount']:.2f}). Please check it and continue."
+            )
+
+        return rate["amount"], rate
 
     except (ShippoError, ShippoNotConfigured) as exc:
         logger.warning("Shippo quote failed, using flat rate: %s", exc)

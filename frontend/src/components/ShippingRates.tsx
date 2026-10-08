@@ -35,6 +35,9 @@ type Props = {
    *  different parcel than the one we ship. */
   items: RateLine[];
   selectedRateId: string;
+  /** Changing it fetches the options again — when the server has rejected
+   *  the picked rate and the shopper needs to choose again. */
+  reloadKey?: number;
   disabled?: boolean;
   onSelect: (rate: ShippingRate | null) => void;
 };
@@ -93,10 +96,16 @@ const ShippingRates: React.FC<Props> = ({
   address,
   items,
   selectedRateId,
+  reloadKey = 0,
   disabled = false,
   onSelect,
 }) => {
   const [rates, setRates] = useState<ShippingRate[]>([]);
+
+  /** The options last shown, to find the service the shopper had picked
+   *  once a new quote replaces them. */
+  const ratesRef = useRef<ShippingRate[]>([]);
+  ratesRef.current = rates;
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle"
   );
@@ -136,9 +145,22 @@ const ShippingRates: React.FC<Props> = ({
       setRates(data);
       setStatus("ready");
 
-      // Preselect the cheapest so the total is never blank.
+      // Rate ids change with every quote. Keep the shopper's service if it
+      // is still offered — at its new price — otherwise preselect the
+      // cheapest so the total is never blank.
       if (data.length && !data.some((r) => r.rate_id === selectedRef.current)) {
-        onSelect(data[0]);
+        const previous = ratesRef.current.find(
+          (r) => r.rate_id === selectedRef.current
+        );
+        const sameService = previous
+          ? data.find(
+              (r) =>
+                r.carrier === previous.carrier &&
+                r.service_level === previous.service_level
+            )
+          : undefined;
+
+        onSelect(sameService ?? data[0]);
       }
     } catch (err) {
       if (id !== requestId.current) return;
@@ -174,6 +196,7 @@ const ShippingRates: React.FC<Props> = ({
     address.postal_code,
     address.country,
     itemsKey,
+    reloadKey,
   ]);
 
   return (

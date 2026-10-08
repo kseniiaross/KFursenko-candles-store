@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from candles.models import CandleVariant
 from shipping.normalize import payload_to_address
-from shipping.services import resolve_shipping_cost
+from shipping.services import ShippingChoiceError, resolve_shipping_cost
 
 from .discounts import price_basket
 from .models import Order, OrderItem
@@ -226,11 +226,16 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
         for vid, payload in merged.items()
     ]
 
-    shipping_amount, rate = resolve_shipping_cost(
-        address_to=payload_to_address(shipping),
-        lines=quote_lines,
-        rate_id=shipping_rate_id,
-    )
+    try:
+        shipping_amount, rate = resolve_shipping_cost(
+            address_to=payload_to_address(shipping),
+            lines=quote_lines,
+            rate_id=shipping_rate_id,
+        )
+    except ShippingChoiceError as exc:
+        # Under the field the shopper got wrong; checkout reloads the
+        # delivery options when it sees it.
+        raise serializers.ValidationError({"shipping_rate_id": [str(exc)]}) from exc
 
     # Resolved before the order row exists, so the order being created
     # cannot disqualify its own welcome discount. Campaign percentages,
