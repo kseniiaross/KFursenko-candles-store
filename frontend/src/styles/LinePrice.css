@@ -19,6 +19,16 @@
   color: #b73a3a;
 }
 
+/* Under a free line: where the welcome discount went. Quieter than the
+   marker, and allowed to wrap. */
+.linePrice__note {
+  max-width: 220px;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  text-align: right;
+  color: rgba(17, 17, 17, 0.68);
+}
+
 /* "Free" / "1 free" reads as a marker rather than an offer name. */
 .linePrice__offer--free {
   letter-spacing: 0.08em;

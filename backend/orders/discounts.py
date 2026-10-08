@@ -1,12 +1,11 @@
 """How much each line of an order is discounted, and why.
 
-One promotion per line, never two. A candle carrying a campaign badge takes
-that campaign's discount; a candle carrying none is where the sign-up
-percentage lands. That is what makes a mixed basket behave sensibly: three
-Spring candles get their free third, a Halloween candle gets its seasonal
-percentage, and a plain candle still earns the welcome discount on a first
-order. Resolving it per order instead would mean adding one ordinary candle
-could shrink the total saving, which reads as a broken site.
+One promotion per line, never two. Campaigns run first: a Halloween candle
+gets its seasonal percentage, buy-two-get-three gives away its free units.
+The sign-up percentage then lands on every line that came away with
+nothing — a plain candle, or a buy-two-get-three candle that earned no free
+one — except a line that paid towards someone's free candle: that line's
+reward is the free candle, and the free line says so.
 
 Everything here runs server-side. A percentage or a rate sent by the
 storefront would be trivial to forge.
@@ -34,6 +33,9 @@ class LineDiscount:
     # exactly that many at the line's unit price — the line shows "Free" or
     # "1 free", and the stored discount says the same thing.
     free_quantity: int = 0
+    # On a free line: the welcome offer the lines that paid for it would
+    # otherwise have had, so the cart can say where it went. Not stored.
+    replaces: str = ""
 
 
 def _round(value: Decimal) -> Decimal:
@@ -334,7 +336,7 @@ def _role(offer, line):
     return None
 
 
-def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
+def _apply_buy_two_get_three(offer, lines, discounts, payers=None) -> bool:
     """Give one B2G3 offer's free units to the lines that hold them.
 
     Lines that qualify are the ones the offer claims as their campaign;
@@ -348,6 +350,12 @@ def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
     between a guest's browser, the server cart and the merge on sign-in.
     The same basket therefore marks the same candle free in the cart, at
     checkout and on the stored order.
+
+    `payers`, when given, collects the variant ids of the lines whose units
+    pay for the free ones: two per free unit, dearest first, then highest
+    variant id — the same order the free unit is picked in. The dearest
+    paying units are always enough, since a free unit needs payers costing
+    at least as much.
     """
     roles = {}
 
@@ -379,6 +387,8 @@ def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
     if not any(free_per_run):
         return False
 
+    free_count: dict[int, int] = {}
+
     for key, free in zip(keys, free_per_run):
         for line in run_lines[key]:
             if not free:
@@ -386,12 +396,30 @@ def _apply_buy_two_get_three(offer, lines, discounts) -> bool:
 
             count = min(free, line["quantity"])
             free -= count
+            free_count[line["variant_id"]] = count
 
             discounts[line["variant_id"]] = LineDiscount(
                 amount=_round(line["unit_price"] * count),
                 label=offer.title,
                 free_quantity=count,
             )
+
+    if payers is not None:
+        owed = 2 * sum(free_per_run)
+        can_pay = sorted(
+            (line for line in group if roles[line["variant_id"]] != FREE_ONLY),
+            key=lambda line: (-line["unit_price"], -line["variant_id"]),
+        )
+
+        for line in can_pay:
+            if owed <= 0:
+                break
+
+            spare = line["quantity"] - free_count.get(line["variant_id"], 0)
+
+            if spare > 0:
+                payers.add(line["variant_id"])
+                owed -= spare
 
     return True
 
@@ -502,8 +530,13 @@ def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
         )
     ]
 
+    # offer -> variant ids of the lines that paid for its free units
+    paid_for: dict = {}
+
     for offer in b2g3_offers:
-        if _apply_buy_two_get_three(offer, enriched, discounts):
+        paid_for[offer] = set()
+
+        if _apply_buy_two_get_three(offer, enriched, discounts, paid_for[offer]):
             applied_labels.append(offer.title)
 
     # --- Percentage campaigns ---------------------------------------
@@ -528,18 +561,17 @@ def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
                 applied_labels.append(offer.title)
 
     # --- Welcome discount --------------------------------------------
-    # Only lands on candles no campaign claimed. A candle already in a
-    # promotion keeps that promotion; stacking the two would hand out
-    # twenty percent on a single item.
+    # Lands on every line the campaigns left with nothing. A line that has
+    # a discount keeps it; stacking would hand out twenty percent on a
+    # single item, or a free unit and ten percent on one line. A line that
+    # paid for a free candle gets the free candle instead: the free line
+    # notes the welcome offer it replaced.
     if welcome_offer and welcome_offer.discount_percent:
         percent = Decimal(welcome_offer.discount_percent)
+        all_payers = set().union(*paid_for.values())
+        replaced: set = set()
 
         for line in enriched:
-            if line["campaign"] is not None:
-                continue
-
-            # A reward candle with a free unit is that offer's line now; one
-            # promotion per line, so its paid units stay full price.
             if line["variant_id"] in discounts:
                 continue
 
@@ -549,13 +581,39 @@ def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
             line_total = line["unit_price"] * line["quantity"]
             amount = _round(line_total * percent / Decimal("100"))
 
-            if amount > 0:
-                discounts[line["variant_id"]] = LineDiscount(
-                    amount=amount, label=welcome_offer.title
-                )
+            if amount <= 0:
+                continue
 
-                if welcome_offer.title not in applied_labels:
-                    applied_labels.append(welcome_offer.title)
+            if line["variant_id"] in all_payers:
+                replaced |= {
+                    offer for offer, ids in paid_for.items() if line["variant_id"] in ids
+                }
+                continue
+
+            discounts[line["variant_id"]] = LineDiscount(
+                amount=amount, label=welcome_offer.title
+            )
+
+            if welcome_offer.title not in applied_labels:
+                applied_labels.append(welcome_offer.title)
+
+        for line in enriched:
+            found = discounts.get(line["variant_id"])
+
+            if not (found and found.free_quantity):
+                continue
+
+            # A free unit always comes from the line's own buy-two-get-three
+            # offer: its campaign, or for a reward-only candle its reward offer.
+            offer = line["campaign"] if line["campaign"] in paid_for else line["reward_offer"]
+
+            if offer in replaced:
+                discounts[line["variant_id"]] = LineDiscount(
+                    amount=found.amount,
+                    label=found.label,
+                    free_quantity=found.free_quantity,
+                    replaces=welcome_offer.title,
+                )
 
     summary_label = " + ".join(applied_labels)
 
@@ -583,6 +641,8 @@ class PricedLine:
     # most one promotion, so line_total - discount_amount is always what the
     # line costs — the figure the cart shows and the order stores.
     free_quantity: int
+    # See LineDiscount.replaces.
+    replaces_label: str = ""
 
 
 @dataclass(frozen=True)
@@ -623,6 +683,7 @@ def price_basket(*, user, lines, offers=None, welcome_offer=_RESOLVE) -> BasketP
                 discount_amount=found.amount if found else Decimal("0.00"),
                 discount_label=found.label if found else "",
                 free_quantity=found.free_quantity if found else 0,
+                replaces_label=found.replaces if found else "",
             )
         )
 
@@ -636,6 +697,10 @@ def price_basket(*, user, lines, offers=None, welcome_offer=_RESOLVE) -> BasketP
         items_total=subtotal - discount,
         label=label if discount > 0 else "",
     )
+
+
+def _is_b2g3(offer) -> bool:
+    return offer is not None and offer.kind == Offer.Kind.B1G2
 
 
 @dataclass(frozen=True)
@@ -652,6 +717,10 @@ def unit_display_prices(
     *, user, variants, offers=None, welcome_offer=_RESOLVE
 ) -> dict[int, UnitPrice]:
     """The price to show for each variant: a one-unit basket each.
+
+    One exception: a buy-two-get-three candle shows its full price. Alone
+    in a basket it would get the welcome discount, but pay for a free
+    candle and it loses it, so the card doesn't promise it.
 
     Offers and the welcome offer are looked up once for the whole batch, or
     taken from the caller when it prices several batches for one request.
@@ -676,7 +745,11 @@ def unit_display_prices(
                 }
             ],
             offers=offers,
-            welcome_offer=welcome_offer,
+            welcome_offer=(
+                None
+                if _is_b2g3(campaign_offer_for(variant.candle, offers))
+                else welcome_offer
+            ),
         ).lines[0]
 
         result[variant.id] = UnitPrice(

@@ -92,6 +92,7 @@ const resources = {
 
       offerModal: {
         rewardNote: "Choose any one of these — it costs nothing.",
+        rewardNoteReplaces: "Choose any one of these. It's free, in place of your {{label}} on the candles that earn it.",
       },
 
       footer: {
@@ -570,6 +571,7 @@ const resources = {
 
       offerModal: {
         rewardNote: "Выберите любую из них — она ничего не стоит.",
+        rewardNoteReplaces: "Выберите любую из них. Она бесплатна — вместо скидки «{{label}}» на свечи, которые её дают.",
       },
 
       footer: {
@@ -1048,6 +1050,7 @@ const resources = {
 
       offerModal: {
         rewardNote: "Elige cualquiera de estas: no te cuesta nada.",
+        rewardNoteReplaces: "Elige cualquiera de estas. Es gratis, en lugar de tu {{label}} en las velas que la consiguen.",
       },
 
       footer: {
@@ -1528,6 +1531,7 @@ const resources = {
 
       offerModal: {
         rewardNote: "Choisissez celle que vous voulez : elle ne vous coûte rien.",
+        rewardNoteReplaces: "Choisissez celle que vous voulez. Elle est offerte, à la place de votre {{label}} sur les bougies qui la font gagner.",
       },
 
       footer: {

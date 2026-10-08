@@ -122,7 +122,9 @@ class TestInput:
 
 @pytest.mark.django_db
 def test_offer_prompt_suggestions_carry_the_checkout_price(shop, user):
-    """Every suggestion's display_price is what one costs at checkout."""
+    """Every suggestion's display_price is what one costs at checkout — or
+    full price for a buy-two-get-three candle, which the card never shows
+    at the welcome price."""
     a, b = shop["spring"][:2]
 
     response = _client(user).post(
@@ -137,4 +139,4 @@ def test_offer_prompt_suggestions_carry_the_checkout_price(shop, user):
         variant = CandleVariant.objects.get(pk=suggestion["variant_id"])
         order = _charge(user, [(variant, 1)])
         item = order.items.get()
-        assert Decimal(suggestion["display_price"]) == item.unit_price - item.discount_amount
+        assert Decimal(suggestion["display_price"]) == item.unit_price

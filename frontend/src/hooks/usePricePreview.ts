@@ -12,6 +12,9 @@ export type PreviewLine = {
   discount_label: string;
   /** Units on this line given free by buy-two-get-three. */
   free_quantity: number;
+  /** On a free line: the welcome offer the lines that paid for it would
+   *  otherwise have had. Empty otherwise. */
+  replaces_label: string;
   line_total_after_discount: string;
 };
 

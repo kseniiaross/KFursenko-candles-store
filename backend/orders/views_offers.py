@@ -15,7 +15,8 @@ from rest_framework.views import APIView
 
 from .discounts import (campaign_offer_for, get_active_offers,
                         get_welcome_offer, has_reward_group, offer_rewards,
-                        offer_standing, reward_offer_for, unit_display_prices)
+                        offer_standing, price_basket, reward_offer_for,
+                        unit_display_prices)
 
 # How many alternatives to offer in the prompt. More than a handful turns a
 # nudge into a second catalogue page.
@@ -70,7 +71,9 @@ def _serialize_suggestion(variant, unit) -> dict:
         "for one more), then every other. When `needed` is 1, only candles "
         "that would actually come out free are listed. `reward_group` is "
         "true when the offer's free candle comes from its own group rather "
-        "than from the candles that qualify."
+        "than from the candles that qualify. `replaces_label` names the "
+        "welcome offer the basket would lose on the candles that pay for the "
+        "free one, when it would; empty otherwise."
     ),
     request=OfferProgressRequestSerializer,
 )
@@ -168,6 +171,13 @@ class OfferProgressAPIView(APIView):
                 welcome_offer=welcome,
             )
 
+            replaces = ""
+
+            if needed == 1 and suggested:
+                replaces = self._replaces(
+                    request.user, basket, suggested[0], offers, welcome
+                )
+
             promotions.append(
                 {
                     "offer_slug": offer.slug,
@@ -177,6 +187,7 @@ class OfferProgressAPIView(APIView):
                     "in_cart": standing.in_offer,
                     "needed": needed,
                     "free_so_far": standing.free,
+                    "replaces_label": replaces,
                     "suggestions": [
                         _serialize_suggestion(variant, units[variant.id])
                         for variant in suggested
@@ -185,6 +196,40 @@ class OfferProgressAPIView(APIView):
             )
 
         return Response({"promotions": promotions}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _replaces(user, basket, variant, offers, welcome):
+        """The welcome offer the basket loses if the shopper takes this free
+        candle, or "". Priced both ways by the function checkout uses: a
+        line that has the welcome discount now and none after is a line
+        that would pay for the free candle."""
+        if welcome is None:
+            return ""
+
+        held = next((line for line in basket if line["variant_id"] == variant.id), None)
+        after_lines = [line for line in basket if line is not held] + [
+            {
+                "variant_id": variant.id,
+                "candle": variant.candle,
+                "unit_price": variant.price,
+                "quantity": (held["quantity"] if held else 0) + 1,
+            }
+        ]
+
+        before = price_basket(user=user, lines=basket, offers=offers, welcome_offer=welcome)
+        after = price_basket(user=user, lines=after_lines, offers=offers, welcome_offer=welcome)
+        after_by_id = {line.variant_id: line for line in after.lines}
+
+        for line in before.lines:
+            if line.discount_label != welcome.title:
+                continue
+
+            later = after_by_id.get(line.variant_id)
+
+            if later is not None and later.discount_amount == 0:
+                return welcome.title
+
+        return ""
 
     @staticmethod
     def _needed(offer, standing):

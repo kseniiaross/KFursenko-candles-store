@@ -161,14 +161,24 @@ class TestUnitDisplayPrices:
         for variant in variants:
             order = _charge(who, [(variant, 1)])
             item = order.items.get()
-            assert shown[variant.id].display_price == item.unit_price - item.discount_amount
+            charged = item.unit_price - item.discount_amount
+
+            if variant in shop["spring"]:
+                # The one exception: a buy-two-get-three candle shows full
+                # price. Alone it gets the welcome offer; paying for a free
+                # candle it wouldn't, so the card doesn't promise it.
+                assert shown[variant.id].display_price == Decimal(variant.price)
+                assert charged <= Decimal(variant.price)
+            else:
+                assert shown[variant.id].display_price == charged
 
     def test_the_prices_the_audit_found_wrong(self, shop, user, returning):
         b2g3_candle, mulled, plain = shop["spring"][0], shop["mulled"], shop["plain"]
 
         first = unit_display_prices(user=user, variants=[b2g3_candle, mulled, plain])
-        # One buy-two-get-three candle earns nothing on its own, and the
-        # campaign keeps the welcome offer off it: full price, not 16.64.
+        # One buy-two-get-three candle earns nothing on its own. Checkout
+        # gives a first-time shopper 16.64 for it, but the card shows full
+        # price: the welcome offer goes once it pays for a free candle.
         assert first[b2g3_candle.id].display_price == Decimal("18.49")
         assert first[mulled.id].display_price == Decimal("16.64")
         assert first[plain.id].display_price == Decimal("11.69")

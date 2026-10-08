@@ -618,6 +618,7 @@ const Checkout: React.FC = () => {
                           quantity={priced.quantity}
                           freeQuantity={priced.free_quantity}
                           discountLabel={priced.discount_label}
+                          replacesLabel={priced.replaces_label}
                         />
                       ) : (
                         "—"

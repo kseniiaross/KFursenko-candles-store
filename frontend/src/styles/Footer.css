@@ -9,7 +9,10 @@
   z-index: 10;
   color: var(--app-text);
   overflow: hidden;
-  background: transparent;
+  /* Opaque, so nothing behind can show through: the home page keeps its
+     banners fixed under the whole page. White is what the footer sat on
+     everywhere else, so the overlay's tint reads the same. */
+  background: #ffffff;
 }
 
 /* =====================================================

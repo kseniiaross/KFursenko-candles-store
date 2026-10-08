@@ -30,6 +30,9 @@ type Promotion = {
   /** The free candle comes from the offer's own group, not from the
    *  candles that qualify. */
   reward_group: boolean;
+  /** The welcome offer the basket loses on the candles that pay for the
+   *  free one, or "". */
+  replaces_label: string;
   in_cart: number;
   needed: number;
   free_so_far: number;
@@ -344,7 +347,9 @@ const OfferModal: React.FC = () => {
 
         <p className="offerModal__note">
           {promotion.reward_group
-            ? t("offerModal.rewardNote")
+            ? promotion.replaces_label
+              ? t("offerModal.rewardNoteReplaces", { label: promotion.replaces_label })
+              : t("offerModal.rewardNote")
             : "The free candle is the lowest-priced of the three. This offer does not combine with other discounts."}
         </p>
       </div>

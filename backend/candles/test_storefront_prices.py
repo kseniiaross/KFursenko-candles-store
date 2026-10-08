@@ -131,19 +131,28 @@ class TestShownIsCharged:
 
         catalogue = _catalogue(api_client, viewer)
 
+        # Buy-two-get-three candles show full price: alone they'd get the
+        # welcome offer, but not once they pay for a free candle.
+        full_price = {"mango-island", "matcha-chill"}
+
         for candle in shop.values():
             row = catalogue[candle.slug]
             shown = {v["id"]: Decimal(v["display_price"]) for v in row["variants"]}
 
             active = [v for v in candle.variants.all() if v.is_active]
             for variant in active:
-                assert shown[variant.id] == _charge_one(charged_as, variant), (
-                    shopper, candle.name, variant.size
+                expected = (
+                    variant.price
+                    if candle.slug in full_price
+                    else _charge_one(charged_as, variant)
                 )
+                assert shown[variant.id] == expected, (shopper, candle.name, variant.size)
 
             cheapest = min(active, key=lambda v: v.price)
             card = row["discount_price"]
-            expected = _charge_one(charged_as, cheapest)
+            expected = (
+                cheapest.price if candle.slug in full_price else _charge_one(charged_as, cheapest)
+            )
             if expected < cheapest.price:
                 assert Decimal(str(card)) == expected, (shopper, candle.name)
             else:
@@ -152,18 +161,20 @@ class TestShownIsCharged:
     def test_the_prices_the_audit_found_wrong(self, api_client, shop, user):
         first = _catalogue(api_client, user)
 
-        # Buy-two-get-three earns nothing on one candle, and keeps the
-        # welcome offer off it: full price, no sale price.
+        # Buy-two-get-three earns nothing on one candle; the card shows full
+        # price, not the welcome price it loses once it pays for a free one.
         assert first["mango-island"]["discount_price"] is None
         assert first["mango-island"]["variants"][0]["display_price"] == "18.49"
         assert Decimal(str(first["mulled-wine"]["discount_price"])) == Decimal("16.64")
         assert Decimal(str(first["woman-body"]["discount_price"])) == Decimal("11.69")
 
     def test_a_fixed_price_is_never_shown(self, api_client, shop, user):
+        """12.00 is never shown. The offer gives nothing, so a first-time
+        shopper gets the welcome 10% instead, as on any undiscounted line."""
         row = _catalogue(api_client, user)["berry-grove"]
 
-        assert row["discount_price"] is None
-        assert row["variants"][0]["display_price"] == "18.49"
+        assert Decimal(str(row["discount_price"])) == Decimal("16.64")
+        assert row["variants"][0]["display_price"] == "16.64"
 
     def test_an_inactive_cheaper_size_does_not_set_the_card_price(self, api_client, shop):
         row = _catalogue(api_client)["tidal-bore"]

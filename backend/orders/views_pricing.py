@@ -101,6 +101,9 @@ class PricePreviewAPIView(APIView):
                         "discount_amount": _money(line.discount_amount),
                         "discount_label": line.discount_label,
                         "free_quantity": line.free_quantity,
+                        # On a free line: the welcome offer it replaced on
+                        # the lines that paid for it. Empty otherwise.
+                        "replaces_label": line.replaces_label,
                         "line_total_after_discount": _money(
                             line.line_total - line.discount_amount
                         ),
