@@ -6,8 +6,9 @@ Two jobs:
   Order matters: cancel the intent first, then the order. The other way
   round, a payment form still open in another tab could complete after the
   stock has gone back on the shelf.
-* Refunding a payment that succeeded anyway on an order that is already
-  CANCELED or REFUNDED — and making sure a person hears about it.
+* Refunding a payment the order can't count — on an order that is already
+  CANCELED or REFUNDED, on a payment the order has replaced, or for the
+  wrong amount — and making sure a person hears about it.
 """
 
 import enum
@@ -128,8 +129,13 @@ def cancel_pending_order(order) -> IntentRelease:
 # ======================================================
 # PAYMENTS ON ORDERS THAT WON'T SHIP
 # ======================================================
-def refund_unfulfillable_payment(order, intent_id: str, intent_data: dict):
-    """Refund a payment that succeeded on a CANCELED or REFUNDED order.
+def refund_unfulfillable_payment(
+    order, intent_id: str, intent_data: dict, *, kind=None, detail: str = ""
+):
+    """Refund a payment the order can't count.
+
+    `kind` says why; left out, it follows from the order being CANCELED or
+    REFUNDED. `detail` is kept on the incident and goes in the alert.
 
     Records a PaymentIncident and alerts staff. Safe to call again for the
     same intent (Stripe redelivers webhooks): it finds the existing incident,
@@ -142,11 +148,12 @@ def refund_unfulfillable_payment(order, intent_id: str, intent_data: dict):
     """
     from .models import Order, PaymentIncident
 
-    kind = (
-        PaymentIncident.Kind.PAID_AFTER_REFUND
-        if order.status == Order.Status.REFUNDED
-        else PaymentIncident.Kind.PAID_AFTER_CANCEL
-    )
+    if kind is None:
+        kind = (
+            PaymentIncident.Kind.PAID_AFTER_REFUND
+            if order.status == Order.Status.REFUNDED
+            else PaymentIncident.Kind.PAID_AFTER_CANCEL
+        )
     amount = (Decimal(int(intent_data.get("amount_received") or 0)) / 100).quantize(
         Decimal("0.01")
     )
@@ -180,10 +187,10 @@ def refund_unfulfillable_payment(order, intent_id: str, intent_data: dict):
                 incident.detail = "Already refunded at Stripe (by hand or an earlier attempt)."
                 incident.save(update_fields=["outcome", "detail", "updated_at"])
             return incident
-        _record_failure(order, intent_id, kind, amount, currency, incident, error)
+        _record_failure(order, intent_id, kind, amount, currency, incident, error, detail)
         raise
     except stripe.StripeError as error:
-        _record_failure(order, intent_id, kind, amount, currency, incident, error)
+        _record_failure(order, intent_id, kind, amount, currency, incident, error, detail)
         raise
 
     if incident is None:
@@ -197,17 +204,19 @@ def refund_unfulfillable_payment(order, intent_id: str, intent_data: dict):
 
     incident.outcome = PaymentIncident.Outcome.REFUNDED
     incident.stripe_refund_id = refund.id
-    incident.detail = ""
+    incident.detail = detail
     incident.save()
 
     _alert(incident)
     return incident
 
 
-def _record_failure(order, intent_id, kind, amount, currency, incident, error):
+def _record_failure(order, intent_id, kind, amount, currency, incident, error, detail=""):
     """Keep one row per payment; alert only the first time it fails, so a
     Stripe outage retried for three days doesn't send hundreds of emails."""
     from .models import PaymentIncident
+
+    text = f"{detail} Stripe said: {error}" if detail else f"Stripe said: {error}"
 
     if incident is None:
         incident = PaymentIncident.objects.create(
@@ -217,11 +226,11 @@ def _record_failure(order, intent_id, kind, amount, currency, incident, error):
             outcome=PaymentIncident.Outcome.REFUND_FAILED,
             amount=amount,
             currency=currency,
-            detail=str(error),
+            detail=text,
         )
         _alert(incident)
     else:
-        incident.detail = str(error)
+        incident.detail = text
         incident.save(update_fields=["detail", "updated_at"])
 
 
@@ -251,9 +260,14 @@ def _alert(incident):
             f"PaymentIntent:   {incident.stripe_payment_intent_id}",
             f"Refund:          {incident.stripe_refund_id or '— none —'}",
             f"Outcome:         {incident.get_outcome_display()}",
-            *([f"Stripe said:     {incident.detail}"] if incident.detail else []),
+            *([f"Detail:          {incident.detail}"] if incident.detail else []),
             "",
-            "The order stays as it is and its stock has already been returned.",
+            (
+                "The order stays as it is and its stock has already been returned."
+                if incident.kind
+                in (incident.Kind.PAID_AFTER_CANCEL, incident.Kind.PAID_AFTER_REFUND)
+                else "The order stays as it is: this payment was not counted towards it."
+            ),
             (
                 "The customer has their money back; check the refund in the Stripe dashboard."
                 if refunded

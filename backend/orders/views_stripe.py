@@ -10,7 +10,7 @@ from rest_framework import permissions, status, throttling
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Order
+from .models import Order, PaymentIncident
 from .payments import refund_unfulfillable_payment
 
 logger = logging.getLogger(__name__)
@@ -196,40 +196,85 @@ class CreatePaymentIntentView(APIView):
             )
 
 
+def _amount_mismatch(order, intent_data) -> str:
+    """Why this payment doesn't match the order, or "" when it does.
+
+    Cents are worked out the way create-intent charges them, so an order the
+    shop priced correctly always matches.
+    """
+    expected = int((order.total_amount * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    expected_currency = (order.currency or "usd").lower()
+
+    received = int(intent_data.get("amount_received") or 0)
+    currency = (intent_data.get("currency") or "").lower()
+
+    if received == expected and currency == expected_currency:
+        return ""
+
+    return (
+        f"Order total {order.total_amount:.2f} {expected_currency.upper()}; "
+        f"Stripe received {Decimal(received) / 100:.2f} {currency.upper() or '(no currency)'}."
+    )
+
+
 def _payment_succeeded(order_id, intent_id, intent_data):
     """Settle a successful payment according to where the order is now.
 
     Stripe delivers webhooks at least once and retries for days, so this
     sees the same event more than once and must only ever move an order
-    forward:
+    forward. The order is found by the id Stripe carries in the intent's
+    metadata, whichever of its intents was paid:
 
-    * PENDING  -> PAID. The normal case.
-    * PAID, SHIPPED, COMPLETED -> nothing. A redelivery; writing PAID here
-      used to roll shipped orders back.
+    * PENDING, its current intent, the right amount -> PAID. The normal case.
+    * PAID, SHIPPED, COMPLETED, its current intent -> nothing. A redelivery;
+      writing PAID here used to roll shipped orders back.
     * CANCELED, REFUNDED -> the shopper paid for an order that will never
-      ship and whose stock is already back on sale. Refund automatically and
-      raise a PaymentIncident so a person sees it the same day.
+      ship and whose stock is already back on sale.
+    * An intent the order has replaced -> checkout made a new one while a
+      form for the old one was still open, and that form was paid.
+    * PENDING, but a different amount or currency -> not the order's price.
+
+    The last three take money the order can't count: refund it
+    automatically and raise a PaymentIncident so a person sees it the same
+    day. Nothing is dropped with only a log line.
     """
+    kind = None
+    detail = ""
+
     with transaction.atomic():
-        order = (
-            Order.objects.select_for_update()
-            .filter(id=order_id, stripe_payment_intent_id=intent_id)
-            .first()
-        )
+        order = Order.objects.select_for_update().filter(id=order_id).first()
 
         if order is None:
-            logger.warning(
-                "payment_intent.succeeded for order %s / intent %s matched no order.",
+            # Nothing to attach an incident to. Stripe took this money, so
+            # it is an error a person must see, not a warning.
+            logger.error(
+                "payment_intent.succeeded for order %s / intent %s matched no "
+                "order. If Stripe took the money, refund it by hand.",
                 order_id,
                 intent_id,
             )
             return HttpResponse(status=200)
 
-        if order.status == Order.Status.PENDING:
-            order.transition_to(Order.Status.PAID)
-            return HttpResponse(status=200)
+        closed = order.status in (Order.Status.CANCELED, Order.Status.REFUNDED)
 
-        if order.status not in (Order.Status.CANCELED, Order.Status.REFUNDED):
+        if order.stripe_payment_intent_id != intent_id:
+            if not closed:
+                kind = PaymentIncident.Kind.PAID_ON_REPLACED_INTENT
+            detail = (
+                f"Paid on {intent_id}, which order #{order.pk} had replaced with "
+                f"{order.stripe_payment_intent_id or 'no payment'}."
+            )
+
+        elif order.status == Order.Status.PENDING:
+            detail = _amount_mismatch(order, intent_data)
+
+            if not detail:
+                order.transition_to(Order.Status.PAID)
+                return HttpResponse(status=200)
+
+            kind = PaymentIncident.Kind.AMOUNT_MISMATCH
+
+        elif not closed:
             logger.info(
                 "payment_intent.succeeded redelivered for order %s (%s); ignoring.",
                 order.pk,
@@ -240,7 +285,7 @@ def _payment_succeeded(order_id, intent_id, intent_data):
     # Outside the lock: the refund is a network call, and the incident row
     # it writes is unique per intent, which is what makes a redelivery safe.
     try:
-        refund_unfulfillable_payment(order, intent_id, intent_data)
+        refund_unfulfillable_payment(order, intent_id, intent_data, kind=kind, detail=detail)
     except stripe.StripeError:
         # Recorded and alerted already. 500 makes Stripe redeliver, which
         # retries the refund.
@@ -281,6 +326,7 @@ def stripe_webhook(request):
 
     event_type = event["type"]
     data = event["data"]["object"]
+
     intent_id = data.get("id")
     order_id = (data.get("metadata") or {}).get("order_id")
 

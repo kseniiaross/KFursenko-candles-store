@@ -142,8 +142,13 @@ def webhook_secret(settings):
 @pytest.mark.usefixtures("webhook_secret")
 class TestStripeWebhookPaymentSucceeded:
     def _order(self, user, status=Order.Status.PENDING, intent_id="pi_paid"):
+        # 42.50, matching the 4250 cents _succeeded reports as received.
         return Order.objects.create(
-            user=user, status=status, stripe_payment_intent_id=intent_id
+            user=user,
+            status=status,
+            stripe_payment_intent_id=intent_id,
+            total_amount=Decimal("42.50"),
+            currency="usd",
         )
 
     def test_pending_becomes_paid_and_no_email_is_sent(self, api_client, user):
@@ -277,15 +282,156 @@ class TestStripeWebhookPaymentSucceeded:
         assert PaymentIncident.objects.count() == 0
         assert mail.outbox == []
 
-    def test_unknown_intent_for_the_order_changes_nothing(self, api_client, user):
-        order = self._order(user, status=Order.Status.CANCELED, intent_id="pi_other")
+    # --------------------------------------------------------------
+    # A payment on an intent the order has moved on from
+    # --------------------------------------------------------------
+    # Checkout replaces an order's intent when it can't ask Stripe about the
+    # old one, or the old one is mid-payment. A form still showing the old
+    # intent can then be paid. That money must never be dropped.
+
+    @pytest.mark.parametrize(
+        "status",
+        [Order.Status.PENDING, Order.Status.PAID, Order.Status.SHIPPED, Order.Status.COMPLETED],
+    )
+    def test_a_payment_on_a_replaced_intent_is_refunded_and_reported(
+        self, api_client, user, settings, status
+    ):
+        order = self._order(user, status=status, intent_id="pi_current")
+
+        with _refund_ok("re_old") as refund:
+            response = _succeeded(api_client, order, intent_id="pi_old")
+
+        assert response.status_code == 200
+        refund.assert_called_once_with(
+            payment_intent="pi_old",
+            metadata={"order_id": str(order.pk), "reason": "paid_on_replaced_intent"},
+            idempotency_key="unfulfillable-pi_old",
+        )
+
+        # The order is untouched: still on its current intent, same status.
+        order.refresh_from_db()
+        assert order.status == status
+        assert order.stripe_payment_intent_id == "pi_current"
+
+        incident = PaymentIncident.objects.get()
+        assert incident.kind == PaymentIncident.Kind.PAID_ON_REPLACED_INTENT
+        assert incident.outcome == PaymentIncident.Outcome.REFUNDED
+        assert incident.stripe_payment_intent_id == "pi_old"
+        assert incident.amount == Decimal("42.50")
+
+        [alert] = mail.outbox
+        assert alert.to == [settings.SUPPORT_EMAIL]
+        assert f"order #{order.pk}" in alert.subject
+        assert "pi_old" in alert.body and "pi_current" in alert.body
+        assert "stock has already been returned" not in alert.body
+
+    @pytest.mark.parametrize(
+        "status, kind",
+        [
+            (Order.Status.CANCELED, PaymentIncident.Kind.PAID_AFTER_CANCEL),
+            (Order.Status.REFUNDED, PaymentIncident.Kind.PAID_AFTER_REFUND),
+        ],
+    )
+    def test_a_replaced_intent_on_a_closed_order_says_what_closed_it(
+        self, api_client, user, status, kind
+    ):
+        order = self._order(user, status=status, intent_id="pi_current")
+
+        with _refund_ok():
+            response = _succeeded(api_client, order, intent_id="pi_old")
+
+        assert response.status_code == 200
+        assert PaymentIncident.objects.get().kind == kind
+
+    def test_a_replaced_intent_redelivered_refunds_and_alerts_once(self, api_client, user):
+        order = self._order(user, intent_id="pi_current")
 
         with _refund_ok() as refund:
-            response = _succeeded(api_client, order, intent_id="pi_paid")
+            _succeeded(api_client, order, intent_id="pi_old")
+            response = _succeeded(api_client, order, intent_id="pi_old")
+
+        assert response.status_code == 200
+        assert refund.call_count == 1
+        assert PaymentIncident.objects.count() == 1
+        assert len(mail.outbox) == 1
+
+    def test_the_current_intent_still_pays_after_a_replaced_one_was_refunded(
+        self, api_client, user
+    ):
+        order = self._order(user, intent_id="pi_current")
+
+        with _refund_ok():
+            _succeeded(api_client, order, intent_id="pi_old")
+            response = _succeeded(api_client, order, intent_id="pi_current")
+
+        assert response.status_code == 200
+        assert Order.objects.get(pk=order.pk).status == Order.Status.PAID
+
+    def test_an_order_that_does_not_exist_is_logged_as_an_error(
+        self, api_client, user, caplog
+    ):
+        """No order to hang an incident on: the log is all there can be, so
+        it is an error a person will see, not a warning."""
+        missing = SimpleNamespace(pk=999_999)
+
+        with _refund_ok() as refund, caplog.at_level("ERROR"):
+            response = _succeeded(api_client, missing, intent_id="pi_orphan")
 
         assert response.status_code == 200
         refund.assert_not_called()
-        assert Order.objects.get(pk=order.pk).status == Order.Status.CANCELED
+        assert any(
+            "pi_orphan" in r.getMessage() and r.levelname == "ERROR" for r in caplog.records
+        )
+
+    # --------------------------------------------------------------
+    # Amount and currency
+    # --------------------------------------------------------------
+    @pytest.mark.parametrize(
+        "amount, currency",
+        [(4249, "usd"), (4251, "usd"), (0, "usd"), (4250, "eur")],
+        ids=["a-cent-short", "a-cent-over", "nothing", "other-currency"],
+    )
+    def test_a_payment_that_does_not_match_the_order_is_not_counted(
+        self, api_client, user, amount, currency
+    ):
+        order = self._order(user)
+
+        with _refund_ok("re_mismatch") as refund:
+            response = _succeeded(api_client, order, amount=amount, currency=currency)
+
+        assert response.status_code == 200
+        assert Order.objects.get(pk=order.pk).status == Order.Status.PENDING
+        refund.assert_called_once()
+        assert refund.call_args.kwargs["metadata"]["reason"] == "amount_mismatch"
+
+        incident = PaymentIncident.objects.get()
+        assert incident.kind == PaymentIncident.Kind.AMOUNT_MISMATCH
+        assert incident.outcome == PaymentIncident.Outcome.REFUNDED
+        assert "42.50 USD" in incident.detail
+
+        [alert] = mail.outbox
+        assert "42.50 USD" in alert.body
+
+    def test_a_mismatch_redelivered_refunds_once(self, api_client, user):
+        order = self._order(user)
+
+        with _refund_ok() as refund:
+            _succeeded(api_client, order, amount=4000)
+            response = _succeeded(api_client, order, amount=4000)
+
+        assert response.status_code == 200
+        assert refund.call_count == 1
+        assert len(mail.outbox) == 1
+
+    def test_the_currency_is_compared_without_case(self, api_client, user):
+        order = self._order(user)
+
+        with _refund_ok() as refund:
+            response = _succeeded(api_client, order, currency="USD")
+
+        assert response.status_code == 200
+        assert Order.objects.get(pk=order.pk).status == Order.Status.PAID
+        refund.assert_not_called()
 
 
 @pytest.mark.django_db

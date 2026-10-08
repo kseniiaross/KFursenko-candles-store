@@ -212,17 +212,24 @@ class OrderItem(models.Model):
         return f"{self.product_name} x{self.quantity}"
 
 class PaymentIncident(models.Model):
-    """Money Stripe took for an order that will never ship, and what was done.
+    """Money Stripe took that the order can't count, and what was done.
 
     Written by the webhook when a payment succeeds on an order that is
-    already CANCELED or REFUNDED. The payment is refunded automatically; this
-    row is what makes that visible in the admin rather than only in the logs,
-    and it stays "unresolved" until a person has looked at it.
+    already CANCELED or REFUNDED, on a payment the order has since replaced,
+    or for a different amount or currency than the order's total. The
+    payment is refunded automatically; this row is what makes that visible
+    in the admin rather than only in the logs, and it stays "unresolved"
+    until a person has looked at it.
     """
 
     class Kind(models.TextChoices):
         PAID_AFTER_CANCEL = "paid_after_cancel", "Paid after the order was cancelled"
         PAID_AFTER_REFUND = "paid_after_refund", "Paid again after the order was refunded"
+        PAID_ON_REPLACED_INTENT = (
+            "paid_on_replaced_intent",
+            "Paid on a payment the order had replaced",
+        )
+        AMOUNT_MISMATCH = "amount_mismatch", "Paid a different amount or currency"
 
     class Outcome(models.TextChoices):
         REFUNDED = "refunded", "Refunded automatically"
