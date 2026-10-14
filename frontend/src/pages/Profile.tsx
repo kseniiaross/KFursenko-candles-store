@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { Link, useNavigate } from "react-router-dom";
 
 import api from "../api/axiosInstance";
+import BodyPortal from "../components/BodyPortal";
 import "../styles/Profile.css";
 
 type ProfileFormState = {
@@ -754,60 +755,62 @@ const Profile: React.FC = () => {
 
       {/* ── Delete confirmation modal ── */}
       {isDeleteOpen && (
-        <div
-          className="profile__modalOverlay"
-          role="presentation"
-          onMouseDown={() => setIsDeleteOpen(false)}
-        >
+        <BodyPortal>
           <div
-            ref={modalRef}
-            className="profile__modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={modalTitleId}
-            aria-describedby={modalTextId}
-            onMouseDown={(e) => e.stopPropagation()}
+            className="profile__modalOverlay"
+            role="presentation"
+            onMouseDown={() => setIsDeleteOpen(false)}
           >
-            <h2 id={modalTitleId} className="profile__modalTitle">
-              Delete account?
-            </h2>
-            <p id={modalTextId} className="profile__modalText">
-              This action permanently removes your account and profile data.
-            </p>
+            <div
+              ref={modalRef}
+              className="profile__modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={modalTitleId}
+              aria-describedby={modalTextId}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <h2 id={modalTitleId} className="profile__modalTitle">
+                Delete account?
+              </h2>
+              <p id={modalTextId} className="profile__modalText">
+                This action permanently removes your account and profile data.
+              </p>
 
-            {deleteError && (
-              <div className="profile__err profile__err--modal" role="alert">
-                {deleteError}
+              {deleteError && (
+                <div className="profile__err profile__err--modal" role="alert">
+                  {deleteError}
+                </div>
+              )}
+
+              <div className="profile__modalActions">
+                <button
+                  type="button"
+                  className="profile__btn profile__btn--primary"
+                  onClick={() => void handleDeleteAccount()}
+                  disabled={deleting}
+                  aria-disabled={deleting}
+                >
+                  {deleting ? "Deleting…" : "Yes, delete"}
+                </button>
+
+                <button
+                  ref={deleteCancelButtonRef}
+                  type="button"
+                  className="profile__btn profile__btn--secondary"
+                  onClick={() => setIsDeleteOpen(false)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
               </div>
-            )}
 
-            <div className="profile__modalActions">
-              <button
-                type="button"
-                className="profile__btn profile__btn--primary"
-                onClick={() => void handleDeleteAccount()}
-                disabled={deleting}
-                aria-disabled={deleting}
-              >
-                {deleting ? "Deleting…" : "Yes, delete"}
-              </button>
-
-              <button
-                ref={deleteCancelButtonRef}
-                type="button"
-                className="profile__btn profile__btn--secondary"
-                onClick={() => setIsDeleteOpen(false)}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
+              <p className="profile__modalHint">
+                Press <kbd>Esc</kbd> to close this dialog.
+              </p>
             </div>
-
-            <p className="profile__modalHint">
-              Press <kbd>Esc</kbd> to close this dialog.
-            </p>
           </div>
-        </div>
+        </BodyPortal>
       )}
     </main>
   );

@@ -3,6 +3,7 @@ import { addToCart as addToCartApi } from "../api/cart";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 import { closeSizeModal } from "../store/modalSlice";
+import BodyPortal from "./BodyPortal";
 import Price from "./Price";
 
 import "../styles/SizeModal.css";
@@ -67,55 +68,57 @@ const SizeModal: React.FC = () => {
   };
 
   return (
-    <div className="sizeModalOverlay" onClick={handleClose}>
-      <div className="sizeModal" onClick={(event) => event.stopPropagation()}>
-        <button
-          type="button"
-          className="sizeModal__close"
-          onClick={handleClose}
-          aria-label="Close modal"
-        >
-          ×
-        </button>
+    <BodyPortal>
+      <div className="sizeModalOverlay" onClick={handleClose}>
+        <div className="sizeModal" onClick={(event) => event.stopPropagation()}>
+          <button
+            type="button"
+            className="sizeModal__close"
+            onClick={handleClose}
+            aria-label="Close modal"
+          >
+            ×
+          </button>
 
-        <div className="sizeModal__header">
-          <h2 className="sizeModal__title">Select Size</h2>
-          <p className="sizeModal__product">{candle.name}</p>
-        </div>
+          <div className="sizeModal__header">
+            <h2 className="sizeModal__title">Select Size</h2>
+            <p className="sizeModal__product">{candle.name}</p>
+          </div>
 
-        <div className="sizeModal__sizes">
-          {candle.variants?.map((variant) => {
-            const isAdding = addingVariantId === variant.id;
+          <div className="sizeModal__sizes">
+            {candle.variants?.map((variant) => {
+              const isAdding = addingVariantId === variant.id;
 
-            return (
-              <button
-                key={variant.id}
-                type="button"
-                className="sizeModal__sizeButton"
-                onClick={() => {
-                  void handleAdd(variant);
-                }}
-                disabled={isAdding}
-              >
-                <span className="sizeModal__size">{variant.size}</span>
+              return (
+                <button
+                  key={variant.id}
+                  type="button"
+                  className="sizeModal__sizeButton"
+                  onClick={() => {
+                    void handleAdd(variant);
+                  }}
+                  disabled={isAdding}
+                >
+                  <span className="sizeModal__size">{variant.size}</span>
 
-                <span className="sizeModal__price">
-                  {isAdding ? (
-                    "Adding..."
-                  ) : (
-                    // Same price the card shows and checkout charges for one.
-                    <Price
-                      price={variant.price}
-                      discountPrice={variant.display_price}
-                    />
-                  )}
-                </span>
-              </button>
-            );
-          })}
+                  <span className="sizeModal__price">
+                    {isAdding ? (
+                      "Adding..."
+                    ) : (
+                      // Same price the card shows and checkout charges for one.
+                      <Price
+                        price={variant.price}
+                        discountPrice={variant.display_price}
+                      />
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+    </BodyPortal>
   );
 };
 

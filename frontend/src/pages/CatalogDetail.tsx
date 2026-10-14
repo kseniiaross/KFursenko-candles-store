@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { getCandleBySlug, getCollectionScentsBySlug } from "../api/candles";
 import { addToCart as addToCartApi, getMyCart } from "../api/cart";
+import BodyPortal from "../components/BodyPortal";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 
@@ -452,36 +453,38 @@ const CatalogDetail: React.FC = () => {
       </div>
 
       {zoomImg && (
-        <div
-          className="catalogDetail__zoom"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Large image of ${item.name}`}
-        >
-          <button
-            type="button"
-            className="catalogDetail__zoomBackdrop"
-            onClick={() => setZoomImg("")}
-            aria-label="Close image preview"
-          />
-
-          <div className="catalogDetail__zoomContent">
+        <BodyPortal>
+          <div
+            className="catalogDetail__zoom"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Large image of ${item.name}`}
+          >
             <button
               type="button"
-              className="catalogDetail__zoomClose"
+              className="catalogDetail__zoomBackdrop"
               onClick={() => setZoomImg("")}
               aria-label="Close image preview"
-            >
-              ×
-            </button>
-
-            <img
-              src={zoomImg}
-              className="catalogDetail__zoomImg"
-              alt={item.name}
             />
+
+            <div className="catalogDetail__zoomContent">
+              <button
+                type="button"
+                className="catalogDetail__zoomClose"
+                onClick={() => setZoomImg("")}
+                aria-label="Close image preview"
+              >
+                ×
+              </button>
+
+              <img
+                src={zoomImg}
+                className="catalogDetail__zoomImg"
+                alt={item.name}
+              />
+            </div>
           </div>
-        </div>
+        </BodyPortal>
       )}
     </main>
   );
