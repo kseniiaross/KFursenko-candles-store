@@ -318,10 +318,11 @@ const OfferModal: React.FC = () => {
 
                   <span className="offerCard__meta">
                     {suggestion.size} ·{" "}
-                    <Price
-                      price={suggestion.price}
-                      discountPrice={suggestion.display_price}
-                    />
+                    {/* Only candles that come out free are suggested
+                        here, so the card shows that — not display_price,
+                        which is what one would cost on its own (e.g. with
+                        the welcome discount). */}
+                    <Price price={suggestion.price} free />
                   </span>
 
                   <span className="offerCard__action">
