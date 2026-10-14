@@ -205,18 +205,23 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
             raise serializers.ValidationError(
                 {
                     "items": (
-                        f"{variant.candle.name} / {variant.size} is currently "
-                        "unavailable."
+                        f"{variant.candle.name} / {variant.size} is no longer "
+                        "available. Please remove it from your cart."
                     )
                 }
             )
 
         if variant.stock_qty < qty:
+            # Sold since it went in the cart. Say which candle, and what
+            # to do about it in the cart.
+            name = f"{variant.candle.name} / {variant.size}"
             raise serializers.ValidationError(
                 {
                     "items": (
-                        f"Only {variant.stock_qty} left for "
-                        f"{variant.candle.name} / {variant.size}."
+                        f"{name} has sold out. Please remove it from your cart."
+                        if variant.stock_qty <= 0
+                        else f"Only {variant.stock_qty} left of {name}. Please "
+                        "lower the quantity in your cart."
                     )
                 }
             )

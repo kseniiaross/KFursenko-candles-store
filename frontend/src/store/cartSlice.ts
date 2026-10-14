@@ -13,7 +13,18 @@ export type CartLine = {
   size?: string;
   quantity: number;
   isGift?: boolean;
+  /** From the server cart only: false once the candle has sold out or been
+   *  switched off. A guest's cart doesn't know. */
+  inStock?: boolean;
 };
+
+/** The most of one candle a line can hold — the cap order creation and the
+ *  price preview enforce (cart.models.MAX_LINE_QUANTITY on the server). */
+export const MAX_LINE_QUANTITY = 999;
+
+function clampQuantity(value: unknown): number {
+  return Math.min(MAX_LINE_QUANTITY, Math.max(1, Number(value) || 1));
+}
 
 type CartState = {
   items: CartLine[];
@@ -26,7 +37,8 @@ type CartState = {
  *  the caller decides, and the field is required so none can forget. */
 type GuestPersistence = { persistAsGuest: boolean };
 
-const STORAGE_KEY = "guest_cart_items";
+export const GUEST_CART_KEY = "guest_cart_items";
+const STORAGE_KEY = GUEST_CART_KEY;
 
 /* ================= STORAGE ================= */
 
@@ -36,7 +48,7 @@ function normalizeCartLine(item: CartLine): CartLine {
     item_id: item.item_id ? Number(item.item_id) : undefined,
     variant_id: Number(item.variant_id) || 0,
     candle_id: Number(item.candle_id) || 0,
-    quantity: Math.max(1, Number(item.quantity) || 1),
+    quantity: clampQuantity(item.quantity),
     price: Number(item.price) || 0,
     isGift: Boolean(item.isGift),
   };
@@ -135,7 +147,9 @@ const cartSlice = createSlice({
       if (idx === -1) {
         state.items.push(item);
       } else {
-        state.items[idx].quantity += item.quantity;
+        state.items[idx].quantity = clampQuantity(
+          state.items[idx].quantity + item.quantity
+        );
       }
 
       if (action.payload.persistAsGuest) saveGuestCart(state.items);
@@ -153,7 +167,7 @@ const cartSlice = createSlice({
 
       if (idx === -1) return;
 
-      state.items[idx].quantity = Math.max(1, Number(action.payload.quantity) || 1);
+      state.items[idx].quantity = clampQuantity(action.payload.quantity);
       if (action.payload.persistAsGuest) saveGuestCart(state.items);
     },
 

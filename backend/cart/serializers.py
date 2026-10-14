@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from candles.models import CandleVariant
 
-from .models import Cart, CartItem
+from .models import MAX_LINE_QUANTITY, Cart, CartItem
 
 
 def build_cloudinary_url(file_field):
@@ -13,6 +13,10 @@ def build_cloudinary_url(file_field):
         return file_field.build_url(secure=True)
     except Exception:
         return str(file_field)
+
+
+def _too_many() -> str:
+    return f"You can have up to {MAX_LINE_QUANTITY} of one candle in your cart."
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -76,6 +80,8 @@ class CartItemSerializer(serializers.ModelSerializer):
     def validate_quantity(self, value):
         if value < 1:
             raise serializers.ValidationError("Quantity must be >= 1.")
+        if value > MAX_LINE_QUANTITY:
+            raise serializers.ValidationError(_too_many())
         return value
 
 

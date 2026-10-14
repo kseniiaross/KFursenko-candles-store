@@ -6,9 +6,9 @@ from rest_framework.views import APIView
 
 from candles.models import CandleVariant
 
-from .models import Cart, CartItem
+from .models import MAX_LINE_QUANTITY, Cart, CartItem
 from .serializers import (CartItemSerializer, CartSerializer,
-                          MergeCartSerializer)
+                          MergeCartSerializer, _too_many)
 
 
 def _get_or_create_cart(user):
@@ -60,6 +60,9 @@ class AddCartItemAPIView(generics.CreateAPIView):
         if not created:
             new_qty = item.quantity + qty
 
+            if new_qty > MAX_LINE_QUANTITY:
+                raise ValidationError({"quantity": _too_many()})
+
             if variant.stock_qty < new_qty:
                 raise ValidationError({"quantity": "Not enough stock for this candle option."})
 
@@ -102,6 +105,12 @@ class UpdateCartItemAPIView(generics.UpdateAPIView):
             item.delete()
             cart = _get_or_create_cart(request.user)
             return Response(CartSerializer(cart).data, status=status.HTTP_200_OK)
+
+        if qty > MAX_LINE_QUANTITY:
+            raise ValidationError({"quantity": _too_many()})
+
+        if not item.variant.is_active:
+            raise ValidationError({"variant_id": "This candle option is not available."})
 
         if item.variant.stock_qty < qty:
             raise ValidationError({"quantity": "Not enough stock for this candle option."})
@@ -178,7 +187,7 @@ class MergeCartAPIView(generics.GenericAPIView):
                 )
 
             existing = CartItem.objects.filter(cart=cart, variant=variant).first()
-            final_qty = qty + (existing.quantity if existing else 0)
+            final_qty = min(qty + (existing.quantity if existing else 0), MAX_LINE_QUANTITY)
 
             if variant.stock_qty < final_qty:
                 raise ValidationError(

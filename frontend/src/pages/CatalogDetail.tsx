@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { getCandleBySlug, getCollectionScentsBySlug } from "../api/candles";
-import { addToCart as addToCartApi } from "../api/cart";
+import { addToCart as addToCartApi, getMyCart } from "../api/cart";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 
@@ -224,7 +224,15 @@ const CatalogDetail: React.FC = () => {
         dispatch(setCart(serverItems));
       }
     } catch (error) {
+      // Refused (sold out, or at the line limit): the cart shows what the
+      // server has, not the line added above.
       console.error("Failed to sync cart with backend:", error);
+
+      try {
+        dispatch(setCart(await getMyCart()));
+      } catch (reloadError) {
+        console.error("Could not reload the cart:", reloadError);
+      }
     } finally {
       setAdding(false);
     }

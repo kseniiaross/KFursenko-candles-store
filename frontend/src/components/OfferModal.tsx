@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import api from "../api/axiosInstance";
-import { addToCart as addToCartApi } from "../api/cart";
+import { addToCart as addToCartApi, getMyCart } from "../api/cart";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 import type { CartLine } from "../store/cartSlice";
@@ -217,9 +217,16 @@ const OfferModal: React.FC = () => {
           dispatch(setCart(serverItems));
         }
       }
-    } catch {
-      // The line is already in Redux; a sync failure should not undo the
-      // shopper's click.
+    } catch (error) {
+      // Refused by the server (sold out, or at the line limit): show the
+      // cart the server has rather than a line checkout won't accept.
+      console.error("Failed to add the suggested candle:", error);
+
+      try {
+        dispatch(setCart(await getMyCart()));
+      } catch (reloadError) {
+        console.error("Could not reload the cart:", reloadError);
+      }
     } finally {
       setAdding(null);
       close();

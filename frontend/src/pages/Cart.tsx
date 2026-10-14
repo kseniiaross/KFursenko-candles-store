@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { deleteCartItem, patchCartItem } from "../api/cart";
+import { deleteCartItem, getMyCart, patchCartItem, readCartError } from "../api/cart";
 import LinePrice from "../components/LinePrice";
 import { usePricePreview } from "../hooks/usePricePreview";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
+  MAX_LINE_QUANTITY,
   clearGuestCartStorage,
   removeFromCart,
   setCart,
@@ -30,6 +31,28 @@ const Cart: React.FC = () => {
   const userId = useAppSelector((state) => state.auth.user?.id ?? null);
 
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  /** Why the server refused the last change to a line. */
+  const [lineError, setLineError] = useState<{
+    variantId: number;
+    message: string;
+  } | null>(null);
+
+  /** Changes show at once and are then sent. When the server refuses one,
+   *  say why on that line and put the cart back to what the server has, so
+   *  the page never shows a number checkout won't accept. */
+  const restoreFromServer = async (
+    variantId: number,
+    error: unknown
+  ): Promise<void> => {
+    console.error("The server refused a cart change:", error);
+    setLineError({ variantId, message: readCartError(error) });
+
+    try {
+      dispatch(setCart(await getMyCart()));
+    } catch (reloadError) {
+      console.error("Could not reload the cart:", reloadError);
+    }
+  };
 
   const totalItems = useMemo(() => {
     return items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
@@ -75,6 +98,7 @@ const Cart: React.FC = () => {
     variantId: number,
     itemId?: number
   ): Promise<void> => {
+    setLineError(null);
     dispatch(removeFromCart({ variant_id: variantId, persistAsGuest: !isLoggedIn }));
 
     if (!isLoggedIn || !itemId) return;
@@ -86,7 +110,7 @@ const Cart: React.FC = () => {
 
       dispatch(setCart(serverItems));
     } catch (error) {
-      console.error("Failed to remove cart item from backend:", error);
+      await restoreFromServer(variantId, error);
     } finally {
       setUpdatingId(null);
     }
@@ -97,8 +121,12 @@ const Cart: React.FC = () => {
     nextQuantity: number,
     itemId?: number
   ): Promise<void> => {
-    const quantity = Math.max(1, Number(nextQuantity) || 1);
+    const quantity = Math.min(
+      MAX_LINE_QUANTITY,
+      Math.max(1, Number(nextQuantity) || 1)
+    );
 
+    setLineError(null);
     dispatch(
       updateQty({
         variant_id: variantId,
@@ -118,7 +146,7 @@ const Cart: React.FC = () => {
 
       dispatch(setCart(serverItems));
     } catch (error) {
-      console.error("Failed to update cart item quantity:", error);
+      await restoreFromServer(variantId, error);
     } finally {
       setUpdatingId(null);
     }
@@ -129,6 +157,7 @@ const Cart: React.FC = () => {
     isGift: boolean,
     itemId?: number
   ): Promise<void> => {
+    setLineError(null);
     dispatch(
       setGiftOption({
         variant_id: variantId,
@@ -148,7 +177,7 @@ const Cart: React.FC = () => {
 
       dispatch(setCart(serverItems));
     } catch (error) {
-      console.error("Failed to update gift option:", error);
+      await restoreFromServer(variantId, error);
     } finally {
       setUpdatingId(null);
     }
@@ -186,6 +215,9 @@ const Cart: React.FC = () => {
                   preview?.unavailable.includes(variantId)
                 );
                 const isUpdating = updatingId === variantId;
+                const soldOut = !unavailable && item.inStock === false;
+                const error =
+                  lineError?.variantId === variantId ? lineError.message : "";
 
                 return (
                   <li
@@ -222,6 +254,18 @@ const Cart: React.FC = () => {
                           {unavailable && (
                             <p className="cartItem__unavailable" role="note">
                               No longer available — remove it to check out.
+                            </p>
+                          )}
+
+                          {soldOut && (
+                            <p className="cartItem__unavailable" role="note">
+                              Sold out — remove it to check out.
+                            </p>
+                          )}
+
+                          {error && (
+                            <p className="cartItem__unavailable" role="alert">
+                              {error}
                             </p>
                           )}
 
@@ -293,7 +337,9 @@ const Cart: React.FC = () => {
                           <button
                             type="button"
                             className="cartItem__qtyButton"
-                            disabled={isUpdating}
+                            disabled={
+                              isUpdating || quantity >= MAX_LINE_QUANTITY
+                            }
                             onClick={() => {
                               void handleQuantityChange(
                                 variantId,

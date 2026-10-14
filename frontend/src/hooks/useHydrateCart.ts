@@ -3,6 +3,7 @@ import axios from "axios";
 
 import { getMyCart, mergeCart } from "../api/cart";
 import {
+  GUEST_CART_KEY,
   clearGuestCartStorage,
   getGuestCartStorage,
   setCart,
@@ -89,6 +90,38 @@ export function useHydrateCart(): void {
 
     return () => {
       cancelled = true;
+    };
+  }, [dispatch, isLoggedIn]);
+
+  // Another tab changed the cart. Without this, a tab still showing the
+  // old cart saves it over the other tab's changes, and the next reload
+  // shows whichever tab wrote last. A guest's cart is in localStorage, so
+  // the storage event brings the new copy; a signed-in cart is on the
+  // server, so it is reloaded when this tab comes back into view.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent): void => {
+      if (isLoggedIn) return;
+      if (event.key !== GUEST_CART_KEY && event.key !== null) return;
+
+      dispatch(setCart(getGuestCartStorage()));
+    };
+
+    const onVisible = (): void => {
+      if (!isLoggedIn || document.visibilityState !== "visible") return;
+
+      getMyCart()
+        .then((items) => dispatch(setCart(items)))
+        .catch((error: unknown) => {
+          console.error("Could not reload the cart:", error);
+        });
+    };
+
+    window.addEventListener("storage", onStorage);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [dispatch, isLoggedIn]);
 }
