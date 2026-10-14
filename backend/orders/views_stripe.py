@@ -101,9 +101,10 @@ class CreatePaymentIntentView(APIView):
     def post(self, request):
         order_id = request.data.get("order_id")
 
-        if not order_id:
+        # bool is an int to Python; true is not an order number.
+        if isinstance(order_id, bool) or not str(order_id or "").isdigit():
             return Response(
-                {"error": "Missing order_id"},
+                {"error": "Missing or invalid order_id"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

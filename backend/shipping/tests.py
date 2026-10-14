@@ -11,8 +11,8 @@ from candles.models import Candle, CandleVariant
 from orders.models import OrderItem
 from shipping.client import ShippoError
 from shipping.models import Shipment
-from shipping.normalize import (AddressError, build_parcels, country_code,
-                                state_code)
+from shipping.normalize import (AddressError, ParcelError, build_parcels,
+                                country_code, state_code)
 from shipping.services import purchase_label, quote_rates
 
 pytestmark = pytest.mark.django_db
@@ -60,7 +60,7 @@ def test_parcel_weight_includes_box_tare():
 def test_variant_without_weight_is_a_hard_error():
     variant = MagicMock(id=7, weight_oz=Decimal("0"))
 
-    with pytest.raises(AddressError):
+    with pytest.raises(ParcelError):
         build_parcels([(variant, 1)])
 
 

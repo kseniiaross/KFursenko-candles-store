@@ -4,7 +4,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from candles.models import CandleVariant
-from shipping.normalize import payload_to_address
+from shipping.normalize import AddressError, payload_to_address
 from shipping.services import ShippingChoiceError, resolve_shipping_cost
 
 from .discounts import price_basket
@@ -236,6 +236,10 @@ def build_order(*, user, lines, shipping, shipping_rate_id=None):
         # Under the field the shopper got wrong; checkout reloads the
         # delivery options when it sees it.
         raise serializers.ValidationError({"shipping_rate_id": [str(exc)]}) from exc
+    except AddressError as exc:
+        # A state or country we can't read, or one Shippo says can't be
+        # delivered to. The shopper can fix it, so it says what to change.
+        raise serializers.ValidationError({"shipping": str(exc)}) from exc
 
     # Resolved before the order row exists, so the order being created
     # cannot disqualify its own welcome discount. Campaign percentages,

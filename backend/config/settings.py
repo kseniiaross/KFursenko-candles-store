@@ -237,6 +237,13 @@ WHITENOISE_MANIFEST_STRICT = False
 # DRF / Swagger
 # ------------------------------------------------------------
 REST_FRAMEWORK = {
+    # Every endpoint takes an object; a JSON list or bare value is a 400
+    # here rather than a crash in the first view that calls .get() on it.
+    "DEFAULT_PARSER_CLASSES": [
+        "config.parsers.ObjectJSONParser",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
+    ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],

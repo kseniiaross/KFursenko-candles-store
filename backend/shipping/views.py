@@ -1,3 +1,5 @@
+import logging
+
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -10,10 +12,12 @@ from orders.models import Order
 
 from .client import ShippoError, ShippoNotConfigured
 from .models import Shipment
-from .normalize import AddressError, payload_to_address
+from .normalize import AddressError, ParcelError, payload_to_address
 from .serializers import (RateQuoteRequestSerializer, RateSerializer,
                           ShipmentSerializer)
 from .services import purchase_label, quote_rates
+
+logger = logging.getLogger(__name__)
 
 
 class ShippingRatesThrottle(UserRateThrottle):
@@ -63,9 +67,19 @@ class ShippingRatesAPIView(generics.GenericAPIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        except ShippoError as exc:
+        except ParcelError:
+            # A candle with no shipping weight: ours to fix, not theirs.
+            logger.exception("Cannot build a parcel to quote shipping")
             return Response(
-                {"detail": "Could not retrieve shipping rates.", "reason": str(exc)},
+                {"detail": "Live shipping rates are unavailable right now."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        except ShippoError:
+            # Shippo's reason can name our setup; it goes in the log only.
+            logger.exception("Shippo could not quote shipping rates")
+            return Response(
+                {"detail": "Could not retrieve shipping rates. Please try again."},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
@@ -124,7 +138,7 @@ class PurchaseLabelAPIView(generics.GenericAPIView):
         try:
             shipment = purchase_label(order)
 
-        except AddressError as exc:
+        except (AddressError, ParcelError) as exc:
             raise ValidationError({"shipping": str(exc)})
 
         except (ShippoError, ShippoNotConfigured) as exc:
