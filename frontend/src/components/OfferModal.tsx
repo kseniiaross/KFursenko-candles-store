@@ -25,6 +25,8 @@ type Suggestion = {
 
 type Promotion = {
   offer_slug: string;
+  /** The offer's storefront page, worked out by the API from its kind. */
+  offer_path: string;
   offer_title: string;
   badge_text: string;
   /** The free candle comes from the offer's own group, not from the
@@ -334,7 +336,7 @@ const OfferModal: React.FC = () => {
             className="offerModal__browse"
             onClick={() => {
               close();
-              navigate(`/offers/${promotion.offer_slug}`);
+              navigate(promotion.offer_path);
             }}
           >
             See all candles in this offer

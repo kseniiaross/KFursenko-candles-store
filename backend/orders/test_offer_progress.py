@@ -8,6 +8,7 @@ line's quantity instead of adding a second line in another size.
 import pytest
 
 from candles.models import Candle, CandleVariant, Offer
+from orders.views_offers import offer_path
 
 URL = "/api/orders/offer-progress/"
 
@@ -126,3 +127,32 @@ class TestSuggestions:
 
         assert promotion["in_cart"] == 1
         assert "Not In Any Offer" not in _names(promotion)
+
+
+@pytest.mark.django_db
+class TestOfferPath:
+    """The prompt links to the offer's page, worked out from its kind. The
+    slug comes from the title in the admin and isn't a route."""
+
+    def test_the_prompt_links_to_the_buy_two_get_three_page(self, api_client, spring):
+        _, c = spring
+
+        [promotion] = _ask(api_client, (c["Mango Island"], 1))
+
+        assert promotion["offer_slug"] == "buy-two-get-three"
+        assert promotion["offer_path"] == "/offers/buy-2-get-3"
+
+    @pytest.mark.parametrize(
+        "kind, path",
+        [
+            (Offer.Kind.B1G2, "/offers/buy-2-get-3"),
+            (Offer.Kind.NEW_SHOPPER, "/offers/new-shopper"),
+            (Offer.Kind.HOLIDAY, "/offers/holidays"),
+            (Offer.Kind.DISCOUNT, "/offers"),
+            (Offer.Kind.LOYALTY, "/offers"),
+        ],
+    )
+    def test_every_kind_has_a_page_whatever_its_title(self, kind, path):
+        offer = Offer.objects.create(title="Spooky Season Offer", kind=kind)
+
+        assert offer_path(offer) == path

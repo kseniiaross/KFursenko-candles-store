@@ -6,7 +6,7 @@ price and a picture, so the question "does this qualify?" can only be
 answered here.
 """
 
-from candles.models import Candle, CandleVariant
+from candles.models import Candle, CandleVariant, Offer
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
@@ -17,6 +17,22 @@ from .discounts import (active_welcome_offer, campaign_offer_for,
                         get_active_offers, get_welcome_offer, has_reward_group, offer_rewards,
                         offer_standing, price_basket, reward_offer_for,
                         unit_display_prices)
+
+# The storefront page for each kind of offer. Linking by slug broke for
+# every offer whose slug wasn't a route; the kind always has a page.
+OFFER_PAGES = {
+    Offer.Kind.NEW_SHOPPER: "/offers/new-shopper",
+    Offer.Kind.B1G2: "/offers/buy-2-get-3",
+    Offer.Kind.HOLIDAY: "/offers/holidays",
+}
+OFFERS_PAGE = "/offers"
+
+
+def offer_path(offer) -> str:
+    """Where the storefront shows this offer; the offers page if its kind
+    has no page of its own."""
+    return OFFER_PAGES.get(offer.kind, OFFERS_PAGE)
+
 
 # How many alternatives to offer in the prompt. More than a handful turns a
 # nudge into a second catalogue page.
@@ -71,7 +87,8 @@ def _serialize_suggestion(variant, unit) -> dict:
         "for one more), then every other. When `needed` is 1, only candles "
         "that would actually come out free are listed. `reward_group` is "
         "true when the offer's free candle comes from its own group rather "
-        "than from the candles that qualify. `replaces_label` names the "
+        "than from the candles that qualify. `offer_path` is the storefront "
+        "page for the offer. `replaces_label` names the "
         "welcome offer the basket would lose on the candles that pay for the "
         "free one, when it would; empty otherwise."
     ),
@@ -181,6 +198,7 @@ class OfferProgressAPIView(APIView):
             promotions.append(
                 {
                     "offer_slug": offer.slug,
+                    "offer_path": offer_path(offer),
                     "offer_title": offer.title,
                     "badge_text": offer.badge_text,
                     "reward_group": has_reward_group(offer),
