@@ -136,6 +136,23 @@ class RemoveCartItemAPIView(generics.DestroyAPIView):
         return Response(CartSerializer(cart).data, status=status.HTTP_200_OK)
 
 
+def _adjustment(variant_id, variant, reason, *, quantity=None):
+    """One guest line the merge couldn't take as it was.
+
+    reason: "unavailable" (switched off or gone), "sold_out", or "limited"
+    (lowered to what's left; `quantity` is what the cart now holds). Name
+    and size are empty for a candle that no longer exists; the storefront
+    has them from its own copy of the line.
+    """
+    return {
+        "variant_id": variant_id,
+        "reason": reason,
+        "name": variant.candle.name if variant else "",
+        "size": variant.size if variant else "",
+        "quantity": quantity,
+    }
+
+
 class MergeCartAPIView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = MergeCartSerializer
@@ -162,36 +179,47 @@ class MergeCartAPIView(generics.GenericAPIView):
             merged[variant_id]["quantity"] = int(merged[variant_id]["quantity"]) + qty
             merged[variant_id]["is_gift"] = bool(merged[variant_id]["is_gift"]) or is_gift
 
-        variant_ids = list(merged.keys())
-
         variants = (
             CandleVariant.objects
             .select_for_update()
             .select_related("candle")
-            .filter(id__in=variant_ids)
+            .filter(id__in=merged)
         )
 
         variant_map = {variant.id: variant for variant in variants}
+        adjustments = []
 
-        if len(variant_map) != len(variant_ids):
-            raise ValidationError({"items": "Some items in your cart are no longer available."})
-
+        # Whatever can be merged is; whatever can't is left out or lowered,
+        # and listed in `adjustments` so the storefront can say so. Refusing
+        # the lot over one sold-out candle lost the whole guest cart.
         for variant_id, payload in merged.items():
-            variant = variant_map[variant_id]
+            variant = variant_map.get(variant_id)
             qty = int(payload["quantity"])
             is_gift = bool(payload["is_gift"])
 
-            if not variant.is_active:
-                raise ValidationError(
-                    {"items": f"{variant.candle.name} / {variant.size} is currently unavailable."}
-                )
+            if variant is None or not variant.is_active:
+                adjustments.append(_adjustment(variant_id, variant, "unavailable"))
+                continue
 
             existing = CartItem.objects.filter(cart=cart, variant=variant).first()
-            final_qty = min(qty + (existing.quantity if existing else 0), MAX_LINE_QUANTITY)
+            wanted = min((existing.quantity if existing else 0) + qty, MAX_LINE_QUANTITY)
+            stock = max(variant.stock_qty, 0)
 
-            if variant.stock_qty < final_qty:
-                raise ValidationError(
-                    {"items": f"Only {variant.stock_qty} left for {variant.candle.name} / {variant.size}."}
+            # The merged line is what checkout would accept, so what the
+            # storefront says about it stays true — including a line the
+            # account's cart already held.
+            if stock == 0:
+                if existing:
+                    existing.delete()
+                adjustments.append(_adjustment(variant_id, variant, "sold_out"))
+                continue
+
+            final_qty = wanted
+
+            if wanted > stock:
+                final_qty = stock
+                adjustments.append(
+                    _adjustment(variant_id, variant, "limited", quantity=final_qty)
                 )
 
             if existing:
@@ -202,12 +230,15 @@ class MergeCartAPIView(generics.GenericAPIView):
                 CartItem.objects.create(
                     cart=cart,
                     variant=variant,
-                    quantity=qty,
+                    quantity=final_qty,
                     is_gift=is_gift,
                 )
 
         cart = _get_or_create_cart(request.user)
-        return Response(CartSerializer(cart).data, status=status.HTTP_200_OK)
+        return Response(
+            {**CartSerializer(cart).data, "adjustments": adjustments},
+            status=status.HTTP_200_OK,
+        )
 
 
 class ClearCartAPIView(APIView):

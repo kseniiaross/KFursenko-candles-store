@@ -141,9 +141,22 @@ export async function deleteCartItem(itemId: number): Promise<CartLine[]> {
   return mapCartResponse(response.data);
 }
 
-export async function mergeCart(payload: MergeCartPayload): Promise<CartLine[]> {
+/** A guest line the merge couldn't take as it was. name and size are empty
+ *  when the candle no longer exists. */
+export type MergeAdjustment = {
+  variant_id: number;
+  reason: "sold_out" | "unavailable" | "limited";
+  name: string;
+  size: string;
+  /** For "limited": how many the cart now holds. */
+  quantity: number | null;
+};
+
+export async function mergeCart(
+  payload: MergeCartPayload
+): Promise<{ items: CartLine[]; adjustments: MergeAdjustment[] }> {
   const response = await inOrder(() =>
-    api.post<CartApiResponse>("/cart/merge/", {
+    api.post<CartApiResponse & { adjustments?: MergeAdjustment[] }>("/cart/merge/", {
       items: payload.items.map((item) => ({
         variant_id: Number(item.variant_id),
         quantity: Math.max(1, Number(item.quantity) || 1),
@@ -152,7 +165,10 @@ export async function mergeCart(payload: MergeCartPayload): Promise<CartLine[]> 
     })
   );
 
-  return mapCartResponse(response.data);
+  return {
+    items: mapCartResponse(response.data),
+    adjustments: response.data.adjustments ?? [],
+  };
 }
 
 export async function clearServerCart(): Promise<CartLine[]> {

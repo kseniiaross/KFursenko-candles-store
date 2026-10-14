@@ -2,38 +2,66 @@ import { useEffect, useRef } from "react";
 import axios from "axios";
 
 import { getMyCart, mergeCart } from "../api/cart";
+import type { MergeAdjustment } from "../api/cart";
 import {
   GUEST_CART_KEY,
   clearGuestCartStorage,
   getGuestCartStorage,
   setCart,
+  setCartNotices,
   setGuestCart,
 } from "../store/cartSlice";
 import type { CartLine } from "../store/cartSlice";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { getAccessToken } from "../utils/token";
 
+/** What the shopper is told about a guest line the merge changed. The
+ *  name comes from the guest's own copy when the candle no longer exists. */
+function describeAdjustment(
+  adjustment: MergeAdjustment,
+  guestItems: CartLine[]
+): string {
+  const guest = guestItems.find(
+    (item) => Number(item.variant_id) === adjustment.variant_id
+  );
+  const name = adjustment.name || guest?.name || "A candle";
+  const size = adjustment.size || guest?.size || "";
+  const label = size ? `${name} / ${size}` : name;
+
+  if (adjustment.reason === "sold_out") {
+    return `${label} has sold out — we've taken it out of your cart.`;
+  }
+
+  if (adjustment.reason === "limited") {
+    return `Only ${adjustment.quantity} left of ${label} — we've put ${adjustment.quantity} in your cart.`;
+  }
+
+  return `${label} is no longer available — we've taken it out of your cart.`;
+}
+
 export function useHydrateCart(): void {
   const dispatch = useAppDispatch();
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
-  const hasHydrated = useRef(false);
+  // The sign-in state the cart was last loaded for. Loading again when it
+  // changes is what merges a guest cart at the moment of signing in, not
+  // only on the next page load. A ref rather than effect cleanup, so
+  // StrictMode's second run neither merges twice nor discards the answer.
+  const loadedFor = useRef<boolean | null>(null);
+  const generation = useRef(0);
 
   useEffect(() => {
-    if (hasHydrated.current) return;
+    if (loadedFor.current === isLoggedIn) return;
 
-    hasHydrated.current = true;
-
-    let cancelled = false;
+    loadedFor.current = isLoggedIn;
+    const current = ++generation.current;
+    const isCurrent = (): boolean => current === generation.current;
 
     async function hydrate(): Promise<void> {
       const token = getAccessToken();
       const guestItems = getGuestCartStorage();
 
       if (!isLoggedIn || !token) {
-        if (!cancelled) {
-          dispatch(setGuestCart(guestItems));
-        }
-
+        dispatch(setGuestCart(guestItems));
         return;
       }
 
@@ -48,7 +76,7 @@ export function useHydrateCart(): void {
       try {
         if (validGuestItems.length > 0) {
           try {
-            await mergeCart({
+            const { adjustments } = await mergeCart({
               items: validGuestItems.map((item) => ({
                 variant_id: Number(item.variant_id),
                 quantity: Number(item.quantity),
@@ -56,41 +84,46 @@ export function useHydrateCart(): void {
               })),
             });
 
+            // Merged, so the guest copy must go: kept, it would be merged
+            // again on the next load and every line counted twice.
             clearGuestCartStorage();
+
+            if (adjustments.length > 0 && isCurrent()) {
+              dispatch(
+                setCartNotices(
+                  adjustments.map((adjustment) =>
+                    describeAdjustment(adjustment, validGuestItems)
+                  )
+                )
+              );
+            }
           } catch (mergeError: unknown) {
+            // Only a malformed request is refused now; a candle that sold
+            // out is an adjustment, not an error. Anything else (offline,
+            // a 5xx) keeps the guest copy for the next try.
             console.error("Failed to merge guest cart:", mergeError);
 
-            if (axios.isAxiosError(mergeError)) {
-              const status = mergeError.response?.status;
-
-              if (status === 400) {
-                clearGuestCartStorage();
-              }
+            if (axios.isAxiosError(mergeError) && mergeError.response?.status === 400) {
+              clearGuestCartStorage();
             }
           }
         }
 
         const serverItems = await getMyCart();
 
-        if (!cancelled) {
+        if (isCurrent()) {
           dispatch(setCart(serverItems));
-          clearGuestCartStorage();
         }
       } catch (error: unknown) {
         console.error("Failed to hydrate cart:", error);
 
-        if (!cancelled) {
+        if (isCurrent()) {
           dispatch(setCart([]));
-          clearGuestCartStorage();
         }
       }
     }
 
     void hydrate();
-
-    return () => {
-      cancelled = true;
-    };
   }, [dispatch, isLoggedIn]);
 
   // Another tab changed the cart. Without this, a tab still showing the

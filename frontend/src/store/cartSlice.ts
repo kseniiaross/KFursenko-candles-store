@@ -28,6 +28,9 @@ function clampQuantity(value: unknown): number {
 
 type CartState = {
   items: CartLine[];
+  /** What signing in changed in the cart (a candle sold out, switched off
+   *  or lowered to what's left), until the shopper dismisses it. */
+  notices: string[];
 };
 
 /** Whether a change should be written to the guest copy in localStorage.
@@ -111,6 +114,7 @@ function findIndex(items: CartLine[], variant_id: number): number {
 
 const initialState: CartState = {
   items: loadGuestCart(),
+  notices: [],
 };
 
 const cartSlice = createSlice({
@@ -202,6 +206,14 @@ const cartSlice = createSlice({
       if (action.payload.persistAsGuest) saveGuestCart(state.items);
     },
 
+    setCartNotices: (state, action: PayloadAction<string[]>) => {
+      state.notices = action.payload;
+    },
+
+    dismissCartNotices: (state) => {
+      state.notices = [];
+    },
+
     clearCart: (state) => {
       state.items = [];
       clearGuestCartStorageInternal();
@@ -215,6 +227,7 @@ const cartSlice = createSlice({
     // cart; it returns on the next sign-in.
     builder.addCase(logout, (state) => {
       state.items = [];
+      state.notices = [];
     });
   },
 });
@@ -226,6 +239,8 @@ export const {
   updateQty,
   setGiftOption,
   removeFromCart,
+  setCartNotices,
+  dismissCartNotices,
   clearCart,
 } = cartSlice.actions;
 

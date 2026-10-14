@@ -2,12 +2,12 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { deleteCartItem, getMyCart, patchCartItem, readCartError } from "../api/cart";
+import CartNotices from "../components/CartNotices";
 import LinePrice from "../components/LinePrice";
 import { usePricePreview } from "../hooks/usePricePreview";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   MAX_LINE_QUANTITY,
-  clearGuestCartStorage,
   removeFromCart,
   setCart,
   setGiftOption,
@@ -84,8 +84,8 @@ const Cart: React.FC = () => {
   const handleCheckout = (): void => {
     if (!items.length) return;
 
-    clearGuestCartStorage();
-
+    // The guest copy stays until signing in has merged it into the
+    // account's cart; clearing it here lost the cart on a reload.
     if (!isLoggedIn) {
       navigate("/login-choice?next=/checkout");
       return;
@@ -193,6 +193,8 @@ const Cart: React.FC = () => {
             Review your selected candles before checkout
           </p>
         </header>
+
+        <CartNotices />
 
         {items.length === 0 ? (
           <div className="cart__empty">
