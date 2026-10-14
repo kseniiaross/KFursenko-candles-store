@@ -75,10 +75,13 @@ const DiscountModal: React.FC = () => {
     location.pathname.startsWith(path)
   );
 
+  // Worked out on render rather than closed from an effect: signing in
+  // hides the offer at once, since the account already has it.
+  const isShown = isOpen && !isLoggedIn && offer !== null;
+
   useEffect(() => {
     if (isLoggedIn) {
       writeMemory({ done: true });
-      setIsOpen(false);
       return;
     }
 
@@ -118,7 +121,7 @@ const DiscountModal: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isShown) return;
 
     closeRef.current?.focus();
 
@@ -157,9 +160,9 @@ const DiscountModal: React.FC = () => {
       document.body.style.overflow = "";
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [dismiss, isOpen]);
+  }, [dismiss, isShown]);
 
-  if (!isOpen || !offer) return null;
+  if (!isShown || !offer) return null;
 
   const percent = offer.discount_percent;
   const days = offer.days_after_signup;
