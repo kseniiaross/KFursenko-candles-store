@@ -96,6 +96,37 @@ function clearGuestCartStorageInternal(): void {
   }
 }
 
+/** Sign-in notices are kept for the tab, so a reload doesn't lose one
+ *  the shopper hasn't read; OK or closing the tab ends them. */
+const NOTICES_KEY = "cart_notices";
+
+function loadNotices(): string[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const parsed: unknown = JSON.parse(sessionStorage.getItem(NOTICES_KEY) || "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((notice): notice is string => typeof notice === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveNotices(notices: string[]): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    if (notices.length > 0) {
+      sessionStorage.setItem(NOTICES_KEY, JSON.stringify(notices));
+    } else {
+      sessionStorage.removeItem(NOTICES_KEY);
+    }
+  } catch {
+    // Ignore storage failures; the notice still shows until a reload.
+  }
+}
+
 export function getGuestCartStorage(): CartLine[] {
   return loadGuestCart();
 }
@@ -114,7 +145,7 @@ function findIndex(items: CartLine[], variant_id: number): number {
 
 const initialState: CartState = {
   items: loadGuestCart(),
-  notices: [],
+  notices: loadNotices(),
 };
 
 const cartSlice = createSlice({
@@ -208,10 +239,12 @@ const cartSlice = createSlice({
 
     setCartNotices: (state, action: PayloadAction<string[]>) => {
       state.notices = action.payload;
+      saveNotices(state.notices);
     },
 
     dismissCartNotices: (state) => {
       state.notices = [];
+      saveNotices(state.notices);
     },
 
     clearCart: (state) => {
@@ -228,6 +261,7 @@ const cartSlice = createSlice({
     builder.addCase(logout, (state) => {
       state.items = [];
       state.notices = [];
+      saveNotices(state.notices);
     });
   },
 });
