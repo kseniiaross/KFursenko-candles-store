@@ -285,6 +285,8 @@
   display: grid;
   place-items: center;
   padding: 28px;
+  /* Rendered into <body>, outside .catalogDetail: restate what it inherited. */
+  color: #111111;
 }
 
 .catalogDetail__zoomBackdrop {
