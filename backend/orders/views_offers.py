@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from .discounts import (campaign_offer_for, get_active_offers,
-                        get_welcome_offer, has_reward_group, offer_rewards,
+from .discounts import (active_welcome_offer, campaign_offer_for,
+                        get_active_offers, get_welcome_offer, has_reward_group, offer_rewards,
                         offer_standing, price_basket, reward_offer_for,
                         unit_display_prices)
 
@@ -343,3 +343,33 @@ class OfferProgressAPIView(APIView):
                 break
 
         return picked
+
+
+class WelcomeOfferAPIView(APIView):
+    """The sign-up discount on offer now, for the modal that advertises it.
+
+    `welcome_offer` is null when none is running; the modal then stays shut
+    rather than promise a discount checkout won't give. `days_after_signup`
+    is null when the offer doesn't run out for a new account.
+    """
+
+    # Shown to guests: it's what persuades them to sign up.
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+
+    def get(self, request):
+        offer = active_welcome_offer()
+
+        if offer is None:
+            return Response({"welcome_offer": None}, status=status.HTTP_200_OK)
+
+        return Response(
+            {
+                "welcome_offer": {
+                    "title": offer.title,
+                    "discount_percent": offer.discount_percent,
+                    "days_after_signup": offer.new_shopper_days_active or None,
+                }
+            },
+            status=status.HTTP_200_OK,
+        )

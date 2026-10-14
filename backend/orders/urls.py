@@ -4,7 +4,7 @@ from .views import (CancelMyOrderAPIView, CreateOrderAPIView,
                     CreateOrderFromCartAPIView, MyOrdersAPIView,
                     OrderDetailAPIView, OrderStatusUpdateAPIView,
                     StaffOrdersAPIView)
-from .views_offers import OfferProgressAPIView
+from .views_offers import OfferProgressAPIView, WelcomeOfferAPIView
 from .views_pricing import PricePreviewAPIView
 from .views_stripe import CreatePaymentIntentView, stripe_webhook
 
@@ -42,6 +42,14 @@ urlpatterns = [
         "offer-progress/",
         OfferProgressAPIView.as_view(),
         name="offer-progress",
+    ),
+
+    # Open to guests: the sign-up modal shows the discount before there is
+    # an account to give it to.
+    path(
+        "welcome-offer/",
+        WelcomeOfferAPIView.as_view(),
+        name="welcome-offer",
     ),
 
     # Open to guests too: the cart and checkout summary show these prices,

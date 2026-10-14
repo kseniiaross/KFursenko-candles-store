@@ -110,11 +110,9 @@ def campaign_offer_for(candle, offers):
 # ======================================================
 # WELCOME OFFER
 # ======================================================
-def get_welcome_offer(user):
-    """The sign-up discount, if this shopper still qualifies."""
-    if not user or not user.is_authenticated:
-        return None
-
+def active_welcome_offer():
+    """The sign-up discount the shop is running now, for anyone. What the
+    sign-up modal promises, so it is chosen exactly as checkout chooses."""
     offer = (
         Offer.objects.filter(is_active=True, kind=Offer.Kind.NEW_SHOPPER)
         .order_by("priority")
@@ -122,6 +120,19 @@ def get_welcome_offer(user):
     )
 
     if not offer or not offer.discount_percent or not offer.is_currently_active:
+        return None
+
+    return offer
+
+
+def get_welcome_offer(user):
+    """The sign-up discount, if this shopper still qualifies."""
+    if not user or not user.is_authenticated:
+        return None
+
+    offer = active_welcome_offer()
+
+    if not offer:
         return None
 
     days = offer.new_shopper_days_active or 0
