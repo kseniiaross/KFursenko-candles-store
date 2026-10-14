@@ -35,7 +35,7 @@ const HALLOWEEN_OFFER = {
   title: "Trick or Treat Yourself",
   text: "Enjoy 5% off the entire collection",
   cta: "Shop the offer",
-  to: "/offers/halloween",
+  to: "/offers/holidays",
 };
 
 const Home: React.FC<HomeProps> = () => {
