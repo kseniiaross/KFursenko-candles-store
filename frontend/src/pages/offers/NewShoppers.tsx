@@ -54,9 +54,11 @@ const NewShoppers: React.FC = () => {
               than expiring the same day — take your time choosing a scent.
             </li>
             <li className="newShoppers__item">
-              It does not stack with seasonal promotions. If a candle is already
-              discounted, whichever offer gives you the better price is the one
-              that applies.
+              It does not stack with other promotions. A candle in a seasonal
+              or Buy 2, Get 3 promotion keeps that promotion's price, and the
+              welcome discount applies to everything else in your first order
+              — except candles that pay towards a free one in Buy 2, Get 3,
+              whose reward is the free candle.
             </li>
             <li className="newShoppers__item">
               Shipping is calculated separately at checkout from your address

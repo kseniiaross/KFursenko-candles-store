@@ -15,7 +15,7 @@ const HolidayOffer: React.FC = () => {
           </h1>
 
           <p className="holidayOffer__lead">
-            10% off our single-wick candles and the Halloween collection.
+            10% off the Halloween collection and five autumn candles.
             Smoke, spice and dark amber — the scents that suit a long October
             evening.
           </p>
@@ -37,18 +37,20 @@ const HolidayOffer: React.FC = () => {
               code to enter.
             </li>
             <li className="holidayOffer__item">
-              It covers single-wick candles and everything in the Halloween
-              collection. Discounted items show the old price struck through
-              beside the new one.
+              It covers the candles in the Halloween collection, plus Spice
+              Delight, Ginger Bliss, Rich Smokey, Berry Grove and Mulled Wine.
+              Discounted items show the old price struck through beside the
+              new one.
             </li>
             <li className="holidayOffer__item">
-              The offer ends at 11:59pm on 31 October 2026. Orders placed after
-              that are charged the regular price, even if the candle was in the
-              basket beforehand.
+              The offer ends at 11:59pm Eastern time on 31 October 2026. Orders
+              placed after that are charged the regular price, even if the
+              candle was in the basket beforehand.
             </li>
             <li className="holidayOffer__item">
               It does not stack with the 10% welcome discount for new shoppers.
-              Whichever gives you the better price is the one you get.
+              A candle in this offer keeps the offer price; the welcome
+              discount applies to the rest of a first order.
             </li>
             <li className="holidayOffer__item">
               Candles are made to order, so allow 3–5 business days for pouring
