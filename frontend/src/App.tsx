@@ -221,6 +221,12 @@ const App: React.FC = () => {
               path="/offers/buy-1-get-2"
               element={<Navigate to="/offers/buy-2-get-3" replace />}
             />
+            {/* The offer modal and cart hint linked by the offer's slug
+                before the API sent offer_path; old tabs may still do so. */}
+            <Route
+              path="/offers/buy-two-get-three"
+              element={<Navigate to="/offers/buy-2-get-3" replace />}
+            />
 
             <Route path="/offers/holidays" element={<HolidayOffer />} />
 

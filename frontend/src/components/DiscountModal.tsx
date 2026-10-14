@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+import { getWelcomeOffer, type WelcomeOffer } from "../api/orders";
 import { useAppSelector } from "../store/hooks";
 import modalImage from "../assets/images/discount_modal.webp";
 
@@ -59,6 +60,7 @@ const DiscountModal: React.FC = () => {
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
 
   const [isOpen, setIsOpen] = useState(false);
+  const [offer, setOffer] = useState<WelcomeOffer | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
 
@@ -73,10 +75,13 @@ const DiscountModal: React.FC = () => {
     location.pathname.startsWith(path)
   );
 
+  // Worked out on render rather than closed from an effect: signing in
+  // hides the offer at once, since the account already has it.
+  const isShown = isOpen && !isLoggedIn && offer !== null;
+
   useEffect(() => {
     if (isLoggedIn) {
       writeMemory({ done: true });
-      setIsOpen(false);
       return;
     }
 
@@ -89,9 +94,25 @@ const DiscountModal: React.FC = () => {
       return;
     }
 
-    const timer = window.setTimeout(() => setIsOpen(true), OPEN_DELAY_MS);
+    // Ask only when the modal would otherwise open. No offer running, or
+    // no answer, means no modal: it must never promise a discount checkout
+    // won't give.
+    let cancelled = false;
+    let timer: number | undefined;
 
-    return () => window.clearTimeout(timer);
+    getWelcomeOffer()
+      .then((current) => {
+        if (cancelled || !current) return;
+
+        setOffer(current);
+        timer = window.setTimeout(() => setIsOpen(true), OPEN_DELAY_MS);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [isLoggedIn, isMuted]);
 
   const dismiss = useCallback(() => {
@@ -100,7 +121,7 @@ const DiscountModal: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isShown) return;
 
     closeRef.current?.focus();
 
@@ -139,9 +160,12 @@ const DiscountModal: React.FC = () => {
       document.body.style.overflow = "";
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [dismiss, isOpen]);
+  }, [dismiss, isShown]);
 
-  if (!isOpen) return null;
+  if (!isShown || !offer) return null;
+
+  const percent = offer.discount_percent;
+  const days = offer.days_after_signup;
 
   const onClaim = (): void => {
     if (!accepted) {
@@ -195,7 +219,7 @@ const DiscountModal: React.FC = () => {
           <p className="discountModal__lead">{t("discountModal.lead")}</p>
 
           <p id={titleId} className="discountModal__amount">
-            {t("discountModal.amount")}
+            {t("discountModal.amount", { percent })}
           </p>
 
           <p className="discountModal__sub">{t("discountModal.sub")}</p>
@@ -214,7 +238,9 @@ const DiscountModal: React.FC = () => {
             />
 
             <span className="discountModal__termsText">
-              {t("discountModal.terms")}
+              {days
+                ? t("discountModal.terms", { percent, days })
+                : t("discountModal.termsNoLimit", { percent })}
             </span>
           </label>
 

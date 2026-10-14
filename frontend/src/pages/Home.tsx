@@ -33,9 +33,9 @@ const SLIDE_DISTANCE = 0.85;
 /** Halloween promo — replace with data from the admin Offer model. */
 const HALLOWEEN_OFFER = {
   title: "Trick or Treat Yourself",
-  text: "Enjoy 5% off the entire collection",
+  text: "Enjoy 10% off the Halloween collection and selected autumn candles",
   cta: "Shop the offer",
-  to: "/offers/halloween",
+  to: "/offers/holidays",
 };
 
 const Home: React.FC<HomeProps> = () => {

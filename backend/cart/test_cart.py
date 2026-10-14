@@ -306,25 +306,78 @@ class TestMergeCartAPIView:
         assert response.status_code == 200
         assert response.data["items"][0]["quantity"] == 3
 
-    def test_insufficient_stock_rejected(self, auth_client, variant):
-        response = auth_client.post(
-            self.url, {"items": [{"variant_id": variant.id, "quantity": 999}]}, format="json"
-        )
-        assert response.status_code == 400
+    # A guest line the merge can't take as it was no longer refuses the
+    # whole merge — that lost the guest's entire cart. The rest merges, and
+    # `adjustments` says what was left out or lowered.
 
-    def test_inactive_variant_rejected(self, auth_client, inactive_variant):
+    def _merge(self, auth_client, *lines):
         response = auth_client.post(
             self.url,
-            {"items": [{"variant_id": inactive_variant.id, "quantity": 1}]},
+            {"items": [{"variant_id": v, "quantity": q} for v, q in lines]},
             format="json",
         )
-        assert response.status_code == 400
+        assert response.status_code == 200, response.content
+        return response.json()
 
-    def test_nonexistent_variant_id_rejected(self, auth_client):
-        response = auth_client.post(
-            self.url, {"items": [{"variant_id": 999999, "quantity": 1}]}, format="json"
+    def test_more_than_is_left_is_lowered_to_what_is_left(self, auth_client, variant):
+        data = self._merge(auth_client, (variant.id, 15))
+
+        assert [i["quantity"] for i in data["items"]] == [10]
+        assert data["adjustments"] == [
+            {"variant_id": variant.id, "reason": "limited", "name": variant.candle.name,
+             "size": "Medium", "quantity": 10}
+        ]
+
+    def test_a_sold_out_candle_is_left_out(self, auth_client, out_of_stock_variant):
+        data = self._merge(auth_client, (out_of_stock_variant.id, 1))
+
+        assert data["items"] == []
+        assert [(a["reason"], a["size"]) for a in data["adjustments"]] == [("sold_out", "Small")]
+
+    def test_a_sold_out_candle_already_in_the_account_cart_goes_too(
+        self, auth_client, user, out_of_stock_variant
+    ):
+        # Otherwise "taken out of your cart" would be untrue: the line
+        # would still be there.
+        _cart_item(Cart.objects.create(user=user), out_of_stock_variant, quantity=2)
+
+        data = self._merge(auth_client, (out_of_stock_variant.id, 1))
+
+        assert data["items"] == []
+        assert CartItem.objects.count() == 0
+
+    def test_a_switched_off_candle_is_left_out(self, auth_client, inactive_variant):
+        data = self._merge(auth_client, (inactive_variant.id, 1))
+
+        assert data["items"] == []
+        assert [a["reason"] for a in data["adjustments"]] == ["unavailable"]
+
+    def test_a_candle_that_no_longer_exists_is_left_out_without_a_name(self, auth_client):
+        data = self._merge(auth_client, (999999, 1))
+
+        assert data["adjustments"] == [
+            {"variant_id": 999999, "reason": "unavailable", "name": "", "size": "",
+             "quantity": None}
+        ]
+
+    def test_one_bad_line_doesnt_stop_the_rest(
+        self, auth_client, variant, out_of_stock_variant, inactive_variant
+    ):
+        data = self._merge(
+            auth_client,
+            (variant.id, 2),
+            (out_of_stock_variant.id, 1),
+            (inactive_variant.id, 1),
+            (999999, 1),
         )
-        assert response.status_code == 400
+
+        assert [(i["variant_id"], i["quantity"]) for i in data["items"]] == [(variant.id, 2)]
+        assert sorted(a["reason"] for a in data["adjustments"]) == [
+            "sold_out", "unavailable", "unavailable",
+        ]
+
+    def test_nothing_to_adjust_is_an_empty_list(self, auth_client, variant):
+        assert self._merge(auth_client, (variant.id, 1))["adjustments"] == []
 
     def test_empty_items_list_is_invalid(self, auth_client):
         response = auth_client.post(self.url, {"items": []}, format="json")

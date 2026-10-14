@@ -9,7 +9,7 @@ from django.db import transaction
 
 from .client import ShippoClient, ShippoError, ShippoNotConfigured
 from .models import Shipment
-from .normalize import AddressError, build_parcels, order_to_address
+from .normalize import AddressError, ParcelError, build_parcels, order_to_address
 
 logger = logging.getLogger(__name__)
 
@@ -199,6 +199,12 @@ def resolve_shipping_cost(*, address_to, lines, rate_id=None):
 
     except (ShippoError, ShippoNotConfigured) as exc:
         logger.warning("Shippo quote failed, using flat rate: %s", exc)
+        return settings.SHIPPING_FALLBACK_RATE, None
+
+    except ParcelError as exc:
+        # Our product data, not the shopper's address: charge the flat rate
+        # and make sure someone fixes the variant.
+        logger.error("Cannot build a parcel, using flat rate: %s", exc)
         return settings.SHIPPING_FALLBACK_RATE, None
 
 

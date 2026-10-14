@@ -2,6 +2,11 @@ from django.conf import settings
 from django.db import models
 
 
+# The most of one candle a cart line or an order line can hold. Order
+# creation and the price preview refuse more, so the cart can't promise it.
+MAX_LINE_QUANTITY = 999
+
+
 class Cart(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

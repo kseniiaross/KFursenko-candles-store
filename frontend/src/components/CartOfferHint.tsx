@@ -9,6 +9,8 @@ import "../styles/CartOfferHint.css";
 
 type Promotion = {
   offer_slug: string;
+  /** The offer's storefront page, worked out by the API from its kind. */
+  offer_path: string;
   offer_title: string;
   badge_text: string;
   /** The free candle comes from the offer's own group. */
@@ -112,7 +114,7 @@ const CartOfferHint: React.FC = () => {
               </>
             )}{" "}
             <Link
-              to={`/offers/${promotion.offer_slug}`}
+              to={promotion.offer_path}
               className="cartHint__link"
             >
               See eligible candles

@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Order, PaymentIncident
-from .payments import refund_unfulfillable_payment
+from .payments import refund_unfulfillable_payment, release_payment_intent
 
 logger = logging.getLogger(__name__)
 
@@ -101,9 +101,10 @@ class CreatePaymentIntentView(APIView):
     def post(self, request):
         order_id = request.data.get("order_id")
 
-        if not order_id:
+        # bool is an int to Python; true is not an order number.
+        if isinstance(order_id, bool) or not str(order_id or "").isdigit():
             return Response(
-                {"error": "Missing order_id"},
+                {"error": "Missing or invalid order_id"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -228,14 +229,19 @@ def _payment_succeeded(order_id, intent_id, intent_data):
     forward. The order is found by the id Stripe carries in the intent's
     metadata, whichever of its intents was paid:
 
-    * PENDING, its current intent, the right amount -> PAID. The normal case.
+    * PENDING, the right amount -> PAID. The normal case. First matching
+      payment wins: if it was paid on an intent the order had replaced
+      (checkout made a new one while a form for the old one was still
+      open), the order switches to the intent that was paid, and the one it
+      had is cancelled so it can't be paid as well.
     * PAID, SHIPPED, COMPLETED, its current intent -> nothing. A redelivery;
       writing PAID here used to roll shipped orders back.
     * CANCELED, REFUNDED -> the shopper paid for an order that will never
       ship and whose stock is already back on sale.
-    * An intent the order has replaced -> checkout made a new one while a
-      form for the old one was still open, and that form was paid.
-    * PENDING, but a different amount or currency -> not the order's price.
+    * PAID, SHIPPED, COMPLETED, another intent -> a second payment for an
+      order already paid, e.g. the other form after first payment won.
+    * PENDING, but a different amount or currency -> not the order's price,
+      whichever intent it was paid on.
 
     The last three take money the order can't count: refund it
     automatically and raise a PaymentIncident so a person sees it the same
@@ -243,6 +249,7 @@ def _payment_succeeded(order_id, intent_id, intent_data):
     """
     kind = None
     detail = ""
+    replaced_intent_id = None
 
     with transaction.atomic():
         order = Order.objects.select_for_update().filter(id=order_id).first()
@@ -259,23 +266,36 @@ def _payment_succeeded(order_id, intent_id, intent_data):
             return HttpResponse(status=200)
 
         closed = order.status in (Order.Status.CANCELED, Order.Status.REFUNDED)
+        current_intent_id = order.stripe_payment_intent_id
 
-        if order.stripe_payment_intent_id != intent_id:
-            if not closed:
-                kind = PaymentIncident.Kind.PAID_ON_REPLACED_INTENT
-            detail = (
-                f"Paid on {intent_id}, which order #{order.pk} had replaced with "
-                f"{order.stripe_payment_intent_id or 'no payment'}."
-            )
-
-        elif order.status == Order.Status.PENDING:
+        if order.status == Order.Status.PENDING:
             detail = _amount_mismatch(order, intent_data)
 
-            if not detail:
+            if detail:
+                kind = PaymentIncident.Kind.AMOUNT_MISMATCH
+
+            elif current_intent_id == intent_id:
                 order.transition_to(Order.Status.PAID)
                 return HttpResponse(status=200)
 
-            kind = PaymentIncident.Kind.AMOUNT_MISMATCH
+            else:
+                order.stripe_payment_intent_id = intent_id
+                order.save(update_fields=["stripe_payment_intent_id", "updated_at"])
+                order.transition_to(Order.Status.PAID)
+                replaced_intent_id = current_intent_id
+
+        elif current_intent_id != intent_id:
+            if not closed:
+                kind = PaymentIncident.Kind.PAID_ON_REPLACED_INTENT
+                detail = (
+                    f"Paid on {intent_id}, but order #{order.pk} was already paid on "
+                    f"{current_intent_id or 'no payment'}."
+                )
+            else:
+                detail = (
+                    f"Paid on {intent_id}, which order #{order.pk} had replaced with "
+                    f"{current_intent_id or 'no payment'}."
+                )
 
         elif not closed:
             logger.info(
@@ -284,6 +304,10 @@ def _payment_succeeded(order_id, intent_id, intent_data):
                 order.status,
             )
             return HttpResponse(status=200)
+
+    if replaced_intent_id is not None:
+        _paid_on_replaced_intent(order, intent_id, replaced_intent_id)
+        return HttpResponse(status=200)
 
     # Outside the lock: the refund is a network call, and the incident row
     # it writes is unique per intent, which is what makes a redelivery safe.
@@ -295,6 +319,36 @@ def _payment_succeeded(order_id, intent_id, intent_data):
         return HttpResponse(status=500)
 
     return HttpResponse(status=200)
+
+
+def _paid_on_replaced_intent(order, paid_intent_id, replaced_intent_id):
+    """The order is PAID on the intent it had replaced. Not an incident: the
+    shopper paid the right amount for this order on a form that was still
+    open. Cancel the intent the order had, so it can't take a second payment.
+
+    Outside the lock, because cancelling is a network call. If it can't be
+    cancelled, nothing is lost: a payment on it later is refunded as one the
+    order can't count.
+    """
+    logger.info(
+        "Order %s paid on %s, an intent it had replaced with %s; first payment "
+        "wins, the order now uses %s.",
+        order.pk,
+        paid_intent_id,
+        replaced_intent_id or "no payment",
+        paid_intent_id,
+    )
+
+    try:
+        release_payment_intent(replaced_intent_id)
+    except stripe.StripeError:
+        logger.warning(
+            "Could not cancel %s after order %s was paid on %s; a payment on it "
+            "will be refunded.",
+            replaced_intent_id,
+            order.pk,
+            paid_intent_id,
+        )
 
 
 # Orders whose payment the shop counts. A refund of anyone else's payment

@@ -54,3 +54,17 @@ export async function staffUpdateOrderStatus(
 
   return resp.data;
 }
+export type WelcomeOffer = {
+  title: string;
+  discount_percent: number;
+  /** null when the offer doesn't run out for a new account. */
+  days_after_signup: number | null;
+};
+
+/** The sign-up discount running now, or null when there isn't one. */
+export async function getWelcomeOffer(): Promise<WelcomeOffer | null> {
+  const resp = await api.get<{ welcome_offer: WelcomeOffer | null }>(
+    "/orders/welcome-offer/"
+  );
+  return resp.data.welcome_offer ?? null;
+}

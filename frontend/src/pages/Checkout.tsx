@@ -6,6 +6,7 @@ import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale } from "@stripe/stripe-js";
 
 import api from "../api/axiosInstance";
+import CartNotices from "../components/CartNotices";
 import CheckoutPaymentBlock from "../components/CheckoutPaymentBlock";
 import LinePrice from "../components/LinePrice";
 import ShippingRates, { type ShippingRate } from "../components/ShippingRates";
@@ -573,6 +574,8 @@ const Checkout: React.FC = () => {
             secure payment.
           </p>
         </header>
+
+        <CartNotices />
 
         <div
           id={statusId}

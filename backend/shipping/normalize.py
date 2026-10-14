@@ -43,7 +43,16 @@ COUNTRIES = {
 
 
 class AddressError(ValueError):
-    """Address cannot be expressed in a form Shippo will accept."""
+    """Address cannot be expressed in a form Shippo will accept.
+
+    The message is shown to the shopper, who can fix the address: say what
+    to change, and nothing about the code.
+    """
+
+
+class ParcelError(Exception):
+    """The shop's own product data can't be packed into a parcel. Not the
+    shopper's to fix, so never shown to them."""
 
 
 def country_code(value: str) -> str:
@@ -55,8 +64,10 @@ def country_code(value: str) -> str:
     code = COUNTRIES.get(raw.lower())
 
     if not code:
+        # Unsupported countries go in COUNTRIES above.
         raise AddressError(
-            f"Unsupported country: {raw!r}. Add it to shipping.normalize.COUNTRIES."
+            f"We can't ship to {raw!r}. Please check the country, or contact "
+            "us if you're ordering from abroad."
         )
 
     return code
@@ -75,7 +86,10 @@ def state_code(value: str, country: str) -> str:
     code = US_STATES.get(raw.lower())
 
     if not code:
-        raise AddressError(f"Unrecognised US state: {raw!r}")
+        raise AddressError(
+            f"{raw!r} isn't a US state we recognise. Please enter it as a "
+            "two-letter code, like NY, or its full name."
+        )
 
     return code
 
@@ -154,7 +168,7 @@ def build_parcels(lines) -> list[dict]:
         height = variant.height_in or Decimal("0")
 
         if weight <= 0:
-            raise AddressError(
+            raise ParcelError(
                 f"Variant #{variant.id} has no shipping weight set."
             )
 

@@ -133,6 +133,10 @@ def _refund_raises(error):
     return patch.object(stripe.Refund, "create", MagicMock(side_effect=error))
 
 
+def _cancel_ok():
+    return patch.object(stripe.PaymentIntent, "cancel", MagicMock())
+
+
 @pytest.fixture
 def webhook_secret(settings):
     settings.STRIPE_WEBHOOK_SECRET = TEST_SECRET
@@ -287,18 +291,109 @@ class TestStripeWebhookPaymentSucceeded:
     # --------------------------------------------------------------
     # Checkout replaces an order's intent when it can't ask Stripe about the
     # old one, or the old one is mid-payment. A form still showing the old
-    # intent can then be paid. That money must never be dropped.
+    # intent can then be paid. That money must never be dropped: the first
+    # payment of the right amount pays the order, whichever intent it was on.
+
+    def test_a_payment_on_a_replaced_intent_pays_the_order(self, api_client, user, caplog):
+        order = self._order(user, intent_id="pi_current")
+
+        with _refund_ok() as refund, _cancel_ok() as cancel, caplog.at_level("INFO"):
+            response = _succeeded(api_client, order, intent_id="pi_old")
+
+        assert response.status_code == 200
+        refund.assert_not_called()
+
+        # The order now uses the intent that was paid, and the one it had is
+        # cancelled so it can't take a second payment.
+        order.refresh_from_db()
+        assert order.status == Order.Status.PAID
+        assert order.stripe_payment_intent_id == "pi_old"
+        cancel.assert_called_once_with("pi_current")
+
+        # Not an incident: an info line naming both intents, no alert.
+        assert PaymentIncident.objects.count() == 0
+        assert mail.outbox == []
+        assert any(
+            r.levelname == "INFO" and "pi_old" in r.getMessage() and "pi_current" in r.getMessage()
+            for r in caplog.records
+        )
+        assert not any(r.levelno >= 30 for r in caplog.records)
+
+    def test_a_replaced_intent_paid_is_settled_even_if_the_other_cant_be_cancelled(
+        self, api_client, user
+    ):
+        order = self._order(user, intent_id="pi_current")
+        outage = stripe.APIConnectionError("network down")
+
+        with _refund_ok() as refund, patch.object(
+            stripe.PaymentIntent, "cancel", MagicMock(side_effect=outage)
+        ):
+            response = _succeeded(api_client, order, intent_id="pi_old")
+
+        assert response.status_code == 200
+        refund.assert_not_called()
+        order.refresh_from_db()
+        assert order.status == Order.Status.PAID
+        assert order.stripe_payment_intent_id == "pi_old"
+
+    def test_a_replaced_intent_paid_redelivered_changes_nothing(self, api_client, user):
+        order = self._order(user, intent_id="pi_current")
+
+        with _refund_ok() as refund, _cancel_ok() as cancel:
+            _succeeded(api_client, order, intent_id="pi_old")
+            response = _succeeded(api_client, order, intent_id="pi_old")
+
+        assert response.status_code == 200
+        refund.assert_not_called()
+        cancel.assert_called_once()
+        order.refresh_from_db()
+        assert order.status == Order.Status.PAID
+        assert order.stripe_payment_intent_id == "pi_old"
+
+    def test_a_payment_on_the_other_intent_afterwards_is_refunded_and_reported(
+        self, api_client, user, settings
+    ):
+        # The old form won; the cancel of pi_current came too late (or
+        # failed) and it was paid as well. The order is paid once.
+        order = self._order(user, intent_id="pi_current")
+
+        with _cancel_ok():
+            _succeeded(api_client, order, intent_id="pi_old")
+
+        with _refund_ok("re_second") as refund:
+            response = _succeeded(api_client, order, intent_id="pi_current")
+
+        assert response.status_code == 200
+        refund.assert_called_once_with(
+            payment_intent="pi_current",
+            metadata={"order_id": str(order.pk), "reason": "paid_on_replaced_intent"},
+            idempotency_key="unfulfillable-pi_current",
+        )
+
+        order.refresh_from_db()
+        assert order.status == Order.Status.PAID
+        assert order.stripe_payment_intent_id == "pi_old"
+
+        incident = PaymentIncident.objects.get()
+        assert incident.kind == PaymentIncident.Kind.PAID_ON_REPLACED_INTENT
+        assert incident.outcome == PaymentIncident.Outcome.REFUNDED
+        assert incident.stripe_payment_intent_id == "pi_current"
+        assert incident.stripe_refund_id == "re_second"
+
+        [alert] = mail.outbox
+        assert alert.to == [settings.SUPPORT_EMAIL]
+        assert "pi_old" in alert.body and "pi_current" in alert.body
+        assert "this payment was not counted" in alert.body
 
     @pytest.mark.parametrize(
-        "status",
-        [Order.Status.PENDING, Order.Status.PAID, Order.Status.SHIPPED, Order.Status.COMPLETED],
+        "status", [Order.Status.PAID, Order.Status.SHIPPED, Order.Status.COMPLETED]
     )
-    def test_a_payment_on_a_replaced_intent_is_refunded_and_reported(
+    def test_a_replaced_intent_paid_after_the_order_was_paid_is_refunded(
         self, api_client, user, settings, status
     ):
         order = self._order(user, status=status, intent_id="pi_current")
 
-        with _refund_ok("re_old") as refund:
+        with _refund_ok("re_old") as refund, _cancel_ok() as cancel:
             response = _succeeded(api_client, order, intent_id="pi_old")
 
         assert response.status_code == 200
@@ -307,6 +402,7 @@ class TestStripeWebhookPaymentSucceeded:
             metadata={"order_id": str(order.pk), "reason": "paid_on_replaced_intent"},
             idempotency_key="unfulfillable-pi_old",
         )
+        cancel.assert_not_called()
 
         # The order is untouched: still on its current intent, same status.
         order.refresh_from_db()
@@ -324,6 +420,30 @@ class TestStripeWebhookPaymentSucceeded:
         assert f"order #{order.pk}" in alert.subject
         assert "pi_old" in alert.body and "pi_current" in alert.body
         assert "stock has already been returned" not in alert.body
+
+    def test_a_replaced_intent_for_the_wrong_amount_is_refunded_and_reported(
+        self, api_client, user
+    ):
+        # The amount check is the gate: an old form priced before the shopper
+        # changed shipping doesn't pay the order, whichever intent it's on.
+        order = self._order(user, intent_id="pi_current")
+
+        with _refund_ok() as refund, _cancel_ok() as cancel:
+            response = _succeeded(api_client, order, intent_id="pi_old", amount=3900)
+
+        assert response.status_code == 200
+        refund.assert_called_once()
+        assert refund.call_args.kwargs["payment_intent"] == "pi_old"
+        assert refund.call_args.kwargs["metadata"]["reason"] == "amount_mismatch"
+        cancel.assert_not_called()
+
+        order.refresh_from_db()
+        assert order.status == Order.Status.PENDING
+        assert order.stripe_payment_intent_id == "pi_current"
+
+        incident = PaymentIncident.objects.get()
+        assert incident.kind == PaymentIncident.Kind.AMOUNT_MISMATCH
+        assert len(mail.outbox) == 1
 
     @pytest.mark.parametrize(
         "status, kind",
@@ -344,7 +464,7 @@ class TestStripeWebhookPaymentSucceeded:
         assert PaymentIncident.objects.get().kind == kind
 
     def test_a_replaced_intent_redelivered_refunds_and_alerts_once(self, api_client, user):
-        order = self._order(user, intent_id="pi_current")
+        order = self._order(user, status=Order.Status.PAID, intent_id="pi_current")
 
         with _refund_ok() as refund:
             _succeeded(api_client, order, intent_id="pi_old")
@@ -354,18 +474,6 @@ class TestStripeWebhookPaymentSucceeded:
         assert refund.call_count == 1
         assert PaymentIncident.objects.count() == 1
         assert len(mail.outbox) == 1
-
-    def test_the_current_intent_still_pays_after_a_replaced_one_was_refunded(
-        self, api_client, user
-    ):
-        order = self._order(user, intent_id="pi_current")
-
-        with _refund_ok():
-            _succeeded(api_client, order, intent_id="pi_old")
-            response = _succeeded(api_client, order, intent_id="pi_current")
-
-        assert response.status_code == 200
-        assert Order.objects.get(pk=order.pk).status == Order.Status.PAID
 
     def test_an_order_that_does_not_exist_is_logged_as_an_error(
         self, api_client, user, caplog
