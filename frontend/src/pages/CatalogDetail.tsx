@@ -38,7 +38,8 @@ function parseDescription(description: string): ParsedDescription {
   const facts: Record<string, string[]> = {};
   const leadLines: string[] = [];
 
-  for (const line of (description || "").split("\n")) {
+  // Descriptions saved from the admin end their lines with \r\n.
+  for (const line of (description || "").split(/\r?\n/)) {
     const match = line.match(LABELLED_LINE);
     const key = match ? FACT_LABELS[match[1].trim().toLowerCase()] : undefined;
 
