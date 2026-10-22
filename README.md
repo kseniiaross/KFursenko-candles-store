@@ -5,8 +5,7 @@
 **Full-stack e-commerce platform** for a handmade candle brand — React frontend + Django REST API backend, deployed live, taking real card payments and buying real shipping labels.
 
 [![Live Site](https://img.shields.io/badge/live%20site-kfursenko.com-black?style=flat-square)](https://kfursenko.com/)
-[![CI](https://img.shields.io/github/actions/workflow/status/kseniiaross/KFursenko-candles-store/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/kseniiaross/KFursenko-candles-store/actions)
-![Tests](https://img.shields.io/badge/tests-463%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-492%20passing-brightgreen?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 
 [Live Demo](https://kfursenko.com/) · [Backend](./backend) · [Frontend](./frontend)
@@ -34,24 +33,25 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 <td valign="top" width="50%">
 
 ### Backend
-- **Django 6** + **Django REST Framework**
+- **Django 5.2** + **Django REST Framework**
 - **PostgreSQL**
 - **Stripe** — PaymentIntents, webhooks, automatic refunds, dispute alerts
 - **Shippo** — live USPS rates and label purchase
 - **SimpleJWT** — token auth
 - **drf-spectacular** — OpenAPI schema
 - **Cloudinary** — media storage
-- **DRF throttling** — on auth, orders and quoting endpoints
+- **OpenAI** — the Lumière assistant's replies and AI search
+- **DRF throttling** — a site-wide limit, plus tighter ones on order creation, payment intents, shipping quotes and the assistant
 
 </td>
 <td valign="top" width="50%">
 
 ### Frontend
-- **React 18** + **TypeScript**
+- **React 19** + **TypeScript**
 - **Redux Toolkit** — cart, auth, modal state
 - **React Router**
 - **react-i18next** — English, Russian, Spanish, French
-- **Axios** — shared client with a serialized cart request queue
+- **Axios** — shared client; cart requests run one at a time
 - **Vite**
 
 </td>
@@ -70,7 +70,6 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 ### Quality & Tooling (Frontend)
 - **ESLint**
 - **TypeScript** — `tsc --noEmit` type checking
-- **Playwright** — browser verification and randomized stress ("monkey") testing
 
 </td>
 </tr>
@@ -87,10 +86,10 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 ![Catalog](docs/preview/catalog.jpg)
 
 - Catalog by category and collection, with size variants priced per variant
-- Every displayed price comes from the same engine the checkout charges with — the catalog card, the size picker, the product page, the cart and the stored order all call one function
+- Every displayed price comes from the same engine the checkout charges with — the catalog card, the size picker, the product page, the cart, the assistant and the stored order all call one function
 - Offer badges driven entirely from the admin, including a personal sign-up discount that lowers the price without showing a badge to shoppers who don't qualify
-- A scent recommendation quiz and an in-page assistant
-- Four languages
+- Lumière, an in-page AI assistant that recommends candles from the catalogue and searches it in plain language
+- Four interface languages
 
 **Pricing & offers**
 
@@ -111,10 +110,8 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 
 **Cart & Checkout**
 
-![Checkout](docs/preview/checkout.jpg)
-
 - Guest cart in localStorage that merges into the account cart at sign-in, line by line, and reports what it changed: a sold-out candle removed, a quantity lowered to what's left — shown to the shopper rather than silently dropped
-- Cart requests are serialized through a queue, so a slow early response can't overwrite a later one across fast clicks or two open tabs
+- Cart requests run one at a time, in order, so a slow early response can't overwrite a later one when the shopper clicks fast
 - All pricing computed server-side; the client never sends a price
 - Stock is reserved when the order is created and released if it isn't paid for; a scheduled job expires abandoned orders every 15 minutes
 - `SELECT FOR UPDATE` row locking on the order and on stock, scoped so Postgres will accept it
@@ -131,9 +128,9 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 
 **Account & Orders**
 
-- JWT authentication, with rate limiting on login, registration and order creation
+- JWT authentication. Every endpoint has a site-wide rate limit (60 requests a minute for guests, 300 for signed-in shoppers); order creation, payment intents, shipping quotes and the assistant have tighter limits of their own
 - Order history showing per-line discounts and free units as they were charged, read from stored values rather than recalculated
-- Self-serve cancellation within the published window
+- Shoppers can cancel their own unpaid orders; a paid order is cancelled by the shop
 - Admin: orders, offers with schedules and reward groups, payment incidents, stock by variant
 
 ---
@@ -144,11 +141,8 @@ Testing here isn't a checkbox — it's how the most serious bug in this codebase
 
 | Layer | Tool | Coverage | Status |
 |---|---|---|---|
-| **Backend** | pytest on **PostgreSQL** | 463 tests — orders & lifecycle, Stripe webhooks/refunds/incidents, the pricing engine, shipping quotes & parcels, cart limits & merge, catalog, offers | ✅ passing |
-| **Browser verification** | Playwright (Chromium) | Sign-in cart merge, offer modals, checkout flow, overlay stacking — including before/after pixel comparison between two running builds | ✅ passing |
-| **Stress test** | Playwright + API fuzzing | Rapid clicks, two-tab conflicts, malformed bodies against every endpoint, mid-flow failures | ✅ passing |
+| **Backend** | pytest on **PostgreSQL** | 492 tests — orders & lifecycle, Stripe webhooks/refunds/incidents, the pricing engine, shipping quotes & parcels, cart limits & merge, catalog, offers, the Lumière assistant | ✅ passing |
 | **Type checking** | `tsc --noEmit` | Whole frontend | ✅ 0 errors |
-| **Lint** | ESLint | Whole frontend | ✅ 0 errors |
 
 ### Why the suite runs on PostgreSQL
 
@@ -164,8 +158,6 @@ The suite now creates and drops its own database in the Docker Compose Postgres 
 - **Shipping correctness:** parcel packing by weight and box size, re-quoting an order against its own lines, refusing a rate token from a different quote, quantity caps, and the flat-rate fallback when the carrier is unreachable.
 - **Cart correctness in both modes:** guest and authenticated, per-line merge at sign-in with adjustments reported, quantity caps shared with order creation, and concurrent adds from two sessions.
 - **Error statuses:** every endpoint probed with empty, oversized, wrong-typed and hostile input — asserting a 400 or 404 with a message the shopper can act on, never a 500 and never anything naming a file, a query or a key.
-
-> **The stress test** drives the app with a fake Stripe and a fake Shippo so no live key is ever touched, then hammers it: the same candle added ten times as fast as the UI allows, quantity changed while a price preview is in flight, the cart emptied in a second tab mid-checkout, the carrier taken offline halfway through, and every API body replaced with junk. Its first run found an endpoint that would allocate ~140 million objects from a single request and kill the worker.
 
 ### Bugs found and fixed through testing
 
@@ -196,6 +188,8 @@ Deliberately open, and documented rather than hidden:
 - **Labels** — purchased through Shippo but not archived to Cloudinary
 - **Tracking** — Shippo tracking webhooks aren't connected; tracking numbers are entered from the admin
 - **Staging** — there is no second environment yet; changes are verified against a throwaway clone of the production catalog locally, then merged through a pull request
+- **Product text isn't translated** — the interface is in four languages, but candle names and descriptions are English in all of them
+- **No confirmation email** — customers get no automatic order confirmation; the owner sends them by hand, and tracking emails come from Shippo
 
 ### How the work was done
 
@@ -239,12 +233,12 @@ npm run dev
 # Backend — needs the Postgres container
 docker compose up -d db
 cd backend
-pytest                       # 463 tests, on PostgreSQL
+pytest                       # 492 tests, on PostgreSQL
 TEST_DB=sqlite pytest        # quick run without Docker; cannot catch locking bugs
 
 # Frontend
 cd frontend
-npx tsc --noEmit             # type check
+npx tsc --noEmit -p tsconfig.app.json   # type check
 npm run lint                 # ESLint
 npm run build                # production build
 ```
@@ -265,7 +259,7 @@ KFursenko-candles-store/
 │   │   └── payments.py                  Automatic refunds and incident records
 │   ├── shipping/                     Shippo client, parcel packing, rate quoting
 │   ├── newsletter/                    Subscriptions
-│   ├── lumiere/                        In-page assistant
+│   ├── lumiere/                        In-page AI assistant (OpenAI)
 │   └── config/                          Settings, test settings, parsers
 ├── frontend/                     React + TypeScript SPA
 │   └── src/
