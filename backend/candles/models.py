@@ -280,6 +280,23 @@ class Candle(models.Model):
     ideal_spaces = models.JSONField(default=list, blank=True)
     season_tags = models.JSONField(default=list, blank=True)
 
+    # Lumière only: read by the assistant, never served by the catalogue
+    # API (CandleSerializer excludes them).
+    assistant_notes = models.TextField(
+        max_length=1000,
+        blank=True,
+        help_text=(
+            "Scent profile, what it pairs with, who it suits. Shared by every "
+            "size and color with this name: fill it in on one of them."
+        ),
+    )
+    # Per row, not shared: it differs by size.
+    burn_time = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text='For this size, e.g. "45–50 hours".',
+    )
+
     image = CloudinaryField("image", blank=True, null=True)
 
     price = models.DecimalField(

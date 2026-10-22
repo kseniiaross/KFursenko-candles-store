@@ -607,9 +607,47 @@ def search_candles(
     ]
 
 
+def _assistant_notes(candle_ids: List[int]) -> Dict[int, Dict[str, str]]:
+    """Each candle's Lumière-only notes and burn time, keyed by candle id.
+
+    Notes describe the scent, so they are shared by name: a candle without
+    its own takes them from the same scent in another size or color. Burn
+    time differs by size and is never borrowed.
+    """
+    rows = list(
+        Candle.objects.filter(id__in=candle_ids).values(
+            "id", "name", "assistant_notes", "burn_time"
+        )
+    )
+
+    shared: Dict[str, str] = {}
+    written = (
+        Candle.objects.filter(name__in={row["name"] for row in rows})
+        .exclude(assistant_notes="")
+        .order_by("id")
+        .values_list("name", "assistant_notes")
+    )
+
+    for name, notes in written:
+        if notes.strip():
+            shared.setdefault(name, notes.strip())
+
+    return {
+        row["id"]: {
+            "notes": row["assistant_notes"].strip() or shared.get(row["name"], ""),
+            "burn_time": row["burn_time"].strip(),
+        }
+        for row in rows
+    }
+
+
 def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
     if not suggestions:
         return "CATALOG SEARCH RESULTS: No matching products were returned by the backend."
+
+    # Looked up here rather than carried on the suggestions, which are
+    # returned to the shopper: the notes never leave the prompt.
+    assistant_notes = _assistant_notes([suggestion["id"] for suggestion in suggestions])
 
     lines = ["CATALOG SEARCH RESULTS:"]
 
@@ -630,6 +668,14 @@ def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
 
         if suggestion.get("description"):
             lines.append(f"  Description: {suggestion['description']}")
+
+        lumiere_only = assistant_notes.get(suggestion["id"], {})
+
+        if lumiere_only.get("notes"):
+            lines.append(f"  Lumière notes: {lumiere_only['notes']}")
+
+        if lumiere_only.get("burn_time"):
+            lines.append(f"  Burn time: {lumiere_only['burn_time']}")
 
         if suggestion.get("fragrance_family"):
             lines.append(f"  Fragrance family: {suggestion['fragrance_family']}")
@@ -671,6 +717,8 @@ Rules:
 - ONLY recommend products from CATALOG SEARCH RESULTS.
 - Never invent products, prices, stock status, notes, or policies.
 - Use scent notes, mood tags, use case tags, ideal spaces, fragrance family, and intensity when available.
+- "Lumière notes" are the shop's guidance for you: use them to advise, in your own words. Don't present them as a quote.
+- Only state a burn time when one is listed for that candle.
 - Customers can mark an item as a gift during checkout.
 - Gift wrapping is complimentary.
 - Keep replies warm, premium, and specific.

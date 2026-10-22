@@ -7,7 +7,8 @@ from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from candles.models import Candle, CandleVariant, Category, Offer
-from lumiere.services import (ai_search_candles, get_candle_by_slug,
+from lumiere.services import (_build_instructions, ai_search_candles,
+                              build_store_context, get_candle_by_slug,
                               search_candles)
 from lumiere.views import extract_slug_from_text
 
@@ -431,3 +432,109 @@ class TestLumierePricesMatchCatalogue:
         assert first["suggestions"][0]["price"] == "8.99"
         assert second["suggestions"][0]["price"] == "9.99"
 
+
+# ======================================================
+# Lumière-only notes
+# ======================================================
+MATCHA_NOTES = "Green tea and steamed milk; suits a calm desk."
+
+
+@pytest.fixture
+def matcha(db, category):
+    """One scent in two sizes. Notes are written on the small one only;
+    each size has its own burn time, except the large one."""
+    small = Candle.objects.create(
+        category=category,
+        name="Matcha Chill",
+        size="8 oz",
+        mood_tags=["calm"],
+        assistant_notes=MATCHA_NOTES,
+        burn_time="45–50 hours",
+    )
+    large = Candle.objects.create(
+        category=category, name="Matcha Chill", size="11.3 oz", mood_tags=["calm"]
+    )
+    for candle, price in ((small, "18.49"), (large, "24.99")):
+        CandleVariant.objects.create(candle=candle, size=candle.size, price=price, stock_qty=5)
+    return {"small": small, "large": large}
+
+
+def _context_block(context, candle):
+    """The context lines for one candle: its entry up to the next one."""
+    lines = context.splitlines()
+    start = next(i for i, line in enumerate(lines) if f"slug: {candle.slug}" in line)
+    block = [lines[start]]
+    for line in lines[start + 1:]:
+        if line.startswith("- "):
+            break
+        block.append(line)
+    return "\n".join(block)
+
+
+class TestAssistantNotes:
+    def test_notes_and_burn_time_reach_the_context(self, matcha):
+        suggestion = get_candle_by_slug(matcha["small"].slug)
+
+        block = _context_block(build_store_context([suggestion]), matcha["small"])
+
+        assert f"Lumière notes: {MATCHA_NOTES}" in block
+        assert "Burn time: 45–50 hours" in block
+
+    def test_another_size_lends_its_notes_but_not_its_burn_time(self, matcha):
+        suggestion = get_candle_by_slug(matcha["large"].slug)
+
+        block = _context_block(build_store_context([suggestion]), matcha["large"])
+
+        assert f"Lumière notes: {MATCHA_NOTES}" in block
+        assert "Burn time" not in block
+
+    def test_empty_notes_leave_no_line(self, vanilla_candle):
+        suggestion = get_candle_by_slug(vanilla_candle.slug)
+
+        block = _context_block(build_store_context([suggestion]), vanilla_candle)
+
+        assert "Lumière notes" not in block
+        assert "Burn time" not in block
+
+    def test_whitespace_notes_count_as_empty(self, matcha):
+        matcha["small"].assistant_notes = "   "
+        matcha["small"].save()
+
+        block = _context_block(
+            build_store_context([get_candle_by_slug(matcha["large"].slug)]), matcha["large"]
+        )
+
+        assert "Lumière notes" not in block
+
+    def test_instructions_limit_burn_time_to_what_is_listed(self):
+        instructions = _build_instructions("en", None)
+
+        assert "Only state a burn time when one is listed" in instructions
+        assert "Lumière notes" in instructions
+
+    def test_reply_sends_notes_to_the_model_but_not_to_the_shopper(
+        self, api_client, settings, matcha
+    ):
+        settings.OPENAI_API_KEY = "test-key"
+
+        with patch("lumiere.services._call_openai_payload") as mock_call:
+            mock_call.return_value = _fake_openai_text("Try Matcha Chill.")
+            response = api_client.post(
+                "/api/lumiere/reply/", {"text": "matcha"}, format="json"
+            )
+
+        assert response.status_code == 200
+        assert MATCHA_NOTES in mock_call.call_args.args[0]["input"]
+        assert MATCHA_NOTES not in response.content.decode()
+        assert "45–50 hours" not in response.content.decode()
+
+    def test_ai_search_sends_no_notes(self, matcha):
+        with patch("lumiere.services._call_openai_payload") as mock_call:
+            mock_call.return_value = _fake_openai_text(
+                json.dumps({"text": "", "product_ids": [], "reasons": {}})
+            )
+            ai_search_candles("something calm")
+
+        sent = mock_call.call_args.args[0]["input"]
+        assert MATCHA_NOTES not in sent
+        assert "45–50 hours" not in sent

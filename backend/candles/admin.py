@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Exists, OuterRef
 from django.utils.html import format_html
 
 from .models import (Candle, CandleImage, CandleVariant, Category, Collection,
@@ -193,6 +194,28 @@ class CandleImageInline(admin.TabularInline):
 # =========================
 # CANDLE
 # =========================
+class AssistantNotesFilter(admin.SimpleListFilter):
+    """Which scents Lumière has notes for. A row counts as covered when any
+    candle with its name has them — the assistant reads them from there."""
+
+    title = "Lumière notes"
+    parameter_name = "lumiere_notes"
+
+    def lookups(self, request, model_admin):
+        return (("missing", "Missing"), ("written", "Written"))
+
+    def queryset(self, request, queryset):
+        written = Candle.objects.filter(name=OuterRef("name")).exclude(
+            assistant_notes=""
+        )
+
+        if self.value() == "missing":
+            return queryset.exclude(Exists(written))
+        if self.value() == "written":
+            return queryset.filter(Exists(written))
+        return queryset
+
+
 @admin.register(Candle)
 class CandleAdmin(admin.ModelAdmin):
     list_display = (
@@ -214,6 +237,7 @@ class CandleAdmin(admin.ModelAdmin):
         "intensity",
         "is_sold_out",
         "is_bestseller",
+        AssistantNotesFilter,
         "created_at",
     )
     search_fields = (
@@ -294,6 +318,20 @@ class CandleAdmin(admin.ModelAdmin):
                 "description": (
                     "Use JSON arrays for notes/tags. Example: "
                     '["cozy", "warm", "bedroom", "relaxing"]'
+                ),
+            },
+        ),
+        (
+            "Lumière only",
+            {
+                "fields": ("assistant_notes", "burn_time"),
+                "classes": ("collapse",),
+                "description": (
+                    "Read by the Lumière assistant when it recommends this "
+                    "candle; never shown on the site. It may still repeat "
+                    "what is written here in its own words, so keep it to "
+                    "things a shopper may hear. Left empty, Lumière works "
+                    "from the description and tags, and states no burn time."
                 ),
             },
         ),
