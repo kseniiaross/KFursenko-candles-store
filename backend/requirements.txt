@@ -38,3 +38,7 @@ whitenoise==6.11.0
 
 cloudinary==1.41.0
 django-cloudinary-storage==0.3.0
+
+# Tests
+pytest==9.1.1
+pytest-django==4.12.0
