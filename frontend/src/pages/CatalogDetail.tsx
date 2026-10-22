@@ -248,23 +248,36 @@ const CatalogDetail: React.FC = () => {
   const sizeOptions = getSizeOptions(item);
   const showSizes = sizeOptions.length > 1;
 
+  // Tag fields hold English keys; candle-tags.json labels them in each
+  // language. A value without a label shows as stored.
+  const labelled = (group: string, values: string[] | undefined): string[] =>
+    (values ?? []).map((value) => {
+      const clean = String(value).trim();
+      return clean
+        ? t(`candleTags.${group}.${clean.toLowerCase()}`, { defaultValue: clean })
+        : "";
+    });
+
   // The structured JSON fields win when they are filled; the labelled
   // lines in the description are the fallback until they are.
   const scentNotes = uniqueTags(
-    item.top_notes,
-    item.heart_notes,
-    item.base_notes
+    labelled("notes", item.top_notes),
+    labelled("notes", item.heart_notes),
+    labelled("notes", item.base_notes)
   );
   const notes = scentNotes.length > 0 ? scentNotes : parsed.facts.scent ?? [];
 
-  const moodFromTags = uniqueTags(item.mood_tags);
+  const moodFromTags = uniqueTags(labelled("mood", item.mood_tags));
   const mood = moodFromTags.length > 0 ? moodFromTags : parsed.facts.mood ?? [];
 
-  const bestForFromTags = uniqueTags(item.use_case_tags, item.ideal_spaces);
+  const bestForFromTags = uniqueTags(
+    labelled("use_case", item.use_case_tags),
+    labelled("spaces", item.ideal_spaces)
+  );
   const bestFor =
     bestForFromTags.length > 0 ? bestForFromTags : parsed.facts.bestFor ?? [];
 
-  const season = uniqueTags(item.season_tags);
+  const season = uniqueTags(labelled("season", item.season_tags));
   const details = parsed.facts.details ?? [];
 
   const rows: Array<{ key: string; label: string; values: string[] }> = [
