@@ -1,11 +1,14 @@
+import json
+from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
 from django.core.cache import cache
 from rest_framework.test import APIClient
 
-from candles.models import Candle, Category
-from lumiere.services import get_candle_by_slug, search_candles
+from candles.models import Candle, CandleVariant, Category, Offer
+from lumiere.services import (ai_search_candles, get_candle_by_slug,
+                              search_candles)
 from lumiere.views import extract_slug_from_text
 
 
@@ -337,3 +340,94 @@ class TestLumiereReplyView:
         response = api_client.post(self.url, {}, format="json")
         assert response.status_code == 400
         assert "text" in response.data
+
+
+# ======================================================
+# Prices come from the pricing engine
+# ======================================================
+@pytest.fixture
+def on_offer(db, category):
+    """A candle in a 10% campaign, plus a global welcome offer that a guest
+    doesn't get — Lumière takes no auth, so it must price like the
+    catalogue does for a signed-out shopper."""
+    candle = Candle.objects.create(category=category, name="Mulled Wine", stock_qty=100)
+    CandleVariant.objects.create(candle=candle, size="8 oz", price="18.49", stock_qty=100)
+    CandleVariant.objects.create(candle=candle, size="4 oz", price="9.99", stock_qty=100)
+
+    campaign = Offer.objects.create(
+        title="Spooky Season Offer", kind=Offer.Kind.HOLIDAY, discount_percent=10, priority=20
+    )
+    campaign.candles.add(candle)
+
+    Offer.objects.create(
+        title="Welcome 10%",
+        kind=Offer.Kind.NEW_SHOPPER,
+        discount_percent=10,
+        apply_globally=True,
+        priority=30,
+    )
+
+    return {"candle": candle, "campaign": campaign}
+
+
+def _catalogue_card_price(api_client, candle):
+    response = api_client.get("/api/candles/candles/")
+    assert response.status_code == 200
+    data = response.json()
+    rows = data["results"] if isinstance(data, dict) else data
+    row = next(row for row in rows if row["slug"] == candle.slug)
+    return Decimal(str(row["discount_price"]))
+
+
+class TestLumierePricesMatchCatalogue:
+    def test_search_shows_the_catalogue_price(self, api_client, on_offer):
+        card = _catalogue_card_price(api_client, on_offer["candle"])
+
+        [suggestion] = search_candles("mulled")
+
+        assert card == Decimal("8.99")
+        assert Decimal(suggestion["price"]) == card
+
+    def test_slug_lookup_shows_the_catalogue_price(self, api_client, on_offer):
+        card = _catalogue_card_price(api_client, on_offer["candle"])
+
+        suggestion = get_candle_by_slug(on_offer["candle"].slug)
+
+        assert Decimal(suggestion["price"]) == card
+
+    def test_ai_search_prices_what_it_shows_and_what_it_tells_the_model(self, on_offer):
+        candle = on_offer["candle"]
+
+        with patch("lumiere.services._call_openai_payload") as mock_call:
+            mock_call.return_value = _fake_openai_text(
+                json.dumps({"text": "Try this.", "product_ids": [candle.id], "reasons": {}})
+            )
+            result = ai_search_candles("something warm")
+
+        assert result["suggestions"][0]["price"] == "8.99"
+
+        sent = json.loads(mock_call.call_args.args[0]["input"])
+        [entry] = sent["catalog"]
+        assert entry["price_from"] == "8.99"
+        assert sorted(v["price"] for v in entry["variants"]) == ["16.64", "8.99"]
+
+    def test_cached_ai_search_is_priced_again(self, on_offer):
+        """A cached answer keeps the model's picks, not the prices: an offer
+        that ends inside the cache window must not leave its price behind."""
+        candle = on_offer["candle"]
+
+        with patch("lumiere.services._call_openai_payload") as mock_call:
+            mock_call.return_value = _fake_openai_text(
+                json.dumps({"text": "Try this.", "product_ids": [candle.id], "reasons": {}})
+            )
+            first = ai_search_candles("something warm")
+
+            on_offer["campaign"].is_active = False
+            on_offer["campaign"].save()
+
+            second = ai_search_candles("something warm")
+
+        mock_call.assert_called_once()
+        assert first["suggestions"][0]["price"] == "8.99"
+        assert second["suggestions"][0]["price"] == "9.99"
+
