@@ -143,6 +143,7 @@ Testing here isn't a checkbox — it's how the most serious bug in this codebase
 |---|---|---|---|
 | **Backend** | pytest on **PostgreSQL** | 492 tests — orders & lifecycle, Stripe webhooks/refunds/incidents, the pricing engine, shipping quotes & parcels, cart limits & merge, catalog, offers, the Lumière assistant | ✅ passing |
 | **Type checking** | `tsc --noEmit` | Whole frontend | ✅ 0 errors |
+| **Lint** | ESLint | Whole frontend | ✅ 0 errors |
 
 ### Why the suite runs on PostgreSQL
 
