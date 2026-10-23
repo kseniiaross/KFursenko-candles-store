@@ -205,9 +205,7 @@ const Catalog: React.FC = () => {
 
         setError(t("catalog.loadError"));
       } finally {
-        if (!active) return;
-
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
