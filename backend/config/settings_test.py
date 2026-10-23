@@ -56,6 +56,11 @@ else:
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
+# DEBUG defaults to off, and off means redirect every request to HTTPS. The
+# test client speaks plain HTTP, so without this the suite only passed on a
+# machine whose .env set DEBUG=True — never in CI or a fresh clone.
+SECURE_SSL_REDIRECT = False
+
 # Production serves static files through WhiteNoise's manifest storage,
 # which only works after collectstatic. Tests that render admin pages need
 # the plain storage instead.

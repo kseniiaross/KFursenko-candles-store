@@ -9,6 +9,9 @@ type Props = {
   discountPrice?: number | string | null;
   /** "sm" on catalog cards, "lg" on the product page. */
   size?: "sm" | "lg";
+  /** The shopper pays nothing for it: the regular price struck through and
+   *  "Free" beside it. discountPrice is ignored. */
+  free?: boolean;
 };
 
 function toNumber(value: number | string | null | undefined): number | null {
@@ -23,11 +26,27 @@ function money(value: number): string {
 
 /** One place that decides how a price looks, so a card and a product page
  *  cannot drift apart on rounding, ordering or colour. */
-const Price: React.FC<Props> = ({ price, discountPrice, size = "sm" }) => {
+const Price: React.FC<Props> = ({
+  price,
+  discountPrice,
+  size = "sm",
+  free = false,
+}) => {
   const regular = toNumber(price);
   const sale = toNumber(discountPrice);
 
   if (regular === null) return null;
+
+  if (free) {
+    return (
+      <span className={`price price--${size} price--sale`}>
+        <s className="price__was" aria-label={`Was ${money(regular)}`}>
+          {money(regular)}
+        </s>
+        <span className="price__now">Free</span>
+      </span>
+    );
+  }
 
   // A "discount" that is not actually lower is a data error upstream, not
   // something to draw a strikethrough for.

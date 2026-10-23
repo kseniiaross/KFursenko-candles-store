@@ -7,6 +7,7 @@ import { addToCart as addToCartApi, getMyCart } from "../api/cart";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
 import type { CartLine } from "../store/cartSlice";
+import BodyPortal from "./BodyPortal";
 import Price from "./Price";
 
 import "../styles/OfferModal.css";
@@ -236,133 +237,136 @@ const OfferModal: React.FC = () => {
   if (!isOpen || !promotion) return null;
 
   return (
-    <div className="offerModal" role="presentation">
-      <button
-        type="button"
-        className="offerModal__backdrop"
-        onClick={close}
-        aria-label="Close"
-      />
-
-      <div
-        ref={dialogRef}
-        className="offerModal__dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
+    <BodyPortal>
+      <div className="offerModal" role="presentation">
         <button
-          ref={closeRef}
           type="button"
-          className="offerModal__close"
+          className="offerModal__backdrop"
           onClick={close}
           aria-label="Close"
+        />
+
+        <div
+          ref={dialogRef}
+          className="offerModal__dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
         >
-          ×
-        </button>
-
-        <header className="offerModal__header">
-          <p className="offerModal__kicker">
-            {promotion.badge_text || promotion.offer_title}
-          </p>
-
-          <h2 id={titleId} className="offerModal__title">
-            {promotion.reward_group
-              ? "Add one of these and it's free"
-              : "One more and the third is free"}
-          </h2>
-
-          <p className="offerModal__lead">
-            {promotion.reward_group ? (
-              <>
-                Your basket has earned a free candle. Pick one of these and it
-                costs nothing — the discount is applied at checkout.
-              </>
-            ) : (
-              <>
-                You have {promotion.in_cart} candles from this offer in your
-                basket. Add one more and the cheapest of the three costs
-                nothing — the discount is applied at checkout.
-              </>
-            )}
-          </p>
-        </header>
-
-        <ul className="offerModal__grid" role="list">
-          {promotion.suggestions.map((suggestion) => {
-            const held = heldByVariant.get(suggestion.variant_id) ?? 0;
-
-            return (
-              <li key={suggestion.variant_id} className="offerCard">
-                <button
-                  type="button"
-                  className="offerCard__btn"
-                  onClick={() => void onPick(suggestion)}
-                  disabled={adding !== null}
-                >
-                  <span className="offerCard__media">
-                    {suggestion.image ? (
-                      <img
-                        src={suggestion.image}
-                        alt=""
-                        className="offerCard__img"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <span className="offerCard__img offerCard__img--empty" />
-                    )}
-                  </span>
-
-                  <span className="offerCard__name">{suggestion.name}</span>
-
-                  <span className="offerCard__meta">
-                    {suggestion.size} ·{" "}
-                    <Price
-                      price={suggestion.price}
-                      discountPrice={suggestion.display_price}
-                    />
-                  </span>
-
-                  <span className="offerCard__action">
-                    {adding === suggestion.variant_id
-                      ? "Adding…"
-                      : held > 0
-                        ? "Add another"
-                        : "Add"}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        <footer className="offerModal__footer">
           <button
+            ref={closeRef}
             type="button"
-            className="offerModal__browse"
-            onClick={() => {
-              close();
-              navigate(promotion.offer_path);
-            }}
+            className="offerModal__close"
+            onClick={close}
+            aria-label="Close"
           >
-            See all candles in this offer
+            ×
           </button>
 
-          <button type="button" className="offerModal__skip" onClick={close}>
-            No thanks
-          </button>
-        </footer>
+          <header className="offerModal__header">
+            <p className="offerModal__kicker">
+              {promotion.badge_text || promotion.offer_title}
+            </p>
 
-        <p className="offerModal__note">
-          {promotion.reward_group
-            ? promotion.replaces_label
-              ? t("offerModal.rewardNoteReplaces", { label: promotion.replaces_label })
-              : t("offerModal.rewardNote")
-            : "The free candle is the lowest-priced of the three. This offer does not combine with other discounts."}
-        </p>
+            <h2 id={titleId} className="offerModal__title">
+              {promotion.reward_group
+                ? "Add one of these and it's free"
+                : "One more and the third is free"}
+            </h2>
+
+            <p className="offerModal__lead">
+              {promotion.reward_group ? (
+                <>
+                  Your basket has earned a free candle. Pick one of these and it
+                  costs nothing — the discount is applied at checkout.
+                </>
+              ) : (
+                <>
+                  You have {promotion.in_cart} candles from this offer in your
+                  basket. Add one more and the cheapest of the three costs
+                  nothing — the discount is applied at checkout.
+                </>
+              )}
+            </p>
+          </header>
+
+          <ul className="offerModal__grid" role="list">
+            {promotion.suggestions.map((suggestion) => {
+              const held = heldByVariant.get(suggestion.variant_id) ?? 0;
+
+              return (
+                <li key={suggestion.variant_id} className="offerCard">
+                  <button
+                    type="button"
+                    className="offerCard__btn"
+                    onClick={() => void onPick(suggestion)}
+                    disabled={adding !== null}
+                  >
+                    <span className="offerCard__media">
+                      {suggestion.image ? (
+                        <img
+                          src={suggestion.image}
+                          alt=""
+                          className="offerCard__img"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <span className="offerCard__img offerCard__img--empty" />
+                      )}
+                    </span>
+
+                    <span className="offerCard__name">{suggestion.name}</span>
+
+                    <span className="offerCard__meta">
+                      {suggestion.size} ·{" "}
+                      {/* Only candles that come out free are suggested
+                          here, so the card shows that — not display_price,
+                          which is what one would cost on its own (e.g. with
+                          the welcome discount). */}
+                      <Price price={suggestion.price} free />
+                    </span>
+
+                    <span className="offerCard__action">
+                      {adding === suggestion.variant_id
+                        ? "Adding…"
+                        : held > 0
+                          ? "Add another"
+                          : "Add"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <footer className="offerModal__footer">
+            <button
+              type="button"
+              className="offerModal__browse"
+              onClick={() => {
+                close();
+                navigate(promotion.offer_path);
+              }}
+            >
+              See all candles in this offer
+            </button>
+
+            <button type="button" className="offerModal__skip" onClick={close}>
+              No thanks
+            </button>
+          </footer>
+
+          <p className="offerModal__note">
+            {promotion.reward_group
+              ? promotion.replaces_label
+                ? t("offerModal.rewardNoteReplaces", { label: promotion.replaces_label })
+                : t("offerModal.rewardNote")
+              : "The free candle is the lowest-priced of the three. This offer does not combine with other discounts."}
+          </p>
+        </div>
       </div>
-    </div>
+    </BodyPortal>
   );
 };
 

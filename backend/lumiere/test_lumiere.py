@@ -1,11 +1,15 @@
+import json
+from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
 from django.core.cache import cache
 from rest_framework.test import APIClient
 
-from candles.models import Candle, Category
-from lumiere.services import get_candle_by_slug, search_candles
+from candles.models import Candle, CandleVariant, Category, Offer
+from lumiere.services import (_build_instructions, ai_search_candles,
+                              build_store_context, get_candle_by_slug,
+                              search_candles)
 from lumiere.views import extract_slug_from_text
 
 
@@ -337,3 +341,200 @@ class TestLumiereReplyView:
         response = api_client.post(self.url, {}, format="json")
         assert response.status_code == 400
         assert "text" in response.data
+
+
+# ======================================================
+# Prices come from the pricing engine
+# ======================================================
+@pytest.fixture
+def on_offer(db, category):
+    """A candle in a 10% campaign, plus a global welcome offer that a guest
+    doesn't get — Lumière takes no auth, so it must price like the
+    catalogue does for a signed-out shopper."""
+    candle = Candle.objects.create(category=category, name="Mulled Wine", stock_qty=100)
+    CandleVariant.objects.create(candle=candle, size="8 oz", price="18.49", stock_qty=100)
+    CandleVariant.objects.create(candle=candle, size="4 oz", price="9.99", stock_qty=100)
+
+    campaign = Offer.objects.create(
+        title="Spooky Season Offer", kind=Offer.Kind.HOLIDAY, discount_percent=10, priority=20
+    )
+    campaign.candles.add(candle)
+
+    Offer.objects.create(
+        title="Welcome 10%",
+        kind=Offer.Kind.NEW_SHOPPER,
+        discount_percent=10,
+        apply_globally=True,
+        priority=30,
+    )
+
+    return {"candle": candle, "campaign": campaign}
+
+
+def _catalogue_card_price(api_client, candle):
+    response = api_client.get("/api/candles/candles/")
+    assert response.status_code == 200
+    data = response.json()
+    rows = data["results"] if isinstance(data, dict) else data
+    row = next(row for row in rows if row["slug"] == candle.slug)
+    return Decimal(str(row["discount_price"]))
+
+
+class TestLumierePricesMatchCatalogue:
+    def test_search_shows_the_catalogue_price(self, api_client, on_offer):
+        card = _catalogue_card_price(api_client, on_offer["candle"])
+
+        [suggestion] = search_candles("mulled")
+
+        assert card == Decimal("8.99")
+        assert Decimal(suggestion["price"]) == card
+
+    def test_slug_lookup_shows_the_catalogue_price(self, api_client, on_offer):
+        card = _catalogue_card_price(api_client, on_offer["candle"])
+
+        suggestion = get_candle_by_slug(on_offer["candle"].slug)
+
+        assert Decimal(suggestion["price"]) == card
+
+    def test_ai_search_prices_what_it_shows_and_what_it_tells_the_model(self, on_offer):
+        candle = on_offer["candle"]
+
+        with patch("lumiere.services._call_openai_payload") as mock_call:
+            mock_call.return_value = _fake_openai_text(
+                json.dumps({"text": "Try this.", "product_ids": [candle.id], "reasons": {}})
+            )
+            result = ai_search_candles("something warm")
+
+        assert result["suggestions"][0]["price"] == "8.99"
+
+        sent = json.loads(mock_call.call_args.args[0]["input"])
+        [entry] = sent["catalog"]
+        assert entry["price_from"] == "8.99"
+        assert sorted(v["price"] for v in entry["variants"]) == ["16.64", "8.99"]
+
+    def test_cached_ai_search_is_priced_again(self, on_offer):
+        """A cached answer keeps the model's picks, not the prices: an offer
+        that ends inside the cache window must not leave its price behind."""
+        candle = on_offer["candle"]
+
+        with patch("lumiere.services._call_openai_payload") as mock_call:
+            mock_call.return_value = _fake_openai_text(
+                json.dumps({"text": "Try this.", "product_ids": [candle.id], "reasons": {}})
+            )
+            first = ai_search_candles("something warm")
+
+            on_offer["campaign"].is_active = False
+            on_offer["campaign"].save()
+
+            second = ai_search_candles("something warm")
+
+        mock_call.assert_called_once()
+        assert first["suggestions"][0]["price"] == "8.99"
+        assert second["suggestions"][0]["price"] == "9.99"
+
+
+# ======================================================
+# Lumière-only notes
+# ======================================================
+MATCHA_NOTES = "Green tea and steamed milk; suits a calm desk."
+
+
+@pytest.fixture
+def matcha(db, category):
+    """One scent in two sizes. Notes are written on the small one only;
+    each size has its own burn time, except the large one."""
+    small = Candle.objects.create(
+        category=category,
+        name="Matcha Chill",
+        size="8 oz",
+        mood_tags=["calm"],
+        assistant_notes=MATCHA_NOTES,
+        burn_time="45–50 hours",
+    )
+    large = Candle.objects.create(
+        category=category, name="Matcha Chill", size="11.3 oz", mood_tags=["calm"]
+    )
+    for candle, price in ((small, "18.49"), (large, "24.99")):
+        CandleVariant.objects.create(candle=candle, size=candle.size, price=price, stock_qty=5)
+    return {"small": small, "large": large}
+
+
+def _context_block(context, candle):
+    """The context lines for one candle: its entry up to the next one."""
+    lines = context.splitlines()
+    start = next(i for i, line in enumerate(lines) if f"slug: {candle.slug}" in line)
+    block = [lines[start]]
+    for line in lines[start + 1:]:
+        if line.startswith("- "):
+            break
+        block.append(line)
+    return "\n".join(block)
+
+
+class TestAssistantNotes:
+    def test_notes_and_burn_time_reach_the_context(self, matcha):
+        suggestion = get_candle_by_slug(matcha["small"].slug)
+
+        block = _context_block(build_store_context([suggestion]), matcha["small"])
+
+        assert f"Lumière notes: {MATCHA_NOTES}" in block
+        assert "Burn time: 45–50 hours" in block
+
+    def test_another_size_lends_its_notes_but_not_its_burn_time(self, matcha):
+        suggestion = get_candle_by_slug(matcha["large"].slug)
+
+        block = _context_block(build_store_context([suggestion]), matcha["large"])
+
+        assert f"Lumière notes: {MATCHA_NOTES}" in block
+        assert "Burn time" not in block
+
+    def test_empty_notes_leave_no_line(self, vanilla_candle):
+        suggestion = get_candle_by_slug(vanilla_candle.slug)
+
+        block = _context_block(build_store_context([suggestion]), vanilla_candle)
+
+        assert "Lumière notes" not in block
+        assert "Burn time" not in block
+
+    def test_whitespace_notes_count_as_empty(self, matcha):
+        matcha["small"].assistant_notes = "   "
+        matcha["small"].save()
+
+        block = _context_block(
+            build_store_context([get_candle_by_slug(matcha["large"].slug)]), matcha["large"]
+        )
+
+        assert "Lumière notes" not in block
+
+    def test_instructions_limit_burn_time_to_what_is_listed(self):
+        instructions = _build_instructions("en", None)
+
+        assert "Only state a burn time when one is listed" in instructions
+        assert "Lumière notes" in instructions
+
+    def test_reply_sends_notes_to_the_model_but_not_to_the_shopper(
+        self, api_client, settings, matcha
+    ):
+        settings.OPENAI_API_KEY = "test-key"
+
+        with patch("lumiere.services._call_openai_payload") as mock_call:
+            mock_call.return_value = _fake_openai_text("Try Matcha Chill.")
+            response = api_client.post(
+                "/api/lumiere/reply/", {"text": "matcha"}, format="json"
+            )
+
+        assert response.status_code == 200
+        assert MATCHA_NOTES in mock_call.call_args.args[0]["input"]
+        assert MATCHA_NOTES not in response.content.decode()
+        assert "45–50 hours" not in response.content.decode()
+
+    def test_ai_search_sends_no_notes(self, matcha):
+        with patch("lumiere.services._call_openai_payload") as mock_call:
+            mock_call.return_value = _fake_openai_text(
+                json.dumps({"text": "", "product_ids": [], "reasons": {}})
+            )
+            ai_search_candles("something calm")
+
+        sent = mock_call.call_args.args[0]["input"]
+        assert MATCHA_NOTES not in sent
+        assert "45–50 hours" not in sent

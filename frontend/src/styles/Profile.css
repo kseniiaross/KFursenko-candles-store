@@ -429,6 +429,12 @@
   background: rgba(17, 17, 17, 0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  /* Rendered into <body>, outside .profile: restate what it inherited. */
+  color: rgba(17, 17, 17, 0.94);
+}
+
+[data-theme="dark"] .profile__modalOverlay {
+  color: rgba(245, 239, 232, 0.94);
 }
 
 .profile__modal {
@@ -482,7 +488,8 @@
   color: rgba(245, 239, 232, 0.58);
 }
 
-.profile kbd {
+.profile kbd,
+.profile__modalOverlay kbd {
   padding: 2px 6px;
   border-radius: 4px;
   border: 1px solid rgba(17, 17, 17, 0.14);
@@ -491,7 +498,8 @@
   font-size: 0.8rem;
 }
 
-[data-theme="dark"] .profile kbd {
+[data-theme="dark"] .profile kbd,
+[data-theme="dark"] .profile__modalOverlay kbd {
   border-color: rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.08);
 }

@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.db.models import Prefetch, Q
 
 from candles.models import Candle, CandleVariant
+from orders.discounts import UnitPrice, unit_display_prices
 
 logger = logging.getLogger(__name__)
 
@@ -125,12 +126,33 @@ def _get_active_variants(candle: Candle) -> List[CandleVariant]:
     return list(candle.variants.filter(is_active=True).order_by("price", "id"))
 
 
-def _get_display_price(candle: Candle) -> str:
-    variants = _get_active_variants(candle)
-    priced_variants = [variant for variant in variants if variant.price is not None]
+def _unit_prices(candles: List[Candle]) -> Dict[int, UnitPrice]:
+    """What one of each active variant costs, keyed by variant id, from the
+    function checkout charges with. Nothing in this module works out a
+    discount itself.
 
-    if priced_variants:
-        return _format_price(min(variant.price for variant in priced_variants))
+    Lumière takes no authentication, so it prices for a guest: campaigns
+    apply, the welcome discount doesn't — the same as the catalogue shows a
+    signed-out shopper.
+    """
+    variants = []
+
+    for candle in candles:
+        for variant in _get_active_variants(candle):
+            # Already loaded; saves unit_display_prices a query per variant.
+            variant.candle = candle
+            variants.append(variant)
+
+    return unit_display_prices(user=None, variants=variants)
+
+
+def _get_display_price(candle: Candle, units: Dict[int, UnitPrice]) -> str:
+    """One unit of the cheapest active variant — the catalogue card's price."""
+    variants = _get_active_variants(candle)
+
+    if variants:
+        cheapest = min(variants, key=lambda variant: variant.price)
+        return _format_price(units[cheapest.id].display_price)
 
     if candle.price is not None:
         return _format_price(candle.price)
@@ -170,6 +192,7 @@ def _base_candle_queryset():
 
 def _serialize_candle(
     candle: Candle,
+    units: Dict[int, UnitPrice],
     locale: str = "en",
     match_reason: str = "",
 ) -> Dict[str, Any]:
@@ -177,7 +200,7 @@ def _serialize_candle(
         "id": candle.id,
         "name": _localized_value(candle, "name", locale),
         "slug": candle.slug,
-        "price": _get_display_price(candle),
+        "price": _get_display_price(candle, units),
         "in_stock": _is_candle_available(candle),
         "description": _localized_value(candle, "description", locale),
         "fragrance_family": candle.fragrance_family or "",
@@ -193,7 +216,11 @@ def _serialize_candle(
     }
 
 
-def _compact_candle_for_ai(candle: Candle, locale: str) -> Dict[str, Any]:
+def _compact_candle_for_ai(
+    candle: Candle,
+    units: Dict[int, UnitPrice],
+    locale: str,
+) -> Dict[str, Any]:
     variants = _get_active_variants(candle)
 
     return {
@@ -203,7 +230,7 @@ def _compact_candle_for_ai(candle: Candle, locale: str) -> Dict[str, Any]:
         "description": _localized_value(candle, "description", locale)[:900],
         "category": candle.category.name if candle.category_id else "",
         "collections": [collection.name for collection in candle.collections.all()],
-        "price_from": _get_display_price(candle),
+        "price_from": _get_display_price(candle, units),
         "in_stock": _is_candle_available(candle),
         "is_bestseller": candle.is_bestseller,
         "fragrance_family": candle.fragrance_family or "",
@@ -219,7 +246,7 @@ def _compact_candle_for_ai(candle: Candle, locale: str) -> Dict[str, Any]:
             {
                 "id": variant.id,
                 "size": variant.size,
-                "price": _format_price(variant.price),
+                "price": _format_price(units[variant.id].display_price),
                 "stock_qty": variant.stock_qty,
             }
             for variant in variants
@@ -228,13 +255,14 @@ def _compact_candle_for_ai(candle: Candle, locale: str) -> Dict[str, Any]:
 
 
 def _build_ai_catalog(locale: str) -> List[Dict[str, Any]]:
-    candles = (
+    candles = list(
         _base_candle_queryset()
         .filter(is_sold_out=False)
         .order_by("-is_bestseller", "-created_at")[:AI_SEARCH_CATALOG_LIMIT]
     )
+    units = _unit_prices(candles)
 
-    return [_compact_candle_for_ai(candle, locale) for candle in candles]
+    return [_compact_candle_for_ai(candle, units, locale) for candle in candles]
 
 
 def _extract_json_object(text: str) -> Dict[str, Any]:
@@ -287,6 +315,50 @@ def _call_openai_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     return response.json()
 
 
+def _ai_search_result(
+    query: str,
+    picks: Dict[str, Any],
+    locale: str,
+) -> Dict[str, Any]:
+    """The search response for the model's picks, priced as of now."""
+    product_ids = picks["product_ids"]
+    reasons = picks["reasons"]
+
+    candles = list(_base_candle_queryset().filter(id__in=product_ids))
+    candle_map = {candle.id: candle for candle in candles}
+    units = _unit_prices(candles)
+
+    suggestions = []
+
+    for product_id in product_ids:
+        candle = candle_map.get(product_id)
+
+        if not candle:
+            continue
+
+        suggestions.append(
+            _serialize_candle(
+                candle,
+                units,
+                locale=locale,
+                match_reason=str(reasons.get(str(product_id), "") or ""),
+            )
+        )
+
+    return {
+        "query": query,
+        "text": picks["text"]
+        or _t(
+            locale,
+            "Here are the closest matches I found based on your request.",
+            "Вот самые близкие варианты, которые я нашла по твоему запросу.",
+            "Estas son las mejores coincidencias que encontré según tu búsqueda.",
+            "Voici les meilleures correspondances que j'ai trouvées pour ta recherche.",
+        ),
+        "suggestions": suggestions,
+    }
+
+
 def ai_search_candles(
     query: str,
     limit: int = 6,
@@ -302,11 +374,14 @@ def ai_search_candles(
             "suggestions": [],
         }
 
-    cache_key = _cache_key("ai_search", clean_query, safe_locale, limit)
-    cached_result = cache.get(cache_key)
+    # Only the model's picks are cached, never the priced suggestions: an
+    # offer can start or end inside the cache window, and a cached price
+    # would outlive it.
+    cache_key = _cache_key("ai_search_picks", clean_query, safe_locale, limit)
+    cached_picks = cache.get(cache_key)
 
-    if isinstance(cached_result, dict):
-        return cached_result
+    if isinstance(cached_picks, dict):
+        return _ai_search_result(clean_query, cached_picks, safe_locale)
 
     catalog = _build_ai_catalog(safe_locale)
 
@@ -400,39 +475,14 @@ Rules:
 
         reasons = reasons_raw if isinstance(reasons_raw, dict) else {}
 
-        candles = list(_base_candle_queryset().filter(id__in=product_ids))
-        candle_map = {candle.id: candle for candle in candles}
-
-        suggestions = []
-
-        for product_id in product_ids:
-            candle = candle_map.get(product_id)
-
-            if not candle:
-                continue
-
-            suggestions.append(
-                _serialize_candle(
-                    candle,
-                    locale=safe_locale,
-                    match_reason=str(reasons.get(str(product_id), "") or ""),
-                )
-            )
-
-        result = {
-            "query": clean_query,
-            "text": explanation
-            or _t(
-                safe_locale,
-                "Here are the closest matches I found based on your request.",
-                "Вот самые близкие варианты, которые я нашла по твоему запросу.",
-                "Estas son las mejores coincidencias que encontré según tu búsqueda.",
-                "Voici les meilleures correspondances que j'ai trouvées pour ta recherche.",
-            ),
-            "suggestions": suggestions,
+        picks = {
+            "text": explanation,
+            "product_ids": product_ids,
+            "reasons": reasons,
         }
+        result = _ai_search_result(clean_query, picks, safe_locale)
 
-        cache.set(cache_key, result, AI_SEARCH_CACHE_SECONDS)
+        cache.set(cache_key, picks, AI_SEARCH_CACHE_SECONDS)
         return result
 
     except Exception:
@@ -483,6 +533,7 @@ def get_candle_by_slug(slug: str, locale: str = "en") -> Optional[Dict[str, Any]
 
     return _serialize_candle(
         candle,
+        _unit_prices([candle]),
         locale=safe_locale,
         match_reason=_t(
             safe_locale,
@@ -531,16 +582,18 @@ def search_candles(
             | Q(season_tags__icontains=term)
         )
 
-    candles = (
+    candles = list(
         _base_candle_queryset()
         .filter(search_filter)
         .distinct()
         .order_by("-is_bestseller", "-created_at")[:limit]
     )
+    units = _unit_prices(candles)
 
     return [
         _serialize_candle(
             candle,
+            units,
             locale=safe_locale,
             match_reason=_t(
                 safe_locale,
@@ -554,9 +607,47 @@ def search_candles(
     ]
 
 
+def _assistant_notes(candle_ids: List[int]) -> Dict[int, Dict[str, str]]:
+    """Each candle's Lumière-only notes and burn time, keyed by candle id.
+
+    Notes describe the scent, so they are shared by name: a candle without
+    its own takes them from the same scent in another size or color. Burn
+    time differs by size and is never borrowed.
+    """
+    rows = list(
+        Candle.objects.filter(id__in=candle_ids).values(
+            "id", "name", "assistant_notes", "burn_time"
+        )
+    )
+
+    shared: Dict[str, str] = {}
+    written = (
+        Candle.objects.filter(name__in={row["name"] for row in rows})
+        .exclude(assistant_notes="")
+        .order_by("id")
+        .values_list("name", "assistant_notes")
+    )
+
+    for name, notes in written:
+        if notes.strip():
+            shared.setdefault(name, notes.strip())
+
+    return {
+        row["id"]: {
+            "notes": row["assistant_notes"].strip() or shared.get(row["name"], ""),
+            "burn_time": row["burn_time"].strip(),
+        }
+        for row in rows
+    }
+
+
 def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
     if not suggestions:
         return "CATALOG SEARCH RESULTS: No matching products were returned by the backend."
+
+    # Looked up here rather than carried on the suggestions, which are
+    # returned to the shopper: the notes never leave the prompt.
+    assistant_notes = _assistant_notes([suggestion["id"] for suggestion in suggestions])
 
     lines = ["CATALOG SEARCH RESULTS:"]
 
@@ -577,6 +668,14 @@ def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
 
         if suggestion.get("description"):
             lines.append(f"  Description: {suggestion['description']}")
+
+        lumiere_only = assistant_notes.get(suggestion["id"], {})
+
+        if lumiere_only.get("notes"):
+            lines.append(f"  Lumière notes: {lumiere_only['notes']}")
+
+        if lumiere_only.get("burn_time"):
+            lines.append(f"  Burn time: {lumiere_only['burn_time']}")
 
         if suggestion.get("fragrance_family"):
             lines.append(f"  Fragrance family: {suggestion['fragrance_family']}")
@@ -618,6 +717,8 @@ Rules:
 - ONLY recommend products from CATALOG SEARCH RESULTS.
 - Never invent products, prices, stock status, notes, or policies.
 - Use scent notes, mood tags, use case tags, ideal spaces, fragrance family, and intensity when available.
+- "Lumière notes" are the shop's guidance for you: use them to advise, in your own words. Don't present them as a quote.
+- Only state a burn time when one is listed for that candle.
 - Customers can mark an item as a gift during checkout.
 - Gift wrapping is complimentary.
 - Keep replies warm, premium, and specific.

@@ -1,6 +1,10 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
+// Labels for the candle tag fields, which are stored as English keys.
+// Also read by the backend's load_candle_tags command.
+import candleTags from "./locales/candle-tags.json";
+
 const STORAGE_KEY = "app_language";
 const SUPPORTED_LANGUAGES = ["en", "ru", "es", "fr"] as const;
 
@@ -15,6 +19,7 @@ function isSupportedLanguage(value: string | null): value is SupportedLanguage {
 const resources = {
   en: {
     translation: {
+      candleTags: candleTags.en,
       common: {
         language: "Language",
         english: "English",
@@ -495,6 +500,7 @@ const resources = {
 
   ru: {
     translation: {
+      candleTags: candleTags.ru,
       common: {
         language: "Язык",
         english: "Английский",
@@ -977,6 +983,7 @@ const resources = {
 
   es: {
     translation: {
+      candleTags: candleTags.es,
       common: {
         language: "Idioma",
         english: "Inglés",
@@ -1459,6 +1466,7 @@ const resources = {
 
   fr: {
     translation: {
+      candleTags: candleTags.fr,
       common: {
         language: "Langue",
         english: "Anglais",

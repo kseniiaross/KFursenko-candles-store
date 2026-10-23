@@ -49,8 +49,10 @@ function cleanSpeechText(text: string): string {
     .replace(/`(.*?)`/g, "$1")
     .replace(/\[(.*?)\]\(.*?\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
-    .replace(/[•●◆▪️]/g, ". ")
-    .replace(/[✨🕯️🎁💡🔥]/g, "")
+    // `u` so each emoji is one character, not two surrogate halves: without
+    // it these classes also cut the first half off unrelated emoji.
+    .replace(/[•●◆▪]\uFE0F?/gu, ". ")
+    .replace(/(?:[✨🎁💡🔥]|🕯\uFE0F?)/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }

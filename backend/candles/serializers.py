@@ -217,7 +217,8 @@ class CandleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Candle
-        fields = "__all__"
+        # The assistant's notes are for Lumière's prompt, not the shop.
+        exclude = ["assistant_notes", "burn_time"]
         read_only_fields = [
             "slug",
             "created_at",
