@@ -185,6 +185,68 @@ const LumiereWidget: React.FC = () => {
   const languageSelectId = useId();
   const messageListId = useId();
 
+  // Keeps the button off any control marked data-lumiere-keep-clear (the
+  // product page's "Add to cart"). Measured and applied in the same frame,
+  // straight on the element rather than through state, so it tracks the
+  // scroll exactly instead of trailing behind it. If staying clear would
+  // push it more than its own height, it fades out instead, and fades back
+  // in at its corner once the way is clear: it never jumps across a control.
+  useEffect(() => {
+    let frame = 0;
+    let lift = 0;
+
+    const measure = (): void => {
+      frame = 0;
+      const button = openButtonRef.current;
+      if (!button) return;
+
+      // Where the button would be without any lift.
+      const now = button.getBoundingClientRect();
+      const rest = { top: now.top + lift, bottom: now.bottom + lift, left: now.left, right: now.right };
+      const margin = 8;
+      let needed = 0;
+
+      document.querySelectorAll<HTMLElement>("[data-lumiere-keep-clear]").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return;
+
+        const overlaps =
+          r.left < rest.right + margin && r.right > rest.left - margin &&
+          r.top < rest.bottom + margin && r.bottom > rest.top - margin;
+
+        // Sit 12px above the control.
+        if (overlaps) needed = Math.max(needed, rest.bottom - r.top + 12);
+      });
+
+      const hidden = needed > now.height;
+
+      if (!hidden) {
+        lift = Math.round(needed);
+        button.style.setProperty("--lumiere-lift", `${lift}px`);
+      }
+
+      button.toggleAttribute("data-keep-clear-hidden", hidden);
+    };
+
+    const schedule = (): void => {
+      if (!frame) frame = window.requestAnimationFrame(measure);
+    };
+
+    // Pages load their content after the first render, so watch for it.
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    schedule();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
 

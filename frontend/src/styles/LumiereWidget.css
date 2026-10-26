@@ -18,10 +18,11 @@
    FAB
    ===================================================== */
 
+/* --lumiere-lift moves the button up off a control it would cover. */
 .lumiereFab {
   position: fixed;
   right: 18px;
-  bottom: 18px;
+  bottom: calc(18px + var(--lumiere-lift, 0px));
   z-index: 9999;
   width: 58px;
   height: 58px;
@@ -38,9 +39,19 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition:
+    opacity 150ms ease,
     transform 180ms ease,
     background-color 180ms ease,
     box-shadow 180ms ease;
+}
+
+/* Staying clear of a control would push it too far: hide instead of
+   jumping over it (see LumiereWidget). Gone at once, so it is never seen
+   over the control; it fades back in, always somewhere clear. */
+.lumiereFab[data-keep-clear-hidden] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0s;
 }
 
 .lumiereFab:hover {
@@ -495,7 +506,7 @@
 @media (max-width: 600px) {
   .lumiereFab {
     right: 14px;
-    bottom: 14px;
+    bottom: calc(14px + var(--lumiere-lift, 0px));
     width: 54px;
     height: 54px;
   }

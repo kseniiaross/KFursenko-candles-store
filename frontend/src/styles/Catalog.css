@@ -89,9 +89,14 @@
   font-size: 1.28rem;
 }
 
+/* The browser's own arrow is turned off so the one drawn below is the
+   only one; the padding keeps long category names clear of it. */
 .catalog__categoryInline {
   font-size: 0.98rem;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 20px;
 }
 
 .catalog__searchLine::placeholder {
@@ -108,13 +113,16 @@
   top: 50%;
   right: 2px;
   width: 10px;
-  height: 6px;
+  height: 5px;
   transform: translateY(-50%);
   pointer-events: none;
+  /* A small "▼": the left half and the right half of the triangle, side by
+     side. Without the positions both halves land on the same spot. */
   background-image:
     linear-gradient(45deg, transparent 50%, currentColor 50%),
     linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-size: 6px 6px;
+  background-size: 5px 5px;
+  background-position: 0 0, 5px 0;
   background-repeat: no-repeat;
 }
 
