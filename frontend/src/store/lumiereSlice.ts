@@ -5,6 +5,7 @@ import {
 } from "@reduxjs/toolkit";
 
 import { sendLumiereReply } from "../api/lumiere";
+import i18n from "../i18n";
 
 import type {
   Locale,
@@ -62,6 +63,12 @@ const createMessage = (
   createdAt: Date.now(),
   suggestions,
 });
+
+/** The greeting in the panel's language, not the site's. */
+const greetingText = (locale: Locale, name: string | null): string =>
+  name
+    ? i18n.t("lumiere.greetingNamed", { lng: locale, name })
+    : i18n.t("lumiere.greeting", { lng: locale });
 
 /* ================= STORAGE ================= */
 
@@ -174,6 +181,15 @@ const lumiereSlice = createSlice({
 
     setLocale: (state, action: PayloadAction<Locale>) => {
       state.locale = action.payload;
+
+      // Only the greeting follows the new language; what the shopper and
+      // Lumière actually said stays as it was written.
+      for (const message of state.messages) {
+        if (message.greeting) {
+          message.text = greetingText(state.locale, message.greeting.name);
+        }
+      }
+
       writeStorage(state);
     },
 
@@ -200,12 +216,10 @@ const lumiereSlice = createSlice({
 
       const name = action.payload.isLoggedIn ? action.payload.firstName : null;
 
-      const text =
-        state.locale === "ru"
-          ? `Здравствуйте${name ? `, ${name}` : ""}. Я Lumière. Помогу подобрать свечу.`
-          : `Hello${name ? `, ${name}` : ""}. I’m Lumière. I can help you choose a candle.`;
-
-      state.messages.push(createMessage("assistant", text));
+      state.messages.push({
+        ...createMessage("assistant", greetingText(state.locale, name)),
+        greeting: { name },
+      });
 
       if (name && !state.userName) {
         state.userName = name;

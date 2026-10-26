@@ -16,6 +16,9 @@ export type LumiereMessage = {
   text: string;
   createdAt: number;
   suggestions?: LumiereSuggestion[];
+  // Set on Lumière's greeting only: the one message whose text follows the
+  // panel's language when it changes.
+  greeting?: { name: string | null };
 };
 
 export type LumiereReplyResult = {

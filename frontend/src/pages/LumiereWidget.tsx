@@ -364,6 +364,8 @@ const LumiereWidget: React.FC = () => {
   const onClearConversation = (): void => {
     stopSpeaking();
     dispatch(clearConversation());
+    // The panel stays open, so the on-open greeting wouldn't run again.
+    dispatch(ensureGreeting({ isLoggedIn, firstName }));
     setInput("");
   };
 

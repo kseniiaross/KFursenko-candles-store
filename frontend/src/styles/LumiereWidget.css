@@ -93,12 +93,11 @@
   overflow: hidden;
   border: 1px solid rgba(17, 17, 17, 0.14);
   border-radius: 22px;
-  background: rgba(255, 252, 247, 0.92);
+  /* Solid: the page must not show through the conversation. */
+  background: #fffcf7;
   color: #111111;
   font-family: inherit;
   box-shadow: 0 22px 56px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 }
 
 /* =====================================================
@@ -429,7 +428,7 @@
 
 [data-theme="dark"] .lumierePanel {
   border-color: rgba(245, 239, 232, 0.14);
-  background: rgba(20, 17, 15, 0.94);
+  background: #14110f;
   color: rgba(245, 239, 232, 0.96);
   box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
 }
