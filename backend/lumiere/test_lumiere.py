@@ -7,9 +7,9 @@ from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from candles.models import Candle, CandleVariant, Category, Offer
-from lumiere.services import (_build_instructions, ai_search_candles,
-                              build_store_context, get_candle_by_slug,
-                              search_candles)
+from lumiere.services import (_build_instructions, _closing_questions,
+                              ai_search_candles, build_store_context,
+                              get_candle_by_slug, search_candles)
 from lumiere.views import extract_slug_from_text
 
 
@@ -511,6 +511,29 @@ class TestAssistantNotes:
 
         assert "Only state a burn time when one is listed" in instructions
         assert "Lumière notes" in instructions
+
+    def test_instructions_say_size_is_burn_time_not_strength(self):
+        instructions = _build_instructions("en", None)
+
+        assert "A bigger jar burns longer; it does not smell stronger." in instructions
+        assert "in your first sentence" in instructions
+
+    def test_closing_questions_already_asked_are_named(self):
+        history = [
+            {"role": "user", "text": "Something fresh?"},
+            {"role": "assistant", "text": "Try Matcha Chill. Would you like gift wrapping?"},
+            {"role": "user", "text": "Is the big one too much?"},
+            {"role": "assistant", "text": "No, size changes burn time, not strength."},
+            {"role": "user", "text": "Would you like to know a secret?"},
+        ]
+
+        closings = _closing_questions(history)
+        instructions = _build_instructions("en", None, closings)
+
+        # Only Lumière's own replies count, and only ones ending in a question.
+        assert closings == ["Would you like gift wrapping?"]
+        assert "- Would you like gift wrapping?" in instructions
+        assert "already asked" not in _build_instructions("en", None, [])
 
     def test_reply_sends_notes_to_the_model_but_not_to_the_shopper(
         self, api_client, settings, matcha

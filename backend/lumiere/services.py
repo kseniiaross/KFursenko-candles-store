@@ -701,7 +701,40 @@ def build_store_context(suggestions: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _build_instructions(locale: str, user_name: Optional[str]) -> str:
+def _closing_questions(history: Optional[List[Dict[str, str]]]) -> List[str]:
+    """The question each earlier Lumière reply ended on, so the prompt can
+    name them instead of leaving the model to spot its own repeats."""
+    closings = []
+
+    for message in (history or [])[-HISTORY_WINDOW:]:
+        text = (message.get("text") or "").strip()
+
+        if message.get("role") == "user" or not text.endswith("?"):
+            continue
+
+        # The reply's last sentence, which is the question.
+        closing = re.split(r"(?<=[.!?])\s+", text)[-1]
+        if closing not in closings:
+            closings.append(closing)
+
+    return closings
+
+
+def _build_instructions(
+    locale: str,
+    user_name: Optional[str],
+    used_closings: Optional[List[str]] = None,
+) -> str:
+    used_note = ""
+
+    if used_closings:
+        used_note = (
+            "\nClosing questions you already asked in this conversation; don't ask "
+            "these again, reworded or not, and don't repeat their offers:\n"
+            + "\n".join(f"- {closing}" for closing in used_closings)
+            + "\n"
+        )
+
     name_note = (
         f"The customer's name is {user_name}. Use it naturally, not in every message."
         if user_name
@@ -713,17 +746,24 @@ def _build_instructions(locale: str, user_name: Optional[str]) -> str:
 {name_note}
 Customer locale: {locale}. Always reply in that language.
 
-Rules:
+How to write:
+- Answer the question the customer actually asked, in your first sentence. Work out what it is about before answering: "is it too much for a small room?" is about how strong the scent is, not how long it burns. Supporting detail comes after.
+- Three or four sentences, never more. Shoppers read this on a phone. Pick the one or two details that matter for this question rather than listing every note, the wax, and the burn time. Go longer only when the customer asks for detail or a comparison.
+- End on the answer, not on a question or an offer. Ask a question only when you can't help without the customer's answer (for example, which of two scents they mean), and then just one. Never repeat, reword, or make the same offer (gift wrapping, another size, more options) as a closing line you already used in CONVERSATION SO FAR.
+- Warm, premium, and specific, but not salesy.
+
+The shape of a good reply, to a different question ("Is Berry Grove sweet?"):
+"Yes, but it's a fruity sweetness rather than a sugary one: ripe berries over a soft woody base. It reads fresh rather than heavy, so it suits a living room in the daytime."
+
+Facts:
 - ONLY recommend products from CATALOG SEARCH RESULTS.
 - Never invent products, prices, stock status, notes, or policies.
 - Use scent notes, mood tags, use case tags, ideal spaces, fragrance family, and intensity when available.
 - "Lumière notes" are the shop's guidance for you: use them to advise, in your own words. Don't present them as a quote.
 - Only state a burn time when one is listed for that candle.
-- Customers can mark an item as a gift during checkout.
-- Gift wrapping is complimentary.
-- Keep replies warm, premium, and specific.
-- Ask maximum one clarifying question.
-"""
+- Customers can mark an item as a gift during checkout. Gift wrapping is complimentary.
+- A bigger jar burns longer; it does not smell stronger. A smaller size is not lighter, softer, or gentler, so never offer it as the answer to a scent being too strong. How strong a candle smells comes from its intensity and its notes. Name an intensity only when one is listed for that candle; otherwise describe the scent, not a strength level.
+{used_note}"""
 
 
 def call_openai_reply(
@@ -747,7 +787,7 @@ def call_openai_reply(
             "L'IA n'est pas encore configurée sur le serveur.",
         )
 
-    instructions = _build_instructions(safe_locale, user_name)
+    instructions = _build_instructions(safe_locale, user_name, _closing_questions(history))
 
     history_lines: List[str] = []
 
