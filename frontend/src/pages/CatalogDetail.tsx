@@ -92,6 +92,18 @@ const CatalogDetail: React.FC = () => {
   // without an effect to reset it.
   const [shownPhoto, setShownPhoto] = useState({ slug: "", index: 0 });
   const galleryRef = useRef<HTMLElement | null>(null);
+  // On tablets and phones the description is folded to three lines. Which
+  // product it was unfolded on, so a new product starts folded; and whether
+  // the fold actually hides anything, so the button only shows when it does.
+  const [descOpenFor, setDescOpenFor] = useState("");
+  const [descIsCut, setDescIsCut] = useState(false);
+  // The Details row (size, burn time, wax) is folded on tablets and phones;
+  // which product it was opened on, so a new product starts folded.
+  const [detailsOpenFor, setDetailsOpenFor] = useState("");
+  // Whether the photo strip actually scrolls sideways. When every photo
+  // fits, there is nothing to swipe and no dots.
+  const [galleryScrolls, setGalleryScrolls] = useState(false);
+  const descRef = useRef<HTMLParagraphElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -245,9 +257,45 @@ const CatalogDetail: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const desc = descRef.current;
+    if (!desc || typeof ResizeObserver === "undefined") return;
+
+    // Re-checked whenever the paragraph changes size (a new product, a
+    // rotated phone). Only meaningful while folded; unfolded, the last answer
+    // stands, so "Show less" stays available.
+    const observer = new ResizeObserver(() => {
+      if (desc.classList.contains("catalogDetail__desc--folded")) {
+        setDescIsCut(desc.scrollHeight - desc.clientHeight > 1);
+      }
+    });
+
+    observer.observe(desc);
+
+    return () => observer.disconnect();
+  }, [item?.slug, item?.description]);
+
+  useEffect(() => {
+    const strip = galleryRef.current;
+    if (!strip || typeof ResizeObserver === "undefined") return;
+
+    // Re-checked as the strip or its photos change size: a rotated tablet
+    // can go from "everything fits" to "swipe for more".
+    const observer = new ResizeObserver(() => {
+      setGalleryScrolls(strip.scrollWidth - strip.clientWidth > 1);
+    });
+
+    observer.observe(strip);
+    Array.from(strip.children).forEach((frame) => observer.observe(frame));
+
+    return () => observer.disconnect();
+  }, [item?.slug, item?.image]);
+
   if (!item) return null;
 
   const activePhoto = shownPhoto.slug === item.slug ? shownPhoto.index : 0;
+  const descOpen = descOpenFor === item.slug;
+  const detailsOpen = detailsOpenFor === item.slug;
 
   // Colors and sizes are separate products, so each switcher navigates
   // instead of mutating state — that is what makes the photos change
@@ -336,7 +384,7 @@ const CatalogDetail: React.FC = () => {
             ))}
           </section>
 
-          {gallery.length > 1 && (
+          {gallery.length > 1 && galleryScrolls && (
             // Shown only where the photos are a swipe strip: a cut-off photo
             // with nothing under it doesn't say there's more to see.
             <div className="catalogDetail__dots">
@@ -467,7 +515,29 @@ const CatalogDetail: React.FC = () => {
 
               <div className="catalogDetail__details">
                 {parsed.lead && (
-                  <p className="catalogDetail__desc">{parsed.lead}</p>
+                  <div className="catalogDetail__descWrap">
+                    <p
+                      ref={descRef}
+                      id="catalogDetail-desc"
+                      className={`catalogDetail__desc${
+                        descOpen ? "" : " catalogDetail__desc--folded"
+                      }`}
+                    >
+                      {parsed.lead}
+                    </p>
+
+                    {descIsCut && (
+                      <button
+                        type="button"
+                        className="catalogDetail__more"
+                        aria-expanded={descOpen}
+                        aria-controls="catalogDetail-desc"
+                        onClick={() => setDescOpenFor(descOpen ? "" : item.slug)}
+                      >
+                        {descOpen ? t("catalogDetail.showLess") : t("catalogDetail.readMore")}
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {notes.length > 0 && (
@@ -488,12 +558,37 @@ const CatalogDetail: React.FC = () => {
 
                 {rows.length > 0 && (
                   <dl className="catalogDetail__facts">
-                    {rows.map((row) => (
-                      <React.Fragment key={row.key}>
-                        <dt>{row.label}</dt>
-                        <dd>{row.values.join(" · ")}</dd>
-                      </React.Fragment>
-                    ))}
+                    {rows.map((row) =>
+                      row.key === "details" ? (
+                        <React.Fragment key={row.key}>
+                          <dt>
+                            {/* A plain label on desktop; a toggle where the
+                                row is folded (tablets and phones). */}
+                            <span className="catalogDetail__factLabel">{row.label}</span>
+                            <button
+                              type="button"
+                              className="catalogDetail__factToggle"
+                              aria-expanded={detailsOpen}
+                              aria-controls="catalogDetail-details"
+                              onClick={() => setDetailsOpenFor(detailsOpen ? "" : item.slug)}
+                            >
+                              {row.label}
+                            </button>
+                          </dt>
+                          <dd
+                            id="catalogDetail-details"
+                            className={detailsOpen ? undefined : "catalogDetail__factValue--folded"}
+                          >
+                            {row.values.join(" · ")}
+                          </dd>
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment key={row.key}>
+                          <dt>{row.label}</dt>
+                          <dd>{row.values.join(" · ")}</dd>
+                        </React.Fragment>
+                      )
+                    )}
                   </dl>
                 )}
               </div>

@@ -281,6 +281,12 @@
   white-space: pre-line;
 }
 
+/* "Read more" exists only where the description is folded: tablets and
+   phones (see the TABLET section). */
+.catalogDetail__more {
+  display: none;
+}
+
 .catalogDetail__tags {
   display: flex;
   gap: 6px;
@@ -309,6 +315,11 @@
 
 .catalogDetail__facts dd {
   margin: 0;
+}
+
+/* The Details toggle exists only where the row is folded (see TABLET). */
+.catalogDetail__factToggle {
+  display: none;
 }
 
 .catalogDetail__related {
@@ -401,14 +412,64 @@
   }
 
   /* Sticky needs a scrolling sibling to stick against; in one column
-     there is none, so it just adds a stale offset. */
+     there is none, so it just adds a stale offset. Tighter between blocks
+     than on desktop, where the panel sits beside the photos. */
   .catalogDetail__panel {
     position: static;
+    gap: 12px;
+  }
+
+  /* One column: a comfortable line length for the description, centred in
+     the width there is. Phones are narrower than this anyway. */
+  .catalogDetail__info {
+    width: 100%;
+    max-width: 560px;
+    margin-inline: auto;
+  }
+
+  /* Folded to three lines so the scent, mood and details sit higher;
+     "Read more" unfolds it. */
+  .catalogDetail__desc--folded {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+
+  .catalogDetail__more {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 0;
+    border: none;
+    background: transparent;
+    color: #111111;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  /* A little smaller than on desktop, so more of the panel fits on screen. */
+  .catalogDetail__sizeBtn {
+    padding: 8px 18px;
+    font-size: 0.8rem;
+  }
+
+  .catalogDetail__btn {
+    padding: 14px 24px;
   }
 
   /* Photos become a swipe strip so the buy button stays near the top. */
   .catalogDetail__gallery {
     display: flex;
+    /* Centred when every photo fits, in line with the centred panel; from
+       the left edge when the strip has to scroll ("safe"). */
+    justify-content: safe center;
     gap: 8px;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
@@ -421,9 +482,49 @@
     display: none;
   }
 
+  /* Smaller squares than the full width, so the panel starts higher: the
+     whole photo still shows, and more of the next one peeks in. */
   .catalogDetail__frame {
-    flex: 0 0 min(78%, 420px);
+    flex: 0 0 min(60%, 340px);
     scroll-snap-align: center;
+  }
+
+  /* Details (size, burn time, wax) folds behind its label. The value keeps
+     its grid cell, at no height, so the rows stay aligned. */
+  .catalogDetail__factLabel {
+    display: none;
+  }
+
+  .catalogDetail__factToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .catalogDetail__factToggle::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 180ms ease;
+  }
+
+  .catalogDetail__factToggle[aria-expanded="true"]::after {
+    transform: translateY(1px) rotate(-135deg);
+  }
+
+  .catalogDetail__factValue--folded {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
   }
 
   /* Pulls up into the layout gap, so the dots sit just under the photos. */
@@ -461,6 +562,10 @@
   .catalogDetail__sizeBtn,
   .catalogDetail__scentBtn,
   .catalogDetail__colorBtn {
+    transition: none;
+  }
+
+  .catalogDetail__factToggle::after {
     transition: none;
   }
 }
