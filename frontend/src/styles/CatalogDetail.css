@@ -14,22 +14,28 @@
 }
 
 /* Photos scroll, the buying panel does not — hence align-items: start,
-   which is what lets position: sticky work in the second column. */
+   which is what lets position: sticky work in the second column.
+
+   The photo column takes what the panel leaves, up to 1000px: two photos
+   of about 494px each, which the 1000px-wide source images still cover on
+   a 2x screen. Past that, the spare width goes to the right of the panel,
+   never between the photos and the panel. */
 .catalogDetail__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  grid-template-columns: minmax(0, 1000px) minmax(340px, 420px);
+  justify-content: start;
   gap: clamp(32px, 4vw, 64px);
   align-items: start;
 }
 
 /* GALLERY */
 
-/* Two frames per row, capped so they stay readable rather than
-   ballooning on a wide monitor. A third photo wraps underneath. */
+/* Two frames per row, filling the photo column; the column's own cap
+   keeps them from ballooning on a wide monitor. A third photo wraps
+   underneath. */
 .catalogDetail__gallery {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 380px));
-  justify-content: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   min-width: 0;
 }
@@ -346,10 +352,6 @@
   .catalogDetail__layout {
     grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
     gap: 36px;
-  }
-
-  .catalogDetail__gallery {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
