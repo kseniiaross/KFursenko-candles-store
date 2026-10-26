@@ -138,9 +138,12 @@ function formatTime(timestamp: number, locale: Locale): string {
 }
 
 function buildHistory(messages: LumiereMessage[]): LumiereHistoryMessage[] {
+  // Lumière's turns go back with their signatures; the server drops any
+  // it didn't sign (the greeting, an error, an older chat's replies).
   return messages.map((message) => ({
     role: message.role,
     text: message.text,
+    ...(message.signature ? { signature: message.signature } : {}),
   }));
 }
 
@@ -166,6 +169,7 @@ const LumiereWidget: React.FC = () => {
   const userName = useAppSelector((state) => state.lumiere.userName);
   const messages = useAppSelector((state) => state.lumiere.messages);
   const status = useAppSelector((state) => state.lumiere.status);
+  const conversation = useAppSelector((state) => state.lumiere.conversation);
 
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
   const firstName = useAppSelector(
@@ -322,6 +326,7 @@ const LumiereWidget: React.FC = () => {
         locale,
         userName: effectiveUserName,
         history: nextHistory,
+        conversation,
       })
     );
 

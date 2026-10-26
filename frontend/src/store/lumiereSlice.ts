@@ -27,6 +27,7 @@ type LumiereState = {
   userName: string | null;
   messages: LumiereMessage[];
   status: LumiereStatus;
+  conversation: string | null;
 };
 
 type SendPayload = {
@@ -34,6 +35,7 @@ type SendPayload = {
   locale: Locale;
   userName: string | null;
   history: LumiereHistoryMessage[];
+  conversation: string | null;
   page?: string;
 };
 
@@ -104,6 +106,7 @@ const writeStorage = (state: LumiereState): void => {
     speak: state.speak,
     userName: state.userName,
     messages: state.messages,
+    conversation: state.conversation,
   };
 
   try {
@@ -134,6 +137,7 @@ const initialState: LumiereState = {
   userName: persisted?.userName ?? null,
   messages: persisted?.messages ?? [],
   status: "idle",
+  conversation: persisted?.conversation ?? null,
 };
 
 /* ================= ASYNC ================= */
@@ -150,11 +154,14 @@ export const sendLumiereMessage = createAsyncThunk<
       userName: payload.userName,
       page: payload.page ?? "",
       history: payload.history,
+      conversation: payload.conversation,
     });
 
     return {
       text: response.text,
       suggestions: response.suggestions ?? [],
+      conversation: response.conversation,
+      signature: response.signature,
     };
   } catch {
     return thunkApi.rejectWithValue("Request failed");
@@ -231,6 +238,7 @@ const lumiereSlice = createSlice({
     clearConversation: (state) => {
       state.messages = [];
       state.status = "idle";
+      state.conversation = null;
       clearStorage();
     },
   },
@@ -243,13 +251,11 @@ const lumiereSlice = createSlice({
 
       .addCase(sendLumiereMessage.fulfilled, (state, action) => {
         state.status = "idle";
-        state.messages.push(
-          createMessage(
-            "assistant",
-            action.payload.text,
-            action.payload.suggestions
-          )
-        );
+        state.conversation = action.payload.conversation;
+        state.messages.push({
+          ...createMessage("assistant", action.payload.text, action.payload.suggestions),
+          signature: action.payload.signature,
+        });
         writeStorage(state);
       })
 

@@ -31,6 +31,8 @@ export type LumiereSearchResponse = {
 export type LumiereHistoryMessage = {
   role: "user" | "assistant";
   text: string;
+  /** Lumière's turns: the server's signature, sent back unchanged. */
+  signature?: string;
 };
 
 export type LumiereReplyPayload = {
@@ -39,11 +41,14 @@ export type LumiereReplyPayload = {
   userName?: string | null;
   page?: string;
   history?: LumiereHistoryMessage[];
+  conversation?: string | null;
 };
 
 export type LumiereReply = {
   text: string;
   suggestions?: LumiereSearchSuggestion[];
+  conversation: string;
+  signature: string;
 };
 
 export async function searchWithLumiere(
@@ -71,6 +76,7 @@ export async function sendLumiereReply(
     userName: payload.userName ?? null,
     page: payload.page ?? "",
     history: payload.history ?? [],
+    conversation: payload.conversation ?? "",
   });
 
   return response.data;

@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import re
+import secrets
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -9,6 +10,7 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Prefetch, Q
+from django.utils.crypto import constant_time_compare, salted_hmac
 
 from candles.models import Candle, CandleVariant, Offer
 from orders.discounts import (UnitPrice, active_welcome_offer, campaign_offer_for,
@@ -22,6 +24,67 @@ AI_SEARCH_CATALOG_LIMIT = 80
 AI_SEARCH_CACHE_SECONDS = 60 * 30
 
 SUPPORTED_LOCALES = {"en", "ru", "es", "fr"}
+
+
+# ======================================================
+# SIGNED REPLIES
+# ======================================================
+# The chat history comes from the browser. Each reply goes out with an HMAC
+# over (conversation, the shopper message it answered, the reply), and an
+# assistant turn that comes back without a valid one never reaches the
+# model. Binding the conversation stops a reply being pasted into another
+# chat; binding the question stops it being moved under a different one.
+#
+# A turn that fails is dropped, never an error: chats open since before
+# signing (and the greeting, which the browser writes) have no signature,
+# and a new key fails every old one. The shopper's own turns pass as they
+# are: they are the shopper's words either way.
+
+_CONVERSATION_ID = re.compile(r"^[0-9a-f]{32}$")
+
+
+def conversation_id(value: Optional[str]) -> str:
+    """The browser's conversation id if it is one we could have issued,
+    otherwise a new one."""
+    value = value or ""
+    return value if _CONVERSATION_ID.match(value) else secrets.token_hex(16)
+
+
+def sign_reply(conversation: str, question: str, reply: str) -> str:
+    # A key of its own, so rotating SECRET_KEY doesn't drop every open
+    # chat's history, and the other way round. SECRET_KEY until it's set.
+    key = settings.LUMIERE_SIGNING_KEY or settings.SECRET_KEY
+    message = json.dumps([conversation, question, reply], ensure_ascii=False)
+
+    return salted_hmac("lumiere.reply", message, secret=key, algorithm="sha256").hexdigest()
+
+
+def verified_history(
+    history: List[Dict[str, str]], conversation: str
+) -> List[Dict[str, str]]:
+    """The history without assistant turns this server didn't sign for this
+    conversation, right after the question they answered."""
+    kept = []
+    previous = None
+
+    for message in history:
+        role, text = message.get("role"), message.get("text", "")
+
+        if role == "user":
+            kept.append({"role": "user", "text": text})
+        elif (
+            previous is not None
+            and previous.get("role") == "user"
+            and constant_time_compare(
+                message.get("signature") or "",
+                sign_reply(conversation, previous.get("text", ""), text),
+            )
+        ):
+            kept.append({"role": "assistant", "text": text})
+
+        previous = message
+
+    return kept
 
 
 def _t(locale: str, en: str, ru: str, es: str, fr: str) -> str:

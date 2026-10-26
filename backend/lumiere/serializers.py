@@ -4,6 +4,10 @@ from rest_framework import serializers
 class LumiereMessageSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=["user", "assistant"])
     text = serializers.CharField(max_length=4000)
+    # Lumière's turns only; see services.verified_history.
+    signature = serializers.CharField(
+        required=False, allow_blank=True, max_length=128, default=""
+    )
 
 
 class LumiereReplyInSerializer(serializers.Serializer):
@@ -14,6 +18,9 @@ class LumiereReplyInSerializer(serializers.Serializer):
     )
     page = serializers.CharField(required=False, allow_blank=True, default="")
     history = LumiereMessageSerializer(many=True, required=False, default=list)
+    conversation = serializers.CharField(
+        required=False, allow_blank=True, max_length=64, default=""
+    )
 
 
 class LumiereSearchInSerializer(serializers.Serializer):
@@ -72,6 +79,8 @@ class LumiereSuggestionSerializer(serializers.Serializer):
 
 class LumiereReplyOutSerializer(serializers.Serializer):
     text = serializers.CharField()
+    conversation = serializers.CharField()
+    signature = serializers.CharField()
     suggestions = LumiereSuggestionSerializer(many=True, required=False)
 
 

@@ -12,7 +12,8 @@ from .serializers import (LumiereReplyInSerializer, LumiereReplyOutSerializer,
                           LumiereSearchInSerializer,
                           LumiereSearchOutSerializer)
 from .services import (ai_search_candles, build_store_context,
-                       call_openai_reply, get_candle_by_slug, search_candles)
+                       call_openai_reply, conversation_id, get_candle_by_slug,
+                       search_candles, sign_reply, verified_history)
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,8 @@ class LumiereReplyView(APIView):
         text = data["text"]
         locale = data.get("locale", "en")
         user_name = " ".join((data.get("userName") or "").split()) or None
-        history = data.get("history", [])
+        conversation = conversation_id(data.get("conversation"))
+        history = verified_history(data.get("history", []), conversation)
 
         slug = extract_slug_from_text(text)
 
@@ -108,7 +110,13 @@ class LumiereReplyView(APIView):
                 else "Désolée, quelque chose s'est mal passé. Veuillez réessayer."
             )
 
-        output = {"text": answer_text}
+        # Signed as the shopper will send it back: the serializers trim.
+        answer_text = answer_text.strip()
+        output = {
+            "text": answer_text,
+            "conversation": conversation,
+            "signature": sign_reply(conversation, text, answer_text),
+        }
 
         if suggestions:
             output["suggestions"] = suggestions

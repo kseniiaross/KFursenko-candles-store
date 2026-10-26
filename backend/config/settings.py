@@ -86,6 +86,10 @@ for origin in CORS_ALLOWED_ORIGINS:
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="", cast=str).strip()
 OPENAI_MODEL = config("OPENAI_MODEL", default="gpt-4.1-mini", cast=str).strip()
 OPENAI_TIMEOUT_SECONDS = config("OPENAI_TIMEOUT_SECONDS", default=20, cast=int)
+# Signs Lumière's replies so the browser can't hand back history Lumière
+# never said (lumiere/services.py). Its own key, so rotating it and
+# SECRET_KEY are independent; empty means SECRET_KEY is used.
+LUMIERE_SIGNING_KEY = config("LUMIERE_SIGNING_KEY", default="", cast=str).strip()
 # Ceiling on one reply. Answers are three or four sentences (about 100
 # tokens); this leaves room for a comparison the shopper asks for.
 OPENAI_MAX_OUTPUT_TOKENS = config("OPENAI_MAX_OUTPUT_TOKENS", default=400, cast=int)
