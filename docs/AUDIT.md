@@ -29,7 +29,7 @@ When they disagree, the code wins. The changelog's 2026-08-31 entry is wrong or 
 
 ---
 
-## Command output (summary; full output is in the chat reply)
+## Command output (summary)
 
 | Command | Result |
 |---|---|
@@ -138,7 +138,7 @@ The webhook also never compares `amount_received` and `currency` with `order.tot
 
 ### S5. Labels bought from production are test labels, so the tracking numbers shown to customers are fake
 
-**Where:** Shippo is on a `shippo_test_` token (per the brief, and the local `.env` too). `shipping/services.py:216–224` stores the transaction's `tracking_number` and `tracking_url`. `OrderReadSerializer` exposes them to the customer (`orders/serializers.py:97–103`). `Delivery.tsx:84` promises "Your tracking number appears in your order details as soon as the label is printed."
+**Where:** Shippo is on a `shippo_test_` token: the local `.env` holds one, and production reportedly does too (I couldn't see Railway's variables). `shipping/services.py:216–224` stores the transaction's `tracking_number` and `tracking_url`. `OrderReadSerializer` exposes them to the customer (`orders/serializers.py:97–103`). `Delivery.tsx:84` promises "Your tracking number appears in your order details as soon as the label is printed."
 
 **What breaks:** if staff use `POST /api/shipping/orders/<id>/label/`, the order moves to `SHIPPED` with a test label that no carrier will accept, and the customer sees a test tracking number. If staff instead buy labels elsewhere, the promise on the Delivery page is never met, because nothing records the real tracking number. `Shipment.is_test` is recorded but not shown anywhere a person would notice.
 
@@ -253,7 +253,7 @@ The copies are identical, so the last one wins and migrations are clean. Harmles
 
 ### W12. `.local/` isn't gitignored
 
-The brief says it is; `git check-ignore .local/x` says otherwise. I used the session scratch directory instead and wrote nothing under `.local/`.
+It was assumed to be, but `git check-ignore .local/x` says otherwise. I wrote nothing under `.local/`.
 
 ---
 

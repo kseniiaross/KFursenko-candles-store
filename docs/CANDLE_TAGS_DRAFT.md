@@ -1,5 +1,7 @@
 # Candle tags & Lumière notes — draft for review
 
+> **A working draft, not a description of the system:** proposed scent tags and Lumière notes for the shop owner to review before loading them with `load_candle_tags` — none of it is in the database or on the site until then.
+
 Drafted 2026-10-22 from the live catalogue
 (`GET /api/candles/candles/`, 15 rows, 11 names). **Nothing here is in the
 database yet.** Every value comes from the candle's public description; where

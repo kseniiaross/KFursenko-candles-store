@@ -4,11 +4,11 @@
 
 **Full-stack e-commerce platform** for a handmade candle brand — React frontend + Django REST API backend, deployed live, taking real card payments and buying real shipping labels.
 
-[![Live Site](https://img.shields.io/badge/live%20site-kfursenko.com-black?style=flat-square)](https://kfursenko.com/)
+[![Live Site](https://img.shields.io/badge/live%20site-kfcandle.com-black?style=flat-square)](https://www.kfcandle.com/)
 ![Tests](https://img.shields.io/badge/tests-492%20passing-brightgreen?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 
-[Live Demo](https://kfursenko.com/) · [Backend](./backend) · [Frontend](./frontend)
+[Live Demo](https://www.kfcandle.com/) · [Backend](./backend) · [Frontend](./frontend)
 
 </div>
 
@@ -22,7 +22,7 @@ KFursenko Candles is a full-stack storefront for a one-person candle studio, bui
 
 This isn't a tutorial clone. It's a deployed shop with the awkwardness that comes with that: a discount engine where a seasonal campaign, a buy-two-get-three offer and a sign-up discount all compete for the same candle; shipping priced by packing the actual jars into actual boxes and asking the carrier; guest carts that survive signing in and tell you what changed; and a checkout that has to stay correct when Stripe redelivers the same notification three days later.
 
-> **[kfursenko.com](https://kfursenko.com/)**
+> **[kfcandle.com](https://www.kfcandle.com/)**
 
 ---
 

@@ -3,12 +3,8 @@
 **Date:** 2026-09-29
 **Scope:** `frontend/`, working tree as of today (HEAD `5b91a43` plus the uncommitted changes listed in `docs/AUDIT.md`).
 **Companion to** `docs/AUDIT.md`. Nothing covered there is repeated here: build health, the money path, secrets, permissions, dead routes, i18n keys and promise-vs-behaviour.
+**Stack:** React **19.2**, react-router **7**, and **Vite 8.0.0-beta.15**, so the production bundle is built with a beta bundler (see N6). `--header-height` is declared in `src/styles/variables.css`; the global stylesheet is `src/styles/App.css`.
 **Method:** read every page, component and stylesheet. Ran `vite build` into a scratch directory, served it with `vite preview`, and measured it in Chrome at 1440×900, 800×1000 and 375×700, with no API running (so every fetch fails, which is how the error states got exercised). Ran ESLint and computed WCAG contrast ratios. No repo file was changed apart from this report.
-
-### Corrections to the brief
-
-- **`--header-height` is declared in `src/styles/variables.css`**, not `app.css`. The global stylesheet is `src/styles/App.css`.
-- The app runs **React 19.2** (not 18), react-router **7**, and **Vite 8.0.0-beta.15**. The production bundle is built with a beta bundler (see N6).
 
 ---
 
