@@ -18,12 +18,13 @@
 
    The photo column takes what the panel leaves, up to 1000px: two photos
    of about 494px each, which the 1000px-wide source images still cover on
-   a 2x screen. Past that, the spare width goes to the right of the panel,
-   never between the photos and the panel. */
+   a 2x screen. Past that, the spare width is split either side of the
+   pair, never put between the photos and the panel. The panel is wide
+   enough that the description wraps into few lines. */
 .catalogDetail__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1000px) minmax(340px, 420px);
-  justify-content: start;
+  grid-template-columns: minmax(0, 1000px) minmax(340px, 480px);
+  justify-content: center;
   gap: clamp(32px, 4vw, 64px);
   align-items: start;
 }
@@ -392,6 +393,45 @@
 .catalogDetail__zoomBackdrop:focus-visible {
   outline: 2px solid rgba(17, 17, 17, 0.92);
   outline-offset: 3px;
+}
+
+/* DESKTOP — tighter, so the description, scent and the Mood / Best for /
+   Details rows sit above the fold beside the photos */
+
+@media (min-width: 1001px) {
+  .catalogDetail__panel {
+    gap: 14px;
+  }
+
+  .catalogDetail__sizeBtn {
+    padding: 7px 20px;
+  }
+
+  .catalogDetail__btn {
+    padding: 12px 26px;
+  }
+
+  .catalogDetail__details {
+    gap: 14px;
+    padding-top: 16px;
+  }
+
+  .catalogDetail__desc {
+    font-size: 0.94rem;
+    line-height: 1.55;
+  }
+
+  .catalogDetail__details .catalogDetail__block {
+    gap: 8px;
+  }
+
+  .catalogDetail__tag {
+    padding: 5px 12px;
+  }
+
+  .catalogDetail__facts {
+    row-gap: 6px;
+  }
 }
 
 /* LAPTOP — the info column needs its width back before the photos do */
