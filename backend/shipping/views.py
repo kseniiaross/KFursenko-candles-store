@@ -4,10 +4,10 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from rest_framework.throttling import UserRateThrottle
 
 from cart.models import Cart, CartItem
 from candles.models import CandleVariant
+from config.throttling import RealIPUserRateThrottle
 from orders.models import Order
 
 from .client import ShippoError, ShippoNotConfigured
@@ -20,7 +20,7 @@ from .services import purchase_label, quote_rates
 logger = logging.getLogger(__name__)
 
 
-class ShippingRatesThrottle(UserRateThrottle):
+class ShippingRatesThrottle(RealIPUserRateThrottle):
     # Every call is a POST /shipments/ upstream. Test mode allows 50/min for
     # the whole account, so a chatty checkout form will exhaust it fast.
     scope = "shipping_rates"

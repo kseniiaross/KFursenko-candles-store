@@ -10,8 +10,9 @@ from candles.models import Candle, CandleVariant, Offer
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
+
+from config.throttling import RealIPAnonRateThrottle, RealIPUserRateThrottle
 
 from .discounts import (active_welcome_offer, campaign_offer_for,
                         get_active_offers, get_welcome_offer, has_reward_group, offer_rewards,
@@ -97,7 +98,7 @@ def _serialize_suggestion(variant, unit) -> dict:
 class OfferProgressAPIView(APIView):
     # Guests build carts too, and the prompt is the same for them.
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    throttle_classes = [RealIPAnonRateThrottle, RealIPUserRateThrottle]
 
     def post(self, request):
         serializer = OfferProgressRequestSerializer(data=request.data)
@@ -373,7 +374,7 @@ class WelcomeOfferAPIView(APIView):
 
     # Shown to guests: it's what persuades them to sign up.
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    throttle_classes = [RealIPAnonRateThrottle, RealIPUserRateThrottle]
 
     def get(self, request):
         offer = active_welcome_offer()

@@ -1,9 +1,12 @@
 import logging
 import re
 
-from rest_framework import permissions, status, throttling
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from config.throttling import (RealIPAnonRateThrottle,
+                               RealIPUserRateThrottle)
 
 from .serializers import (LumiereReplyInSerializer, LumiereReplyOutSerializer,
                           LumiereSearchInSerializer,
@@ -31,22 +34,30 @@ def extract_slug_from_text(text: str) -> str | None:
     return match.group(1).strip().lower()
 
 
-class LumiereAnonThrottle(throttling.AnonRateThrottle):
+class LumiereAnonThrottle(RealIPAnonRateThrottle):
     scope = "lumiere_anon"
 
 
-class LumiereUserThrottle(throttling.UserRateThrottle):
+class LumiereUserThrottle(RealIPUserRateThrottle):
     scope = "lumiere_user"
 
 
-class LumiereSearchThrottle(throttling.AnonRateThrottle):
+class LumiereSearchThrottle(RealIPAnonRateThrottle):
     scope = "lumiere_search"
+
+
+class LumiereDailyThrottle(RealIPAnonRateThrottle):
+    """One quota a day per IP, shared by the reply and search endpoints:
+    both call OpenAI, and the per-minute limits alone allow thousands of
+    calls a day from one address."""
+
+    scope = "lumiere_daily"
 
 
 class LumiereReplyView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [LumiereAnonThrottle, LumiereUserThrottle]
+    throttle_classes = [LumiereAnonThrottle, LumiereUserThrottle, LumiereDailyThrottle]
 
     def post(self, request):
         serializer = LumiereReplyInSerializer(data=request.data)
@@ -111,7 +122,7 @@ class LumiereReplyView(APIView):
 class LumiereSearchView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [LumiereSearchThrottle]
+    throttle_classes = [LumiereSearchThrottle, LumiereDailyThrottle]
 
     def post(self, request):
         serializer = LumiereSearchInSerializer(data=request.data)

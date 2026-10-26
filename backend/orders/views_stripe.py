@@ -9,9 +9,11 @@ from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import permissions, status, throttling
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from config.throttling import RealIPUserRateThrottle
 
 from .models import Order, PaymentIncident
 from .payments import refund_unfulfillable_payment, release_payment_intent
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
-class StripeIntentUserThrottle(throttling.UserRateThrottle):
+class StripeIntentUserThrottle(RealIPUserRateThrottle):
     scope = "stripe_intent_user"
 
 

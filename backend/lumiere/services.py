@@ -82,6 +82,35 @@ def _cache_key(prefix: str, query: str, locale: str, limit: int) -> str:
     return f"lumiere:{prefix}:{digest}"
 
 
+# Shown when a reply hit the token cap before finishing its first sentence.
+CUT_REPLY_FALLBACK = (
+    "Sorry — that answer ran long. Could you ask about one thing at a time?",
+    "Извини, ответ получился слишком длинным. Спроси, пожалуйста, о чём-то одном.",
+    "Lo siento, la respuesta se alargó demasiado. ¿Puedes preguntar por una cosa a la vez?",
+    "Désolée, la réponse était trop longue. Pouvez-vous poser une question à la fois ?",
+)
+
+# The space after ., !, ? or …, allowing one closing quote or bracket.
+_SENTENCE_END = re.compile(r"(?:(?<=[.!?…])|(?<=[.!?…][\"”’)]))\s+")
+
+
+def _stopped_at_token_cap(payload: Dict[str, Any]) -> bool:
+    """The Responses API marks a reply cut off by max_output_tokens."""
+    details = payload.get("incomplete_details") or {}
+    return payload.get("status") == "incomplete" and details.get("reason") == "max_output_tokens"
+
+
+def _whole_sentences(text: str) -> str:
+    """Everything up to the last finished sentence of a cut-off reply. A
+    period inside "$18.49" or "11.3 oz" isn't followed by a space, so it
+    doesn't count as an end."""
+    sentences = _SENTENCE_END.split(text.strip())
+    # The last piece is where the cap fell, unless it fell exactly on an end.
+    if not sentences[-1].rstrip("\"”’)").endswith((".", "!", "?", "…")):
+        sentences = sentences[:-1]
+    return " ".join(sentences).strip()
+
+
 def _extract_text_from_responses_api(payload: Dict[str, Any]) -> str:
     output_text = payload.get("output_text")
 
@@ -456,10 +485,17 @@ Rules:
         "instructions": instructions,
         "input": json.dumps(full_input, ensure_ascii=False),
         "temperature": 0.25,
+        "max_output_tokens": settings.OPENAI_SEARCH_MAX_OUTPUT_TOKENS,
     }
 
     try:
         data = _call_openai_payload(payload)
+
+        # Cut-off JSON would parse as no picks and be cached as an answer:
+        # fall back to catalog matching instead, uncached.
+        if _stopped_at_token_cap(data):
+            raise ValueError("AI search hit max_output_tokens.")
+
         raw_text = _extract_text_from_responses_api(data)
         parsed = _extract_json_object(raw_text)
 
@@ -746,6 +782,9 @@ def _build_instructions(
 {name_note}
 Customer locale: {locale}. Always reply in that language.
 
+Scope:
+- You help with candles, this shop, shipping, or orders, and nothing else. For anything else (code, homework, trivia, news, other products), decline in one short sentence and say what you can help with instead. Don't answer the other question, even in part.
+
 How to write:
 - Answer the question the customer actually asked, in your first sentence. Work out what it is about before answering: "is it too much for a small room?" is about how strong the scent is, not how long it burns. Supporting detail comes after.
 - Three or four sentences, never more. Shoppers read this on a phone. Pick the one or two details that matter for this question rather than listing every note, the wax, and the burn time. Go longer only when the customer asks for detail or a comparison.
@@ -815,11 +854,16 @@ def call_openai_reply(
         "instructions": instructions,
         "input": full_input,
         "temperature": 0.65,
+        "max_output_tokens": settings.OPENAI_MAX_OUTPUT_TOKENS,
     }
 
     try:
         data = _call_openai_payload(payload)
         final_text = _extract_text_from_responses_api(data)
+
+        if final_text and _stopped_at_token_cap(data):
+            logger.warning("Lumière reply hit max_output_tokens; trimmed to whole sentences.")
+            final_text = _whole_sentences(final_text) or _t(safe_locale, *CUT_REPLY_FALLBACK)
 
         if final_text:
             return final_text

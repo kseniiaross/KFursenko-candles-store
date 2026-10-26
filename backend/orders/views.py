@@ -6,9 +6,9 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from rest_framework.throttling import UserRateThrottle
 
 from cart.models import Cart, CartItem
+from config.throttling import RealIPUserRateThrottle
 
 from .models import Order
 from .payments import IntentRelease, cancel_pending_order
@@ -45,7 +45,7 @@ def _cancel_response(order):
     return Response(OrderReadSerializer(order).data, status=status.HTTP_200_OK)
 
 
-class OrderCreateThrottle(UserRateThrottle):
+class OrderCreateThrottle(RealIPUserRateThrottle):
     scope = "orders_create"
 
 

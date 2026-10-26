@@ -10,10 +10,10 @@ from collections import defaultdict
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from candles.models import CandleVariant
+from config.throttling import RealIPAnonRateThrottle, RealIPUserRateThrottle
 
 from .discounts import price_basket
 
@@ -51,7 +51,7 @@ class PricePreviewAPIView(APIView):
     # Guests have baskets too; their prices just never include the welcome
     # offer, because checkout requires an account.
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    throttle_classes = [RealIPAnonRateThrottle, RealIPUserRateThrottle]
 
     def post(self, request):
         serializer = PricePreviewRequestSerializer(data=request.data)

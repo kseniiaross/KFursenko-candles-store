@@ -56,6 +56,11 @@ else:
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
+# Production keeps throttle counters in a database table. Here they stay in
+# memory: conftest clears the cache before every test, including tests with
+# no database access. lumiere/test_limits.py covers the table itself.
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+
 # DEBUG defaults to off, and off means redirect every request to HTTPS. The
 # test client speaks plain HTTP, so without this the suite only passed on a
 # machine whose .env set DEBUG=True — never in CI or a fresh clone.

@@ -86,6 +86,14 @@ for origin in CORS_ALLOWED_ORIGINS:
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="", cast=str).strip()
 OPENAI_MODEL = config("OPENAI_MODEL", default="gpt-4.1-mini", cast=str).strip()
 OPENAI_TIMEOUT_SECONDS = config("OPENAI_TIMEOUT_SECONDS", default=20, cast=int)
+# Ceiling on one reply. Answers are three or four sentences (about 100
+# tokens); this leaves room for a comparison the shopper asks for.
+OPENAI_MAX_OUTPUT_TOKENS = config("OPENAI_MAX_OUTPUT_TOKENS", default=400, cast=int)
+# AI search answers in JSON: a short text plus up to 12 ids with a reason
+# each, about 500 tokens at most.
+OPENAI_SEARCH_MAX_OUTPUT_TOKENS = config(
+    "OPENAI_SEARCH_MAX_OUTPUT_TOKENS", default=800, cast=int
+)
 
 
 # ------------------------------------------------------------
@@ -183,6 +191,18 @@ else:
         }
     }
 
+# Throttle counters (and Lumière's search cache) live here. The default
+# in-memory cache is one per gunicorn worker, so each worker kept its own
+# count and the real limit was the configured one times the worker count.
+# A table in the database every worker shares, rather than a new service;
+# lumiere/migrations/0001_cache_table.py creates it.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
+    }
+}
+
 
 # ------------------------------------------------------------
 # Auth / User model
@@ -256,8 +276,9 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        # Identify anonymous clients by X-Real-IP (see config/throttling.py).
+        "config.throttling.RealIPAnonRateThrottle",
+        "config.throttling.RealIPUserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": config("THROTTLE_ANON", default="60/min"),
@@ -268,6 +289,8 @@ REST_FRAMEWORK = {
         "lumiere_anon": config("THROTTLE_LUMIERE_ANON", default="20/min"),
         "lumiere_user": config("THROTTLE_LUMIERE_USER", default="60/min"),
         "lumiere_search": config("THROTTLE_LUMIERE_SEARCH", default="30/min"),
+        # Shared by Lumière's reply and search endpoints, per IP.
+        "lumiere_daily": config("THROTTLE_LUMIERE_DAILY", default="100/day"),
         "shipping_rates": config("THROTTLE_SHIPPING_RATES", default="20/min"),
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
