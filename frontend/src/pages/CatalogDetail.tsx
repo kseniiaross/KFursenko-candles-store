@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -87,6 +87,11 @@ const CatalogDetail: React.FC = () => {
   const [scents, setScents] = useState<Candle[]>([]);
   const [adding, setAdding] = useState(false);
   const [zoomImg, setZoomImg] = useState<string>("");
+  // Which photo the swipe strip shows, for the dots under it. Kept with
+  // the slug it belongs to, so a new product starts at its first photo
+  // without an effect to reset it.
+  const [shownPhoto, setShownPhoto] = useState({ slug: "", index: 0 });
+  const galleryRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -242,6 +247,8 @@ const CatalogDetail: React.FC = () => {
 
   if (!item) return null;
 
+  const activePhoto = shownPhoto.slug === item.slug ? shownPhoto.index : 0;
+
   // Colors and sizes are separate products, so each switcher navigates
   // instead of mutating state — that is what makes the photos change
   // along with the choice.
@@ -292,7 +299,24 @@ const CatalogDetail: React.FC = () => {
     <main className="catalogDetail" aria-label={t("catalogDetail.pageLabel")}>
       <div className="catalogDetail__inner">
         <div className="catalogDetail__layout">
-          <section className="catalogDetail__gallery" aria-label={item.name}>
+          <section
+            ref={galleryRef}
+            className="catalogDetail__gallery"
+            aria-label={item.name}
+            onScroll={(event) => {
+              // Only the swipe strip (≤1000px) scrolls sideways.
+              const strip = event.currentTarget;
+              const frames = Array.from(strip.children) as HTMLElement[];
+              const centre = strip.scrollLeft + strip.clientWidth / 2;
+              let index = 0;
+              frames.forEach((frame, i) => {
+                const mid = frame.offsetLeft + frame.offsetWidth / 2;
+                const best = frames[index].offsetLeft + frames[index].offsetWidth / 2;
+                if (Math.abs(mid - centre) < Math.abs(best - centre)) index = i;
+              });
+              if (index !== activePhoto) setShownPhoto({ slug: item.slug, index });
+            }}
+          >
             {gallery.map((img, index) => (
               <button
                 key={img}
@@ -311,6 +335,38 @@ const CatalogDetail: React.FC = () => {
               </button>
             ))}
           </section>
+
+          {gallery.length > 1 && (
+            // Shown only where the photos are a swipe strip: a cut-off photo
+            // with nothing under it doesn't say there's more to see.
+            <div className="catalogDetail__dots">
+              {gallery.map((img, index) => (
+                <button
+                  key={img}
+                  type="button"
+                  className={`catalogDetail__dot${
+                    index === activePhoto ? " catalogDetail__dot--active" : ""
+                  }`}
+                  aria-label={t("catalogDetail.showPhoto", {
+                    number: index + 1,
+                    total: gallery.length,
+                  })}
+                  aria-current={index === activePhoto ? "true" : undefined}
+                  onClick={() => {
+                    const frame = galleryRef.current?.children[index] as
+                      | HTMLElement
+                      | undefined;
+                    frame?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "nearest",
+                      inline: "center",
+                    });
+                    setShownPhoto({ slug: item.slug, index });
+                  }}
+                />
+              ))}
+            </div>
+          )}
 
           <section className="catalogDetail__info">
             <div className="catalogDetail__panel">
@@ -399,6 +455,8 @@ const CatalogDetail: React.FC = () => {
               <button
                 type="button"
                 className="catalogDetail__btn"
+                // The Lumière button moves up rather than sit on this one.
+                data-lumiere-keep-clear=""
                 onClick={() => {
                   void onAddToCart();
                 }}

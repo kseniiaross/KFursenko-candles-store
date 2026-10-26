@@ -14,22 +14,28 @@
 }
 
 /* Photos scroll, the buying panel does not — hence align-items: start,
-   which is what lets position: sticky work in the second column. */
+   which is what lets position: sticky work in the second column.
+
+   The photo column takes what the panel leaves, up to 1000px: two photos
+   of about 494px each, which the 1000px-wide source images still cover on
+   a 2x screen. Past that, the spare width goes to the right of the panel,
+   never between the photos and the panel. */
 .catalogDetail__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  grid-template-columns: minmax(0, 1000px) minmax(340px, 420px);
+  justify-content: start;
   gap: clamp(32px, 4vw, 64px);
   align-items: start;
 }
 
 /* GALLERY */
 
-/* Two frames per row, capped so they stay readable rather than
-   ballooning on a wide monitor. A third photo wraps underneath. */
+/* Two frames per row, filling the photo column; the column's own cap
+   keeps them from ballooning on a wide monitor. A third photo wraps
+   underneath. */
 .catalogDetail__gallery {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 380px));
-  justify-content: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   min-width: 0;
 }
@@ -50,6 +56,43 @@
   object-fit: cover;
   object-position: center;
   display: block;
+}
+
+/* Dots under the swipe strip; the strip only exists at tablet and phone
+   widths, so on desktop there are none. */
+.catalogDetail__dots {
+  display: none;
+}
+
+.catalogDetail__dot {
+  /* A 24px target around an 8px dot. */
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.catalogDetail__dot::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: auto;
+  border-radius: 50%;
+  background: rgba(17, 17, 17, 0.25);
+  transition: background-color 0.2s ease;
+}
+
+.catalogDetail__dot--active::before {
+  background: #111111;
+}
+
+.catalogDetail__dot:focus-visible {
+  outline: 2px solid #111111;
+  outline-offset: 2px;
+  border-radius: 50%;
 }
 
 /* INFO */
@@ -347,10 +390,6 @@
     grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
     gap: 36px;
   }
-
-  .catalogDetail__gallery {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 /* TABLET */
@@ -385,6 +424,14 @@
   .catalogDetail__frame {
     flex: 0 0 min(78%, 420px);
     scroll-snap-align: center;
+  }
+
+  /* Pulls up into the layout gap, so the dots sit just under the photos. */
+  .catalogDetail__dots {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-top: -20px;
   }
 }
 
