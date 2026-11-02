@@ -110,6 +110,22 @@ class TestOffersContext:
 
         assert "Offer: none" in context
 
+    def test_states_how_the_sign_up_discount_works_with_buy_two_get_three(self, shop):
+        """compute_line_discounts' rule, not "doesn't combine": only the lines
+        that pay for a free candle lose it (orders/test_welcome_fallthrough.py)."""
+        block = services.build_offers_context()
+
+        assert "The sign-up discount with Spring B2G3" in block
+        assert "the candles that pay toward a free one pay full price" in block
+        assert "Every other candle in the same basket still gets the 10%" in block
+        assert "a separate candle outside the offer" in block
+        assert "doesn't add to another offer" not in block
+
+    def test_no_buy_two_get_three_no_rule_about_it(self, shop):
+        Offer.objects.filter(pk=shop["b2g3"].pk).update(is_active=False)
+
+        assert "The sign-up discount with" not in services.build_offers_context()
+
     def test_welcome_offer_matches_what_the_sign_up_modal_shows(self, shop, api_client):
         modal = api_client.get("/api/orders/welcome-offer/").json()["welcome_offer"]
 
@@ -210,3 +226,55 @@ class TestLiveModel:
             print("\n[sign up]", text)
 
             assert "10%" in text
+
+
+@pytest.fixture
+def reward_shop(db):
+    """As production is: buy two 11.3 oz, the free one is an 8 oz; plus a
+    candle outside the offer and the 10% sign-up discount."""
+    big_cat = Category.objects.create(name="Multiple-wick candles")
+    small_cat = Category.objects.create(name="Single-wick candles")
+    other_cat = Category.objects.create(name="Pillar candles")
+
+    def make(category, name, price, size):
+        candle = Candle.objects.create(category=category, name=name, size=size)
+        CandleVariant.objects.create(candle=candle, size=size, price=price, stock_qty=10)
+        return candle
+
+    big = [make(big_cat, name, "21.99", "11.3 oz") for name in ("Mango Island", "Tidal Bore")]
+    small = make(small_cat, "Matcha Chill", "18.49", "8 oz")
+    make(other_cat, "Lemon Zest", "16.99", "8 oz")
+
+    offer = Offer.objects.create(title="Buy Two Get Three", kind=Offer.Kind.B1G2)
+    offer.candles.add(*big)
+    offer.reward_candles.add(small)
+
+    Offer.objects.create(
+        title="New Shopper",
+        kind=Offer.Kind.NEW_SHOPPER,
+        discount_percent=10,
+        new_shopper_days_active=60,
+        apply_globally=True,
+        show_badge=False,
+    )
+
+
+@live
+@pytest.mark.django_db
+class TestLiveSignUpWithBuyTwoGetThree:
+    def test_a_separate_candle_keeps_the_10_percent(self, reward_shop, api_client, live_model):
+        ask = (
+            "If I buy two 11.3 oz to get the free one, and I also add a separate "
+            "candle, do I get the 10% on that separate candle?"
+        )
+
+        for _ in range(3):
+            text = _ask(api_client, ask).json()["text"]
+            print("\n[separate candle]", text)
+
+            assert re.match(r"\W*yes\b", text, re.I), "should answer yes, first"
+            assert not re.search(
+                r"(doesn.t|does not|don.t|do not|can.t|cannot|won.t|isn.t|aren.t)[^.]{0,20}(combine|stack|together)",
+                text,
+                re.I,
+            )

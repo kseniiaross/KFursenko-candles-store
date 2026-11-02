@@ -786,10 +786,13 @@ def build_offers_context() -> str:
             f"- {welcome.title}: {welcome.discount_percent}% off {scope or 'some candles'} "
             "for a new account"
             + (f", for {days} days after signing up" if days else "")
-            + ", until their first paid order. It doesn't add to another offer: a "
-            "candle already in a campaign keeps that campaign's discount instead."
+            + ", until their first paid order. It is worked out candle by candle, "
+            "not for the whole basket. A candle in a percentage campaign gets the "
+            "campaign's discount instead of it, never both."
             + _until(welcome)
         )
+
+    reward_offers = []
 
     for offer in get_active_offers():
         if offer.kind == Offer.Kind.NEW_SHOPPER:
@@ -806,10 +809,26 @@ def build_offers_context() -> str:
                 + (f"; the free one can be from {reward}" if reward else "")
                 + "." + _until(offer)
             )
+            reward_offers.append(offer.title)
         elif offer.discount_percent:
             lines.append(
                 f"- {offer.title}: {offer.discount_percent}% off {scope}." + _until(offer)
             )
+
+    # Pricing's rule (compute_line_discounts), spelled out: "doesn't combine"
+    # is what the model says otherwise, and it turns away a sale.
+    if welcome and reward_offers:
+        lines.append(
+            f"- The sign-up discount with {' or '.join(reward_offers)}, for when a "
+            "shopper asks about using them together: the candles that pay toward a "
+            "free one pay full price, with no sign-up discount, and the free one costs "
+            f"nothing. Every other candle in the same basket still gets the "
+            f"{welcome.discount_percent}%: a separate candle outside the offer, or the "
+            "offer's own candles when no free one is in the basket. Extra units of the "
+            "very same candle and size as one that pays also pay full price. So the "
+            "answer is never just that they don't combine, and never that the paying "
+            "candles get both."
+        )
 
     if len(lines) == 1:
         lines.append("- No offers are running.")
