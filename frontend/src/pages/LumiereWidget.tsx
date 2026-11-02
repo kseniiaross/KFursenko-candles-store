@@ -30,6 +30,12 @@ const SPEECH_LANG: Record<Locale, string> = {
   fr: "fr-FR",
 };
 
+const STARTER_KEYS = [
+  "lumiere.starterGift",
+  "lumiere.starterBedroom",
+  "lumiere.starterPromotion",
+] as const;
+
 const PREFERRED_VOICE_KEYWORDS: Record<Locale, string[]> = {
   en: ["samantha", "google us english", "microsoft aria", "alex"],
   ru: ["milena", "yuri", "google русский", "microsoft svetlana"],
@@ -296,8 +302,8 @@ const LumiereWidget: React.FC = () => {
     };
   }, [dispatch, isOpen]);
 
-  const onSend = async (): Promise<void> => {
-    const text = input.trim();
+  const sendText = async (raw: string): Promise<void> => {
+    const text = raw.trim();
 
     if (!text || status === "loading") return;
 
@@ -334,6 +340,8 @@ const LumiereWidget: React.FC = () => {
       speakText(result.payload.text, locale);
     }
   };
+
+  const onSend = (): Promise<void> => sendText(input);
 
   const onInputKeyDown: React.KeyboardEventHandler<HTMLInputElement> = async (
     event
@@ -373,6 +381,11 @@ const LumiereWidget: React.FC = () => {
     dispatch(ensureGreeting({ isLoggedIn, firstName }));
     setInput("");
   };
+
+  // Until the shopper has said anything; "New chat" brings them back.
+  const showStarters = !messages.some(
+    (message: LumiereMessage) => message.role === "user"
+  );
 
   const openLabel = isOpen ? t("lumiere.close") : t("lumiere.open");
   const speechLabel = speak ? t("lumiere.speechOff") : t("lumiere.speechOn");
@@ -530,6 +543,30 @@ const LumiereWidget: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {showStarters ? (
+              <div
+                className="lumiereStarters"
+                role="group"
+                aria-label={t("lumiere.startersLabel", { lng: locale })}
+              >
+                {STARTER_KEYS.map((key) => {
+                  // The panel's language, like the greeting above them.
+                  const text = t(key, { lng: locale });
+
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className="lumiereStarter"
+                      onClick={() => void sendText(text)}
+                    >
+                      {text}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
 
             {status === "loading" ? (
               <div className="lumiereTyping" aria-label={t("lumiere.typing")}>

@@ -65,8 +65,8 @@
 .lumiereVoiceButton:focus-visible,
 .lumiereClear:focus-visible,
 .lumiereClose:focus-visible,
-.lumiereInput:focus-visible,
 .lumiereSend:focus-visible,
+.lumiereStarter:focus-visible,
 .lumiereCard:focus-visible {
   outline: 3px solid rgba(17, 17, 17, 0.88);
   outline-offset: 3px;
@@ -308,6 +308,42 @@
 }
 
 /* =====================================================
+   STARTERS
+   ===================================================== */
+
+.lumiereStarters {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.lumiereStarter {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111111;
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.lumiereStarter:hover {
+  transform: translateY(-1px);
+  border-color: rgba(17, 17, 17, 0.28);
+  background: #ffffff;
+}
+
+/* =====================================================
    SUGGESTIONS
    ===================================================== */
 
@@ -383,6 +419,14 @@
   color: rgba(17, 17, 17, 0.5);
 }
 
+/* A text field matches :focus-visible on click too, so it gets a soft ring
+   in the panel's tones instead of the buttons' heavy outline. */
+.lumiereInput:focus-visible {
+  outline: none;
+  border-color: rgba(17, 17, 17, 0.42);
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08);
+}
+
 .lumiereSend {
   min-height: 44px;
   padding: 0 16px;
@@ -456,6 +500,7 @@
 [data-theme="dark"] .lumiereClear,
 [data-theme="dark"] .lumiereClose,
 [data-theme="dark"] .lumiereInput,
+[data-theme="dark"] .lumiereStarter,
 [data-theme="dark"] .lumiereCard {
   border-color: rgba(245, 239, 232, 0.14);
   background: rgba(255, 255, 255, 0.06);
@@ -466,6 +511,7 @@
 [data-theme="dark"] .lumiereVoiceButton:hover,
 [data-theme="dark"] .lumiereClear:hover,
 [data-theme="dark"] .lumiereClose:hover,
+[data-theme="dark"] .lumiereStarter:hover,
 [data-theme="dark"] .lumiereCard:hover {
   border-color: rgba(245, 239, 232, 0.28);
   background: rgba(255, 255, 255, 0.09);
@@ -490,6 +536,22 @@
 
 [data-theme="dark"] .lumiereInput::placeholder {
   color: rgba(245, 239, 232, 0.48);
+}
+
+[data-theme="dark"] .lumiereFab:focus-visible,
+[data-theme="dark"] .lumiereSelect:focus-visible,
+[data-theme="dark"] .lumiereVoiceButton:focus-visible,
+[data-theme="dark"] .lumiereClear:focus-visible,
+[data-theme="dark"] .lumiereClose:focus-visible,
+[data-theme="dark"] .lumiereSend:focus-visible,
+[data-theme="dark"] .lumiereStarter:focus-visible,
+[data-theme="dark"] .lumiereCard:focus-visible {
+  outline-color: rgba(245, 239, 232, 0.88);
+}
+
+[data-theme="dark"] .lumiereInput:focus-visible {
+  border-color: rgba(245, 239, 232, 0.42);
+  box-shadow: 0 0 0 3px rgba(245, 239, 232, 0.12);
 }
 
 [data-theme="dark"] .lumiereSend {
