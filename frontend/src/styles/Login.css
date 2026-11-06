@@ -219,6 +219,41 @@
 }
 
 /* =====================================================
+   LAPTOP AND TABLET LANDSCAPE — the column fits the window
+
+   Register and Login share these numbers: two pages in one flow with
+   different field heights read as a mistake. The header's height stays
+   above the heading; the space below it matches the space under the form.
+   ===================================================== */
+
+@media (min-width: 901px) {
+  .login__panel {
+    padding-top: calc(var(--header-height, 0px) + 8px);
+    padding-bottom: 8px;
+  }
+
+  /* Between the heading, the form and the link below it. */
+  .login__inner {
+    gap: 14px;
+  }
+
+  /* Fields and button share this gap; 12px between fields, as Register. */
+  .login__form {
+    gap: 12px;
+  }
+
+  .login__field {
+    gap: 4px;
+  }
+
+  .login__input {
+    padding-top: 11px;
+    padding-bottom: 11px;
+    line-height: 1.4;
+  }
+}
+
+/* =====================================================
    TABLET — the photo becomes a banner so the form stays visible
    ===================================================== */
 
