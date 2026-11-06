@@ -251,7 +251,7 @@ const resources = {
         creating: "Creating account...",
         haveAccount: "Already have an account?",
         welcomePerk:
-          "10% off your first order — applied automatically at checkout.",
+          "10% off your first order — automatic, no code needed.",
         errors: {
           network: "Network error. Please try again.",
           invalidForm: "Please check your information and try again.",
@@ -732,7 +732,7 @@ const resources = {
         pageLabel: "Страница регистрации",
         title: "Создать аккаунт",
         subtitle:
-          "Создайте аккаунт, чтобы быстрее оформлять заказы и сохранять данные.",
+          "Сохраните данные и оформляйте заказы быстрее.",
         firstName: "Имя",
         lastName: "Фамилия",
         phone: "Номер телефона",
@@ -743,7 +743,7 @@ const resources = {
         creating: "Создание аккаунта...",
         haveAccount: "Уже есть аккаунт?",
         welcomePerk:
-          "10% на первый заказ — спишутся автоматически при оформлении.",
+          "10% на первый заказ — автоматически, без промокода.",
         errors: {
           network: "Ошибка сети. Попробуйте снова.",
           invalidForm: "Проверьте введённые данные и попробуйте снова.",
@@ -1233,7 +1233,7 @@ const resources = {
         pageLabel: "Página de registro",
         title: "Crear cuenta",
         subtitle:
-          "Crea tu cuenta para guardar tus datos y hacer pedidos más rápido.",
+          "Guarda tus datos y haz pedidos más rápido.",
         firstName: "Nombre",
         lastName: "Apellido",
         phone: "Número de teléfono",
@@ -1244,7 +1244,7 @@ const resources = {
         creating: "Creando cuenta...",
         haveAccount: "¿Ya tienes cuenta?",
         welcomePerk:
-          "10% en tu primer pedido — se aplica automáticamente al pagar.",
+          "10% en tu primer pedido — automático, sin código.",
         errors: {
           network: "Error de red. Inténtalo de nuevo.",
           invalidForm: "Revisa tu información e inténtalo de nuevo.",
@@ -1728,7 +1728,7 @@ const resources = {
         pageLabel: "Page d'inscription",
         title: "Créer un compte",
         subtitle:
-          "Créez votre compte pour enregistrer vos informations et passer commande plus rapidement.",
+          "Enregistrez vos données et commandez plus vite.",
         firstName: "Prénom",
         lastName: "Nom",
         phone: "Numéro de téléphone",
@@ -1739,7 +1739,7 @@ const resources = {
         creating: "Création du compte...",
         haveAccount: "Vous avez déjà un compte ?",
         welcomePerk:
-          "10% sur votre première commande — appliqué automatiquement au paiement.",
+          "10% sur la première commande — automatique, sans code.",
         errors: {
           network: "Erreur réseau. Veuillez réessayer.",
           invalidForm: "Vérifiez vos informations et réessayez.",
