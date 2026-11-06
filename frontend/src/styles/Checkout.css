@@ -355,6 +355,73 @@
   }
 }
 
+/* LAPTOP AND UP — the page fits a laptop window. Spacing and sizes
+   only; the inputs keep their 46px, the tap-target floor. */
+
+@media (min-width: 901px) {
+  .checkout__backWrap {
+    margin-bottom: 4px;
+  }
+
+  .checkout__header {
+    margin-bottom: 12px;
+  }
+
+  .checkout__title {
+    font-size: clamp(1.75rem, 2.8vw, 2.25rem);
+  }
+
+  .checkout__subtitle {
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  /* Keeps its reserved line, so a message doesn't push the page down. */
+  .checkout__statusArea--page {
+    margin-bottom: 8px;
+  }
+
+  .checkout__sectionTitle {
+    margin-bottom: 12px;
+    font-size: 1.3rem;
+  }
+
+  .checkout__items {
+    gap: 12px;
+  }
+
+  .checkoutItem {
+    grid-template-columns: 96px minmax(0, 1fr) auto;
+    padding: 12px;
+  }
+
+  .checkoutItem__image {
+    width: 96px;
+    height: 110px;
+  }
+
+  .checkoutItem__meta {
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  .checkoutForm {
+    gap: 12px;
+  }
+
+  .checkoutForm__group {
+    gap: 4px;
+  }
+}
+
+/* Up to 1200px the line total keeps its own row, as above. */
+@media (min-width: 901px) and (max-width: 1200px) {
+  .checkoutItem {
+    grid-template-columns: 96px minmax(0, 1fr);
+    row-gap: 6px;
+  }
+}
+
 /* TABLET */
 
 @media (max-width: 900px) {
