@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (pytest on PostgreSQL)
+    runs-on: ubuntu-latest
+
+    # The same database as docker-compose.yml, on the same host port, so
+    # settings_test.py's defaults reach it and the job sets no variables.
+    # No secrets are used: settings_test.py brings its own SECRET_KEY and
+    # blanks every third-party key. The LUMIERE_LIVE tests skip themselves
+    # because LUMIERE_LIVE is never set here; they call OpenAI.
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_DB: candles_db
+          POSTGRES_USER: candles_user
+          POSTGRES_PASSWORD: candles_pass
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U candles_user -d candles_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
+      - name: pytest
+        run: pytest -q
+
+  frontend:
+    name: Frontend (types, lint, build)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Production build
+        run: npm run build

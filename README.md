@@ -7,6 +7,7 @@
 [![Live Site](https://img.shields.io/badge/live%20site-kfcandle.com-black?style=flat-square)](https://www.kfcandle.com/)
 ![Tests](https://img.shields.io/badge/tests-542%20passing-brightgreen?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/kseniiaross/KFursenko-candles-store/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/kseniiaross/KFursenko-candles-store/actions/workflows/ci.yml)
 
 [Live Demo](https://www.kfcandle.com/) · [Backend](./backend) · [Frontend](./frontend)
 
