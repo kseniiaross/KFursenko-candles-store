@@ -58,7 +58,6 @@ const Footer: React.FC = () => {
       quick: [
         { label: t("footer.cart"), to: "/cart" },
         { label: t("footer.orders"), to: loginChoiceWithNext("/orders") },
-        { label: t("footer.quiz"), to: "/recommendation-quiz" },
         { label: t("footer.login"), to: loginChoiceWithNext("/login") },
         { label: t("footer.register"), to: loginChoiceWithNext("/register") },
       ],

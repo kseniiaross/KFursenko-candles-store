@@ -73,21 +73,12 @@ const NewShoppers: React.FC = () => {
 
         <div className="newShoppers__actions">
           {isLoggedIn ? (
-            <>
-              <Link
-                to="/catalog"
-                className="newShoppers__btn newShoppers__btn--primary"
-              >
-                Start shopping
-              </Link>
-
-              <Link
-                to="/recommendation-quiz"
-                className="newShoppers__btn newShoppers__btn--secondary"
-              >
-                Take the scent quiz
-              </Link>
-            </>
+            <Link
+              to="/catalog"
+              className="newShoppers__btn newShoppers__btn--primary"
+            >
+              Start shopping
+            </Link>
           ) : (
             <>
               <Link

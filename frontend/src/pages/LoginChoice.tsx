@@ -31,11 +31,6 @@ const LoginChoice: React.FC = () => {
       text: t("loginChoice.perkDiscountText"),
     },
     {
-      key: "mood",
-      title: t("loginChoice.perkMoodTitle"),
-      text: t("loginChoice.perkMoodText"),
-    },
-    {
       key: "checkout",
       title: t("loginChoice.perkCheckoutTitle"),
       text: t("loginChoice.perkCheckoutText"),

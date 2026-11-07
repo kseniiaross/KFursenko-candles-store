@@ -33,8 +33,6 @@ const Contacts = React.lazy(() => import("./pages/Contacts"));
 const Gallery = React.lazy(() => import("./pages/Gallery"));
 const ComingSoon = React.lazy(() => import("./pages/ComingSoon"));
 const CustomCandles = React.lazy(() => import("./pages/CustomCandles"));
-const RecommendationQuiz = React.lazy(() => import("./pages/RecommendationQuiz"));
-const RecommendationResult = React.lazy(() => import("./pages/RecommendationResult"));
 
 // Offers
 const PromoBuy2Get3 = React.lazy(() => import("./pages/offers/PromoBuy2Get3"));
@@ -242,12 +240,6 @@ const App: React.FC = () => {
             />
 
             <Route path="/custom-candles" element={<CustomCandles />} />
-
-            <Route path="/recommendation-quiz" element={<RecommendationQuiz />} />
-            <Route
-              path="/recommendation-result"
-              element={<RecommendationResult />}
-            />
 
             <Route element={<PrivateRoute />}>
               <Route path="/profile" element={<Profile />} />

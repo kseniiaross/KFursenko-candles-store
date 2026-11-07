@@ -91,8 +91,6 @@ const resources = {
         register: "Create account",
         perkDiscountTitle: "10% off your first order",
         perkDiscountText: "Applied automatically at checkout — no code needed",
-        perkMoodTitle: "A candle for every mood",
-        perkMoodText: "Take the scent quiz and we'll match one to yours",
         perkCheckoutTitle: "Faster checkout, every time",
         perkCheckoutText: "Your address is saved and orders are easy to track",
       },
@@ -127,7 +125,6 @@ const resources = {
         copyright: "© {{year}} — KFursenko Candles",
         gallery: "Gallery",
         reviews: "Reviews",
-        quiz: "Quiz",
       },
 
       home: {
@@ -140,21 +137,6 @@ const resources = {
         register: "Register",
         brandSection: "Brand section",
         goToStoryMission: "Go to Story and Mission",
-        aiRegion: "AI recommendation quiz",
-        aiPowered: "AI-powered",
-        aiTitle: "Scent Recommendation Quiz",
-        aiSubtitle:
-          "6 quick steps → we build your scent profile and match it to the best candles.",
-        mood: "Mood",
-        space: "Space",
-        intensity: "Intensity",
-        notes: "Notes",
-        season: "Season",
-        occasion: "Occasion",
-        takeQuiz: "Take the quiz",
-        browseCatalog: "Browse catalog",
-        aiHint:
-          "Uses vector scoring + cosine similarity to match the right candle mood.",
       },
 
       catalog: {
@@ -427,57 +409,6 @@ const resources = {
         backToCheckout: "Back to checkout",
       },
 
-      recommendationQuiz: {
-        pageLabel: "Scent quiz page",
-        title: "Find your candle mood",
-        subtitle:
-          "Answer a few quick questions and discover the candle style that fits your space, mood, and moment.",
-        progress: "Quiz progress",
-        yourName: "Your name",
-        personalize: "We’ll personalize your result.",
-        name: "Name",
-        namePlaceholder: "e.g., Kseniia",
-        nameRequired: "Please enter your name to continue.",
-        chooseMood: "Choose your mood",
-        moodHelp: "Mood shapes the overall feeling of the scent.",
-        chooseSpace: "Where will you use it?",
-        spaceHelp: "Your space helps us choose the right scent direction.",
-        pickNotes: "Pick 1–3 notes",
-        notesHelp: "These notes influence your scent profile the most.",
-        selectedCount: "Selected: {{count}} / 3",
-        notesRequired: "Select at least 1 note.",
-        intensity: "Intensity",
-        intensityHelp: "Choose how noticeable you want the scent to feel.",
-        seasonOccasion: "Season + occasion",
-        seasonOccasionHelp: "These details fine-tune your final match.",
-        season: "Season",
-        occasion: "Occasion",
-        generateResult: "See my recommendation",
-      },
-
-      recommendationResult: {
-        pageLabel: "Recommendation result page",
-        emptyTitle: "No result yet",
-        emptyText:
-          "Please take the quiz first so we can prepare your candle match.",
-        startQuiz: "Start the quiz",
-        eyebrow: "Your curated candle profile",
-        title: "{{name}}, here’s the candle direction that suits you best",
-        subtitle:
-          "Based on your answers, this is the scent profile most likely to feel natural, beautiful, and worth bringing into your space.",
-        badge: "Recommended vibe",
-        summary: "Your quiz summary",
-        mood: "Mood",
-        space: "Space",
-        intensity: "Intensity",
-        notes: "Notes",
-        season: "Season",
-        occasion: "Occasion",
-        defaultNotes: "Selected scent notes",
-        retakeQuiz: "Retake quiz",
-        shopMatchingCandles: "Shop matching candles",
-      },
-
       lumiere: {
         open: "Open Lumière assistant",
         close: "Close Lumière assistant",
@@ -582,8 +513,6 @@ const resources = {
         register: "Создать аккаунт",
         perkDiscountTitle: "10% на первый заказ",
         perkDiscountText: "Применится при оформлении, без промокода",
-        perkMoodTitle: "Свеча под любое настроение",
-        perkMoodText: "Пройдите квиз — подберём аромат под ваше",
         perkCheckoutTitle: "Быстрое оформление",
         perkCheckoutText: "Адрес сохранён, заказы легко отслеживать",
       },
@@ -618,7 +547,6 @@ const resources = {
         copyright: "© {{year}} — KFursenko Candles",
         gallery: "Галерея",
         reviews: "Отзывы",
-        quiz: "Квиз",
       },
 
       home: {
@@ -631,21 +559,6 @@ const resources = {
         register: "Регистрация",
         brandSection: "Раздел бренда",
         goToStoryMission: "Перейти к истории и миссии",
-        aiRegion: "AI-квиз рекомендаций",
-        aiPowered: "На базе AI",
-        aiTitle: "Квиз по подбору аромата",
-        aiSubtitle:
-          "6 быстрых шагов — мы собираем твой ароматический профиль и подбираем лучшие свечи.",
-        mood: "Настроение",
-        space: "Пространство",
-        intensity: "Интенсивность",
-        notes: "Ноты",
-        season: "Сезон",
-        occasion: "Повод",
-        takeQuiz: "Пройти квиз",
-        browseCatalog: "Открыть каталог",
-        aiHint:
-          "Используется логика подбора по настроению и ароматическому профилю.",
       },
 
       catalog: {
@@ -918,58 +831,6 @@ const resources = {
         backToCheckout: "Вернуться к оплате",
       },
 
-      recommendationQuiz: {
-        pageLabel: "Страница квиза по аромату",
-        title: "Найдите своё ароматическое настроение",
-        subtitle:
-          "Ответьте на несколько коротких вопросов и узнайте, какая свеча лучше всего подойдёт вашему пространству, настроению и моменту.",
-        progress: "Прогресс квиза",
-        yourName: "Ваше имя",
-        personalize: "Мы персонализируем результат.",
-        name: "Имя",
-        namePlaceholder: "например, Kseniia",
-        nameRequired: "Пожалуйста, введите имя, чтобы продолжить.",
-        chooseMood: "Выберите настроение",
-        moodHelp: "Настроение задаёт общее ощущение аромата.",
-        chooseSpace: "Где вы будете использовать свечу?",
-        spaceHelp:
-          "Пространство помогает определить правильное ароматическое направление.",
-        pickNotes: "Выберите 1–3 ноты",
-        notesHelp: "Эти ноты сильнее всего влияют на ароматический профиль.",
-        selectedCount: "Выбрано: {{count}} / 3",
-        notesRequired: "Выберите хотя бы 1 ноту.",
-        intensity: "Интенсивность",
-        intensityHelp: "Насколько заметным должен быть аромат?",
-        seasonOccasion: "Сезон и повод",
-        seasonOccasionHelp: "Эти детали помогают точнее подобрать свечу.",
-        season: "Сезон",
-        occasion: "Повод",
-        generateResult: "Посмотреть рекомендацию",
-      },
-
-      recommendationResult: {
-        pageLabel: "Страница результата квиза",
-        emptyTitle: "Пока нет результата",
-        emptyText:
-          "Сначала пройдите квиз, чтобы мы могли подобрать для вас свечу.",
-        startQuiz: "Начать квиз",
-        eyebrow: "Ваш индивидуальный ароматический профиль",
-        title:
-          "{{name}}, вот направление свечи, которое подходит вам лучше всего",
-        subtitle:
-          "На основе ваших ответов мы подобрали ароматический профиль, который будет ощущаться наиболее естественно, красиво и уместно в вашем пространстве.",
-        badge: "Рекомендованное настроение",
-        summary: "Кратко о ваших ответах",
-        mood: "Настроение",
-        space: "Пространство",
-        intensity: "Интенсивность",
-        notes: "Ноты",
-        season: "Сезон",
-        occasion: "Повод",
-        defaultNotes: "Выбранные ноты",
-        retakeQuiz: "Пройти снова",
-        shopMatchingCandles: "Смотреть подходящие свечи",
-      },
       lumiere: {
         open: "Открыть ассистента Lumière",
         close: "Закрыть ассистента Lumière",
@@ -1073,8 +934,6 @@ const resources = {
         register: "Crear cuenta",
         perkDiscountTitle: "10% en tu primer pedido",
         perkDiscountText: "Se aplica al pagar, sin código",
-        perkMoodTitle: "Una vela para cada momento",
-        perkMoodText: "Haz el quiz y encontraremos la tuya",
         perkCheckoutTitle: "Pago más rápido",
         perkCheckoutText: "Tu dirección se guarda y sigues tus pedidos",
       },
@@ -1109,7 +968,6 @@ const resources = {
         copyright: "© {{year}} — KFursenko Candles",
         gallery: "Galería",
         reviews: "Reseñas",
-        quiz: "Quiz",
       },
 
       home: {
@@ -1122,21 +980,6 @@ const resources = {
         register: "Registrarse",
         brandSection: "Sección de marca",
         goToStoryMission: "Ir a historia y misión",
-        aiRegion: "Quiz de recomendación",
-        aiPowered: "Impulsado por AI",
-        aiTitle: "Quiz de recomendación de aroma",
-        aiSubtitle:
-          "6 pasos rápidos para crear tu perfil aromático y encontrar la vela adecuada.",
-        mood: "Estado de ánimo",
-        space: "Espacio",
-        intensity: "Intensidad",
-        notes: "Notas",
-        season: "Temporada",
-        occasion: "Ocasión",
-        takeQuiz: "Hacer el quiz",
-        browseCatalog: "Ver catálogo",
-        aiHint:
-          "Usamos tu perfil para encontrar una dirección aromática más acertada.",
       },
 
       catalog: {
@@ -1409,59 +1252,6 @@ const resources = {
         backToCheckout: "Volver al checkout",
       },
 
-      recommendationQuiz: {
-        pageLabel: "Página del quiz de aromas",
-        title: "Encuentra tu ambiente de vela",
-        subtitle:
-          "Responde algunas preguntas rápidas y descubre el estilo de vela que encaja con tu espacio, estado de ánimo y momento.",
-        progress: "Progreso del quiz",
-        yourName: "Tu nombre",
-        personalize: "Personalizaremos tu resultado.",
-        name: "Nombre",
-        namePlaceholder: "por ejemplo, Kseniia",
-        nameRequired: "Introduce tu nombre para continuar.",
-        chooseMood: "Elige tu estado de ánimo",
-        moodHelp: "El estado de ánimo define la sensación general del aroma.",
-        chooseSpace: "¿Dónde la usarás?",
-        spaceHelp:
-          "Tu espacio nos ayuda a elegir la dirección aromática correcta.",
-        pickNotes: "Elige 1–3 notas",
-        notesHelp: "Estas notas influyen más en tu perfil aromático.",
-        selectedCount: "Seleccionadas: {{count}} / 3",
-        notesRequired: "Selecciona al menos 1 nota.",
-        intensity: "Intensidad",
-        intensityHelp: "Elige qué tan notable quieres que sea el aroma.",
-        seasonOccasion: "Temporada + ocasión",
-        seasonOccasionHelp:
-          "Estos detalles ajustan mejor tu recomendación final.",
-        season: "Temporada",
-        occasion: "Ocasión",
-        generateResult: "Ver mi recomendación",
-      },
-
-      recommendationResult: {
-        pageLabel: "Página del resultado de recomendación",
-        emptyTitle: "Aún no hay resultado",
-        emptyText:
-          "Primero haz el quiz para que podamos preparar tu recomendación de vela.",
-        startQuiz: "Empezar el quiz",
-        eyebrow: "Tu perfil aromático personalizado",
-        title:
-          "{{name}}, esta es la dirección de vela que mejor encaja contigo",
-        subtitle:
-          "Según tus respuestas, este perfil aromático es el que probablemente se sentirá más natural, bonito y adecuado para tu espacio.",
-        badge: "Ambiente recomendado",
-        summary: "Resumen de tu quiz",
-        mood: "Estado de ánimo",
-        space: "Espacio",
-        intensity: "Intensidad",
-        notes: "Notas",
-        season: "Temporada",
-        occasion: "Ocasión",
-        defaultNotes: "Notas seleccionadas",
-        retakeQuiz: "Repetir quiz",
-        shopMatchingCandles: "Ver velas recomendadas",
-      },
       lumiere: {
         open: "Abrir asistente Lumière",
         close: "Cerrar asistente Lumière",
@@ -1566,8 +1356,6 @@ const resources = {
         register: "Créer un compte",
         perkDiscountTitle: "10% sur votre première commande",
         perkDiscountText: "Appliqué au paiement, sans code",
-        perkMoodTitle: "Une bougie pour chaque humeur",
-        perkMoodText: "Faites le quiz, nous trouverons la vôtre",
         perkCheckoutTitle: "Paiement plus rapide",
         perkCheckoutText: "Votre adresse est enregistrée, vos commandes suivies",
       },
@@ -1602,7 +1390,6 @@ const resources = {
         copyright: "© {{year}} — KFursenko Candles",
         gallery: "Galerie",
         reviews: "Avis",
-        quiz: "Quiz",
       },
 
       home: {
@@ -1615,21 +1402,6 @@ const resources = {
         register: "S'inscrire",
         brandSection: "Section de marque",
         goToStoryMission: "Aller à histoire et mission",
-        aiRegion: "Quiz de recommandation",
-        aiPowered: "Propulsé par l'AI",
-        aiTitle: "Quiz de recommandation de parfum",
-        aiSubtitle:
-          "6 étapes rapides pour créer votre profil olfactif et trouver la bonne bougie.",
-        mood: "Ambiance",
-        space: "Espace",
-        intensity: "Intensité",
-        notes: "Notes",
-        season: "Saison",
-        occasion: "Occasion",
-        takeQuiz: "Faire le quiz",
-        browseCatalog: "Parcourir le catalogue",
-        aiHint:
-          "Nous utilisons votre profil pour orienter la recommandation parfumée.",
       },
 
       catalog: {
@@ -1905,58 +1677,6 @@ const resources = {
         backToCheckout: "Retour au paiement",
       },
 
-      recommendationQuiz: {
-        pageLabel: "Page du quiz de parfum",
-        title: "Trouvez l'ambiance de votre bougie",
-        subtitle:
-          "Répondez à quelques questions rapides et découvrez le style de bougie qui correspond à votre espace, votre humeur et votre moment.",
-        progress: "Progression du quiz",
-        yourName: "Votre nom",
-        personalize: "Nous personnaliserons votre résultat.",
-        name: "Nom",
-        namePlaceholder: "par exemple, Kseniia",
-        nameRequired: "Veuillez saisir votre nom pour continuer.",
-        chooseMood: "Choisissez votre ambiance",
-        moodHelp: "L'ambiance façonne la sensation générale du parfum.",
-        chooseSpace: "Où l'utiliserez-vous ?",
-        spaceHelp:
-          "Votre espace nous aide à choisir la bonne direction olfactive.",
-        pickNotes: "Choisissez 1 à 3 notes",
-        notesHelp: "Ces notes influencent le plus votre profil olfactif.",
-        selectedCount: "Sélectionnées : {{count}} / 3",
-        notesRequired: "Sélectionnez au moins 1 note.",
-        intensity: "Intensité",
-        intensityHelp: "Choisissez à quel point vous voulez sentir le parfum.",
-        seasonOccasion: "Saison + occasion",
-        seasonOccasionHelp: "Ces détails affinent votre recommandation finale.",
-        season: "Saison",
-        occasion: "Occasion",
-        generateResult: "Voir ma recommandation",
-      },
-
-      recommendationResult: {
-        pageLabel: "Page du résultat de recommandation",
-        emptyTitle: "Aucun résultat pour le moment",
-        emptyText:
-          "Veuillez d'abord faire le quiz afin que nous puissions préparer votre recommandation de bougie.",
-        startQuiz: "Commencer le quiz",
-        eyebrow: "Votre profil olfactif personnalisé",
-        title:
-          "{{name}}, voici la direction de bougie qui vous convient le mieux",
-        subtitle:
-          "D'après vos réponses, ce profil olfactif est celui qui devrait sembler le plus naturel, beau et adapté à votre espace.",
-        badge: "Ambiance recommandée",
-        summary: "Résumé de votre quiz",
-        mood: "Ambiance",
-        space: "Espace",
-        intensity: "Intensité",
-        notes: "Notes",
-        season: "Saison",
-        occasion: "Occasion",
-        defaultNotes: "Notes sélectionnées",
-        retakeQuiz: "Refaire le quiz",
-        shopMatchingCandles: "Voir les bougies recommandées",
-      },
       lumiere: {
         open: "Ouvrir l’assistant Lumière",
         close: "Fermer l’assistant Lumière",
