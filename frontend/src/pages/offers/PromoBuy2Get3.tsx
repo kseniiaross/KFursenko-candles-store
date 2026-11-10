@@ -99,27 +99,27 @@ const PromoBuy2Get3: React.FC = () => {
     <main className="promo" aria-labelledby="promo-title">
       <div className="promo__inner">
         <header className="promo__header">
-          <p className="promo__kicker">Offers</p>
+          <p className="promo__kicker">{t("header.offers")}</p>
           <h1 id="promo-title" className="promo__title">
-            Buy Two, Get Three
+            {t("promoBuy2Get3.title")}
           </h1>
           <p className="promo__lead">
-            Take two of our large Spring candles and a small one is on us.
-            Nothing to enter at checkout — the free candle is already at zero
-            when you pay.
+            {t("promoBuy2Get3.lead")}
           </p>
         </header>
 
         <div className="promo__highlight" role="note">
-          <span className="promo__highlightLabel">The deal</span>
+          <span className="promo__highlightLabel">
+            {t("promoBuy2Get3.dealLabel")}
+          </span>
           <span className="promo__highlightValue">
-            Two 11.3 oz candles earn one 8 oz candle free
+            {t("promoBuy2Get3.dealValue")}
           </span>
         </div>
 
         <section className="promo__terms" aria-labelledby="promo-terms-title">
           <h2 id="promo-terms-title" className="promo__sectionTitle">
-            The details
+            {t("promoBuy2Get3.detailsTitle")}
           </h2>
 
           {/* A definition list rather than a table: these are rule-and-
@@ -144,21 +144,20 @@ const PromoBuy2Get3: React.FC = () => {
           aria-labelledby="promo-products-title"
         >
           <h2 id="promo-products-title" className="promo__sectionTitle">
-            The candles that qualify
+            {t("promoBuy2Get3.productsTitle")}
           </h2>
 
           {loading ? (
-            <p className="promo__state">Loading…</p>
+            <p className="promo__state">{t("catalog.loading")}</p>
           ) : error ? (
             <p className="promo__state promo__state--error">{error}</p>
           ) : eligible.length === 0 ? (
             <div className="promo__empty">
               <p className="promo__emptyText">
-                No candles are part of this offer right now. New eligible
-                candles are added regularly.
+                {t("promoBuy2Get3.emptyText")}
               </p>
               <Link to="/catalog" className="promo__emptyLink">
-                Browse the full catalog →
+                {t("promoBuy2Get3.browseCatalog")}
               </Link>
             </div>
           ) : (
@@ -189,7 +188,7 @@ const PromoBuy2Get3: React.FC = () => {
                     <Link
                       to={destination}
                       className="catalogCard__imageLink"
-                      aria-label={`Open ${product.name}`}
+                      aria-label={t("promoBuy2Get3.openProduct", { name: product.name })}
                     >
                       <div className="catalogCard__media">
                         <img
@@ -212,7 +211,7 @@ const PromoBuy2Get3: React.FC = () => {
                             </span>
                           ) : (
                             <span className="badge badge--promo">
-                              Buy Two Get Three
+                              {t("promoBuy2Get3.badge")}
                             </span>
                           )}
                         </div>
@@ -240,7 +239,7 @@ const PromoBuy2Get3: React.FC = () => {
                             />
                           ) : (
                             <span className="catalogCard__priceHint">
-                              Select size
+                              {t("promoBuy2Get3.selectSize")}
                             </span>
                           )}
                         </div>

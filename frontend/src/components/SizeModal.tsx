@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { addToCart as addToCartApi } from "../api/cart";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { addToCart, setCart } from "../store/cartSlice";
@@ -9,6 +10,7 @@ import Price from "./Price";
 import "../styles/SizeModal.css";
 
 const SizeModal: React.FC = () => {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
   const { candle, isOpen } = useAppSelector((state) => state.modal);
@@ -75,13 +77,13 @@ const SizeModal: React.FC = () => {
             type="button"
             className="sizeModal__close"
             onClick={handleClose}
-            aria-label="Close modal"
+            aria-label={t("common.close")}
           >
             ×
           </button>
 
           <div className="sizeModal__header">
-            <h2 className="sizeModal__title">Select Size</h2>
+            <h2 className="sizeModal__title">{t("cart.selectSize")}</h2>
             <p className="sizeModal__product">{candle.name}</p>
           </div>
 
@@ -103,7 +105,7 @@ const SizeModal: React.FC = () => {
 
                   <span className="sizeModal__price">
                     {isAdding ? (
-                      "Adding..."
+                      t("cart.adding")
                     ) : (
                       // Same price the card shows and checkout charges for one.
                       <Price

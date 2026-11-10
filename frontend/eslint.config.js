@@ -33,6 +33,8 @@ export default defineConfig([
       'src/components/Price.tsx',
       'src/components/LinePrice.tsx',
       'src/components/CartNotices.tsx',
+      'src/pages/offers/PromoBuy2Get3.tsx',
+      'src/components/SizeModal.tsx',
     ],
     plugins: { i18next },
     rules: {

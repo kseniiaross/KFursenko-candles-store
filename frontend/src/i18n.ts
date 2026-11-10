@@ -102,6 +102,19 @@ const resources = {
       },
 
       promoBuy2Get3: {
+        title: "Buy Two, Get Three",
+        lead:
+          "Take two of our large Spring candles and a small one is on us. Nothing to enter at checkout — the free candle is already at zero when you pay.",
+        dealLabel: "The deal",
+        dealValue: "Two 11.3 oz candles earn one 8 oz candle free",
+        detailsTitle: "The details",
+        productsTitle: "The candles that qualify",
+        emptyText:
+          "No candles are part of this offer right now. New eligible candles are added regularly.",
+        browseCatalog: "Browse the full catalog →",
+        badge: "Buy Two Get Three",
+        selectSize: "Select size",
+        openProduct: "Open {{name}}",
         howRule: "How it works",
         howDetail:
           "Add two of the large candles below to your basket and a small candle comes free. Buy four and two come free, and so on.",
@@ -358,6 +371,8 @@ const resources = {
       },
 
       cart: {
+        selectSize: "Select size",
+        adding: "Adding...",
         free: "Free",
         freeCount: "{{count}} free",
         wasPrice: "Was {{price}}",
@@ -608,6 +623,19 @@ const resources = {
       },
 
       promoBuy2Get3: {
+        title: "Купи две — получи три",
+        lead:
+          "Возьмите две большие свечи весенней коллекции — и маленькую мы подарим. При оформлении ничего вводить не нужно: к оплате бесплатная свеча уже стоит ноль.",
+        dealLabel: "Условие",
+        dealValue: "Две свечи 11.3 oz — и одна свеча 8 oz бесплатно",
+        detailsTitle: "Подробности",
+        productsTitle: "Свечи, которые участвуют в акции",
+        emptyText:
+          "Сейчас в акции нет свечей. Новые участвующие свечи появляются регулярно.",
+        browseCatalog: "Смотреть весь каталог →",
+        badge: "Купи 2 — получи 3",
+        selectSize: "Выберите размер",
+        openProduct: "Открыть {{name}}",
         howRule: "Как это работает",
         howDetail:
           "Добавьте в корзину две большие свечи из списка ниже — и маленькая достанется бесплатно. Купите четыре — бесплатных будет две, и так далее.",
@@ -864,6 +892,8 @@ const resources = {
       },
 
       cart: {
+        selectSize: "Выберите размер",
+        adding: "Добавляем...",
         free: "Бесплатно",
         freeCount: "{{count}} бесплатно",
         wasPrice: "Было {{price}}",
@@ -1115,6 +1145,19 @@ const resources = {
       },
 
       promoBuy2Get3: {
+        title: "Compra dos, llévate tres",
+        lead:
+          "Llévate dos de nuestras velas grandes de primavera y la pequeña corre de nuestra cuenta. No tienes que introducir nada al pagar: la vela gratis ya está a cero cuando pagas.",
+        dealLabel: "La oferta",
+        dealValue: "Dos velas de 11.3 oz te dan una vela de 8 oz gratis",
+        detailsTitle: "Los detalles",
+        productsTitle: "Las velas que participan",
+        emptyText:
+          "Ahora mismo no hay velas en esta oferta. Añadimos nuevas velas participantes con regularidad.",
+        browseCatalog: "Ver todo el catálogo →",
+        badge: "Compra 2, llévate 3",
+        selectSize: "Elige el tamaño",
+        openProduct: "Abrir {{name}}",
         howRule: "Cómo funciona",
         howDetail:
           "Añade al carrito dos de las velas grandes de abajo y una pequeña te sale gratis. Compra cuatro y dos te salen gratis, y así sucesivamente.",
@@ -1370,6 +1413,8 @@ const resources = {
       },
 
       cart: {
+        selectSize: "Elige el tamaño",
+        adding: "Añadiendo...",
         free: "Gratis",
         freeCount: "{{count}} gratis",
         wasPrice: "Antes {{price}}",
@@ -1582,7 +1627,7 @@ const resources = {
         candleHolders: "Bougeoirs",
         allOffers: "Toutes les offres",
         newShopper: "Nouveau client",
-        buyTwoGetThree: "2 achetées, 3 offertes",
+        buyTwoGetThree: "2 achetées, 1 offerte",
         holidayOffers: "Offres de fêtes",
         delivery: "Livraison",
         payments: "Paiements",
@@ -1603,9 +1648,9 @@ const resources = {
         amount: "{{percent}}%",
         sub: "sur votre première commande",
         terms:
-          "Créez un compte et {{percent}}% seront déduits automatiquement de votre première commande lors du paiement, sans code. Valable {{days}} jours après l'inscription. La remise s'applique à tout le panier, sauf aux bougies déjà en promotion, qui gardent leur prix promotionnel, et aux bougies qui font gagner la bougie offerte dans « 2 achetées, 3 offertes ». Elle ne s'applique ni à la livraison ni aux taxes.",
+          "Créez un compte et {{percent}}% seront déduits automatiquement de votre première commande lors du paiement, sans code. Valable {{days}} jours après l'inscription. La remise s'applique à tout le panier, sauf aux bougies déjà en promotion, qui gardent leur prix promotionnel, et aux bougies qui font gagner la bougie offerte dans « 2 achetées, 1 offerte ». Elle ne s'applique ni à la livraison ni aux taxes.",
         termsNoLimit:
-          "Créez un compte et {{percent}}% seront déduits automatiquement de votre première commande lors du paiement, sans code. La remise s'applique à tout le panier, sauf aux bougies déjà en promotion, qui gardent leur prix promotionnel, et aux bougies qui font gagner la bougie offerte dans « 2 achetées, 3 offertes ». Elle ne s'applique ni à la livraison ni aux taxes.",
+          "Créez un compte et {{percent}}% seront déduits automatiquement de votre première commande lors du paiement, sans code. La remise s'applique à tout le panier, sauf aux bougies déjà en promotion, qui gardent leur prix promotionnel, et aux bougies qui font gagner la bougie offerte dans « 2 achetées, 1 offerte ». Elle ne s'applique ni à la livraison ni aux taxes.",
         termsRequired: "Acceptez les conditions pour continuer.",
         cta: "Créer un compte",
         ctaNote: "La remise s'applique au paiement",
@@ -1624,6 +1669,19 @@ const resources = {
       },
 
       promoBuy2Get3: {
+        title: "Deux achetées, la troisième offerte",
+        lead:
+          "Prenez deux de nos grandes bougies de printemps et la petite est pour nous. Rien à saisir au paiement : la bougie offerte est déjà à zéro quand vous réglez.",
+        dealLabel: "L'offre",
+        dealValue: "Deux bougies de 11.3 oz vous font gagner une bougie de 8 oz offerte",
+        detailsTitle: "Les détails",
+        productsTitle: "Les bougies concernées",
+        emptyText:
+          "Aucune bougie ne fait partie de cette offre pour le moment. De nouvelles bougies sont ajoutées régulièrement.",
+        browseCatalog: "Voir tout le catalogue →",
+        badge: "2 achetées, 1 offerte",
+        selectSize: "Choisissez la taille",
+        openProduct: "Ouvrir {{name}}",
         howRule: "Comment ça marche",
         howDetail:
           "Ajoutez au panier deux des grandes bougies ci-dessous et une petite bougie vous est offerte. Achetez-en quatre et deux sont offertes, et ainsi de suite.",
@@ -1881,6 +1939,8 @@ const resources = {
       },
 
       cart: {
+        selectSize: "Choisissez la taille",
+        adding: "Ajout en cours...",
         free: "Offerte",
         freeCount_one: "{{count}} offerte",
         freeCount_other: "{{count}} offertes",
