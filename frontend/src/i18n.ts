@@ -81,9 +81,9 @@ const resources = {
         amount: "{{percent}}% off",
         sub: "your first order",
         terms:
-          "Create an account and {{percent}}% comes off your first order automatically at checkout — no code needed. Valid for {{days}} days after sign-up. Does not apply to candles already included in another promotion, or to shipping and tax.",
+          "Create an account and {{percent}}% comes off your first order automatically at checkout — no code needed. Valid for {{days}} days after sign-up. It applies to everything in your basket except candles already on sale, which keep their sale price, and the candles that pay for a free one in Buy 2, Get 3. Not applied to shipping or tax.",
         termsNoLimit:
-          "Create an account and {{percent}}% comes off your first order automatically at checkout — no code needed. Does not apply to candles already included in another promotion, or to shipping and tax.",
+          "Create an account and {{percent}}% comes off your first order automatically at checkout — no code needed. It applies to everything in your basket except candles already on sale, which keep their sale price, and the candles that pay for a free one in Buy 2, Get 3. Not applied to shipping or tax.",
         termsRequired: "Please accept the terms to continue.",
         cta: "Create account",
         ctaNote: "The discount applies at checkout",
@@ -101,9 +101,35 @@ const resources = {
         perkCheckoutText: "Your address is saved and orders are easy to track",
       },
 
+      promoBuy2Get3: {
+        howRule: "How it works",
+        howDetail:
+          "Add two of the large candles below to your basket and a small candle comes free. Buy four and two come free, and so on.",
+        freeRule: "Which candles are free",
+        freeDetail:
+          "The free candle is one of the 8 oz Spring scents — Mango Island, Matcha Chill, Sweet Lemon Dew or Tidal Bore. You choose which one when the offer is ready.",
+        qualifyRule: "Which candles qualify",
+        qualifyDetail:
+          "The 11.3 oz Spring candles shown on this page. They carry the offer badge in the catalogue. Small candles do not count towards the two.",
+        codeRule: "No code needed",
+        codeDetail:
+          "The discount is applied at checkout. Your basket will show the free candle at $0.00 before you pay.",
+        stockRule: "While stocks last",
+        stockDetail:
+          "The offer runs until the eligible candles sell out. Sold-out candles cannot be substituted.",
+        returnsRule: "Returns",
+        returnsDetail:
+          "If you return part of a promotional set and the remaining candles no longer qualify, the free candle is charged at its regular price and deducted from the refund.",
+        combineRule: "With other discounts",
+        combineDetail:
+          "The two candles that pay for the free one go without the sign-up discount — the free candle is their reward. Everything else in the same basket still gets it. A candle already in a seasonal campaign keeps that campaign's price and cannot be the free one.",
+      },
+
       offerModal: {
         rewardNote: "Choose any one of these — it costs nothing.",
         rewardNoteReplaces: "Choose any one of these. It's free, in place of your {{label}} on the candles that earn it.",
+        plainNote:
+          "The free candle is the lowest-priced of the three. The candles that pay for it go without the sign-up discount; everything else in your basket keeps it.",
       },
 
       footer: {
@@ -560,9 +586,9 @@ const resources = {
         amount: "{{percent}}%",
         sub: "на первый заказ",
         terms:
-          "Зарегистрируйтесь — и {{percent}}% спишутся с первого заказа автоматически при оформлении, без промокода. Действует {{days}} дн. после регистрации. Не распространяется на свечи, уже участвующие в другой акции, а также на доставку и налог.",
+          "Зарегистрируйтесь — и скидка {{percent}}% автоматически применится к первому заказу, без промокода. Действует {{days}} дн. после регистрации. Скидка действует на всё в корзине, кроме свечей, которые уже продаются со скидкой (у них остаётся своя цена), и свечей, за которые в акции «Купи 2 — получи 3» положена бесплатная. На доставку и налог не распространяется.",
         termsNoLimit:
-          "Зарегистрируйтесь — и {{percent}}% спишутся с первого заказа автоматически при оформлении, без промокода. Не распространяется на свечи, уже участвующие в другой акции, а также на доставку и налог.",
+          "Зарегистрируйтесь — и скидка {{percent}}% автоматически применится к первому заказу, без промокода. Скидка действует на всё в корзине, кроме свечей, которые уже продаются со скидкой (у них остаётся своя цена), и свечей, за которые в акции «Купи 2 — получи 3» положена бесплатная. На доставку и налог не распространяется.",
         termsRequired: "Подтвердите условия, чтобы продолжить.",
         cta: "Создать аккаунт",
         ctaNote: "Скидка применится при оформлении",
@@ -581,9 +607,35 @@ const resources = {
         perkCheckoutText: "Адрес сохранён, заказы легко отслеживать",
       },
 
+      promoBuy2Get3: {
+        howRule: "Как это работает",
+        howDetail:
+          "Добавьте в корзину две большие свечи из списка ниже — и маленькая достанется бесплатно. Купите четыре — бесплатных будет две, и так далее.",
+        freeRule: "Какие свечи бесплатны",
+        freeDetail:
+          "Бесплатной может стать одна из свечей 8 oz весенней коллекции — Mango Island, Matcha Chill, Sweet Lemon Dew или Tidal Bore. Какую именно, вы выбираете сами, когда условие акции выполнено.",
+        qualifyRule: "Какие свечи участвуют",
+        qualifyDetail:
+          "Свечи 11.3 oz весенней коллекции, показанные на этой странице. В каталоге у них есть значок акции. Маленькие свечи в счёт двух не идут.",
+        codeRule: "Промокод не нужен",
+        codeDetail:
+          "Скидка применяется при оформлении заказа. Ещё до оплаты в корзине бесплатная свеча будет стоить $0.00.",
+        stockRule: "Пока есть в наличии",
+        stockDetail:
+          "Акция действует, пока участвующие свечи не закончатся. Распроданные свечи заменить нельзя.",
+        returnsRule: "Возврат",
+        returnsDetail:
+          "Если вы возвращаете часть акционного набора и оставшиеся свечи больше не подходят под условия, бесплатная свеча оплачивается по обычной цене — эта сумма вычитается из возврата.",
+        combineRule: "С другими скидками",
+        combineDetail:
+          "Две свечи, за которые положена бесплатная, идут без скидки для новых покупателей — их награда и есть бесплатная свеча. На всё остальное в той же корзине скидка сохраняется. Свеча, которая уже участвует в сезонной акции, остаётся по цене этой акции и не может стать бесплатной.",
+      },
+
       offerModal: {
         rewardNote: "Выберите любую из них — она ничего не стоит.",
         rewardNoteReplaces: "Выберите любую из них. Она бесплатна — вместо скидки «{{label}}» на свечи, которые её дают.",
+        plainNote:
+          "Бесплатной становится самая недорогая из трёх свечей. Свечи, за которые она положена, идут без скидки для новых покупателей; на всё остальное в корзине скидка сохраняется.",
       },
 
       footer: {
@@ -1042,9 +1094,9 @@ const resources = {
         amount: "{{percent}}%",
         sub: "en tu primer pedido",
         terms:
-          "Crea una cuenta y el {{percent}}% se descontará automáticamente de tu primer pedido al finalizar la compra, sin código. Válido durante {{days}} días tras el registro. No se aplica a velas ya incluidas en otra promoción, ni al envío o los impuestos.",
+          "Crea una cuenta y el {{percent}}% se descontará automáticamente de tu primer pedido al finalizar la compra, sin código. Válido durante {{days}} días tras el registro. Se aplica a todo el carrito salvo a las velas ya rebajadas, que mantienen su precio de oferta, y a las velas que pagan la vela gratis en Compra 2, llévate 3. No se aplica al envío ni a los impuestos.",
         termsNoLimit:
-          "Crea una cuenta y el {{percent}}% se descontará automáticamente de tu primer pedido al finalizar la compra, sin código. No se aplica a velas ya incluidas en otra promoción, ni al envío o los impuestos.",
+          "Crea una cuenta y el {{percent}}% se descontará automáticamente de tu primer pedido al finalizar la compra, sin código. Se aplica a todo el carrito salvo a las velas ya rebajadas, que mantienen su precio de oferta, y a las velas que pagan la vela gratis en Compra 2, llévate 3. No se aplica al envío ni a los impuestos.",
         termsRequired: "Acepta las condiciones para continuar.",
         cta: "Crear cuenta",
         ctaNote: "El descuento se aplica al pagar",
@@ -1062,9 +1114,35 @@ const resources = {
         perkCheckoutText: "Tu dirección se guarda y sigues tus pedidos",
       },
 
+      promoBuy2Get3: {
+        howRule: "Cómo funciona",
+        howDetail:
+          "Añade al carrito dos de las velas grandes de abajo y una pequeña te sale gratis. Compra cuatro y dos te salen gratis, y así sucesivamente.",
+        freeRule: "Qué velas son gratis",
+        freeDetail:
+          "La vela gratis es uno de los aromas de primavera de 8 oz: Mango Island, Matcha Chill, Sweet Lemon Dew o Tidal Bore. Tú eliges cuál cuando la oferta está lista.",
+        qualifyRule: "Qué velas participan",
+        qualifyDetail:
+          "Las velas de primavera de 11.3 oz que aparecen en esta página. En el catálogo llevan el distintivo de la oferta. Las velas pequeñas no cuentan para las dos.",
+        codeRule: "No necesitas código",
+        codeDetail:
+          "El descuento se aplica al finalizar la compra. Antes de pagar, tu carrito mostrará la vela gratis a $0.00.",
+        stockRule: "Hasta agotar existencias",
+        stockDetail:
+          "La oferta dura hasta que se agoten las velas participantes. Las velas agotadas no se pueden sustituir.",
+        returnsRule: "Devoluciones",
+        returnsDetail:
+          "Si devuelves parte de un conjunto promocional y las velas restantes ya no cumplen las condiciones, la vela gratis se cobra a su precio normal y se descuenta del reembolso.",
+        combineRule: "Con otros descuentos",
+        combineDetail:
+          "Las dos velas que pagan la gratis no llevan el descuento de bienvenida: su recompensa es la vela gratis. Todo lo demás del mismo carrito lo conserva. Una vela que ya está en una campaña de temporada mantiene el precio de esa campaña y no puede ser la gratis.",
+      },
+
       offerModal: {
         rewardNote: "Elige cualquiera de estas: no te cuesta nada.",
         rewardNoteReplaces: "Elige cualquiera de estas. Es gratis, en lugar de tu {{label}} en las velas que la consiguen.",
+        plainNote:
+          "La vela gratis es la más barata de las tres. Las velas que la pagan no llevan el descuento de bienvenida; el resto del carrito lo conserva.",
       },
 
       footer: {
@@ -1525,9 +1603,9 @@ const resources = {
         amount: "{{percent}}%",
         sub: "sur votre première commande",
         terms:
-          "Créez un compte et {{percent}}% seront déduits automatiquement de votre première commande lors du paiement, sans code. Valable {{days}} jours après l'inscription. Ne s'applique pas aux bougies déjà incluses dans une autre promotion, ni à la livraison ou aux taxes.",
+          "Créez un compte et {{percent}}% seront déduits automatiquement de votre première commande lors du paiement, sans code. Valable {{days}} jours après l'inscription. La remise s'applique à tout le panier, sauf aux bougies déjà en promotion, qui gardent leur prix promotionnel, et aux bougies qui font gagner la bougie offerte dans « 2 achetées, 3 offertes ». Elle ne s'applique ni à la livraison ni aux taxes.",
         termsNoLimit:
-          "Créez un compte et {{percent}}% seront déduits automatiquement de votre première commande lors du paiement, sans code. Ne s'applique pas aux bougies déjà incluses dans une autre promotion, ni à la livraison ou aux taxes.",
+          "Créez un compte et {{percent}}% seront déduits automatiquement de votre première commande lors du paiement, sans code. La remise s'applique à tout le panier, sauf aux bougies déjà en promotion, qui gardent leur prix promotionnel, et aux bougies qui font gagner la bougie offerte dans « 2 achetées, 3 offertes ». Elle ne s'applique ni à la livraison ni aux taxes.",
         termsRequired: "Acceptez les conditions pour continuer.",
         cta: "Créer un compte",
         ctaNote: "La remise s'applique au paiement",
@@ -1545,9 +1623,35 @@ const resources = {
         perkCheckoutText: "Votre adresse est enregistrée, vos commandes suivies",
       },
 
+      promoBuy2Get3: {
+        howRule: "Comment ça marche",
+        howDetail:
+          "Ajoutez au panier deux des grandes bougies ci-dessous et une petite bougie vous est offerte. Achetez-en quatre et deux sont offertes, et ainsi de suite.",
+        freeRule: "Quelles bougies sont offertes",
+        freeDetail:
+          "La bougie offerte est l'un des parfums de printemps en 8 oz : Mango Island, Matcha Chill, Sweet Lemon Dew ou Tidal Bore. Vous choisissez laquelle quand l'offre est prête.",
+        qualifyRule: "Quelles bougies sont concernées",
+        qualifyDetail:
+          "Les bougies de printemps de 11.3 oz présentées sur cette page. Elles portent le badge de l'offre dans le catalogue. Les petites bougies ne comptent pas dans les deux.",
+        codeRule: "Aucun code nécessaire",
+        codeDetail:
+          "La remise s'applique au moment du paiement. Avant de payer, votre panier affichera la bougie offerte à $0.00.",
+        stockRule: "Dans la limite des stocks disponibles",
+        stockDetail:
+          "L'offre dure jusqu'à épuisement des bougies concernées. Les bougies épuisées ne peuvent pas être remplacées.",
+        returnsRule: "Retours",
+        returnsDetail:
+          "Si vous retournez une partie d'un lot promotionnel et que les bougies restantes ne remplissent plus les conditions, la bougie offerte est facturée à son prix normal et déduite du remboursement.",
+        combineRule: "Avec d'autres remises",
+        combineDetail:
+          "Les deux bougies qui font gagner la bougie offerte ne bénéficient pas de la remise de bienvenue : leur récompense, c'est la bougie offerte. Tout le reste du même panier la conserve. Une bougie déjà incluse dans une campagne saisonnière garde le prix de cette campagne et ne peut pas être la bougie offerte.",
+      },
+
       offerModal: {
         rewardNote: "Choisissez celle que vous voulez : elle ne vous coûte rien.",
         rewardNoteReplaces: "Choisissez celle que vous voulez. Elle est offerte, à la place de votre {{label}} sur les bougies qui la font gagner.",
+        plainNote:
+          "La bougie offerte est la moins chère des trois. Les bougies qui la font gagner ne bénéficient pas de la remise de bienvenue ; le reste du panier la conserve.",
       },
 
       footer: {

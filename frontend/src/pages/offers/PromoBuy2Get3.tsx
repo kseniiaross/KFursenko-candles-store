@@ -41,42 +41,16 @@ function hasPromoBadge(candle: Candle): boolean {
   return badges.some((badge) => badge.slug === PROMO_BADGE_SLUG);
 }
 
-const TERMS: Array<{ rule: string; detail: string }> = [
-  {
-    rule: "How it works",
-    detail:
-      "Add two of the large candles below to your basket and a small candle comes free. Buy four and two come free, and so on.",
-  },
-  {
-    rule: "Which candles are free",
-    detail:
-      "The free candle is one of the 8 oz Spring scents — Mango Island, Matcha Chill, Sweet Lemon Dew or Tidal Bore. You choose which one when the offer is ready.",
-  },
-  {
-    rule: "Which candles qualify",
-    detail:
-      "The 11.3 oz Spring candles shown on this page. They carry the offer badge in the catalogue. Small candles do not count towards the two.",
-  },
-  {
-    rule: "No code needed",
-    detail:
-      "The discount is applied at checkout. Your basket will show the free candle at $0.00 before you pay.",
-  },
-  {
-    rule: "One promotion at a time",
-    detail:
-      "This offer does not combine with other discounts. A candle already in a seasonal campaign keeps that campaign's price and cannot be the free one.",
-  },
-  {
-    rule: "While stocks last",
-    detail:
-      "The offer runs until the eligible candles sell out. Sold-out candles cannot be substituted.",
-  },
-  {
-    rule: "Returns",
-    detail:
-      "If you return part of a promotional set and the remaining candles no longer qualify, the free candle is charged at its regular price and deducted from the refund.",
-  },
+// Rule-and-explanation pairs, as i18n keys. The one about other discounts
+// must match the pricing engine (orders/discounts.py).
+const TERMS = [
+  { rule: "promoBuy2Get3.howRule", detail: "promoBuy2Get3.howDetail" },
+  { rule: "promoBuy2Get3.freeRule", detail: "promoBuy2Get3.freeDetail" },
+  { rule: "promoBuy2Get3.qualifyRule", detail: "promoBuy2Get3.qualifyDetail" },
+  { rule: "promoBuy2Get3.codeRule", detail: "promoBuy2Get3.codeDetail" },
+  { rule: "promoBuy2Get3.combineRule", detail: "promoBuy2Get3.combineDetail" },
+  { rule: "promoBuy2Get3.stockRule", detail: "promoBuy2Get3.stockDetail" },
+  { rule: "promoBuy2Get3.returnsRule", detail: "promoBuy2Get3.returnsDetail" },
 ];
 
 const PromoBuy2Get3: React.FC = () => {
@@ -154,8 +128,12 @@ const PromoBuy2Get3: React.FC = () => {
           <dl className="promo__termsList">
             {TERMS.map((item) => (
               <div key={item.rule} className="promo__term">
-                <dt className="promo__termRule">{item.rule}</dt>
-                <dd className="promo__termDetail">{item.detail}</dd>
+                <dt className="promo__termRule">
+                  {t(item.rule)}
+                </dt>
+                <dd className="promo__termDetail">
+                  {t(item.detail)}
+                </dd>
               </div>
             ))}
           </dl>

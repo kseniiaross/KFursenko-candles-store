@@ -362,7 +362,7 @@ const OfferModal: React.FC = () => {
               ? promotion.replaces_label
                 ? t("offerModal.rewardNoteReplaces", { label: promotion.replaces_label })
                 : t("offerModal.rewardNote")
-              : "The free candle is the lowest-priced of the three. This offer does not combine with other discounts."}
+              : t("offerModal.plainNote")}
           </p>
         </div>
       </div>
