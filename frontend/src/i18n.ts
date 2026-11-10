@@ -68,6 +68,12 @@ const resources = {
         policy: "Policy",
         storyMission: "Story & mission",
         contacts: "Contacts",
+        siteHeader: "Site header",
+        goHome: "Go to home page",
+        languageSelector: "Language selector. Current language: {{language}}",
+        cartEmpty: "Shopping cart, empty",
+        cartItems_one: "Shopping cart, {{count}} item",
+        cartItems_other: "Shopping cart, {{count}} items",
       },
 
       discountModal: {
@@ -325,6 +331,20 @@ const resources = {
         reviewImageAlt: "Customer review screenshot",
       },
 
+      cart: {
+        free: "Free",
+        freeCount: "{{count}} free",
+        wasPrice: "Was {{price}}",
+        replacesWelcome: "Replaces your {{offer}} on the candles that earn it",
+        noticeOk: "OK",
+        someCandle: "A candle",
+        noticeSoldOut: "{{label}} has sold out — we've taken it out of your cart.",
+        noticeLimited:
+          "Only {{count}} left of {{label}} — we've put {{count}} in your cart.",
+        noticeUnavailable:
+          "{{label}} is no longer available — we've taken it out of your cart.",
+      },
+
       checkout: {
         pageLabel: "Checkout page",
         title: "Place your order",
@@ -347,6 +367,38 @@ const resources = {
         processing: "Processing...",
         paymentReady: "Payment ready",
         createOrderError: "Could not prepare payment. Please try again.",
+        subtitle:
+          "Review your items, enter your shipping details, and continue to secure payment.",
+        orderCreated: "Order #{{id}} created.",
+        candleFallback: "Candle #{{id}}",
+        size: "Size: {{size}}",
+        quantity: "Quantity: {{quantity}}",
+        giftIncluded: "Gift option included",
+        items: "Items",
+        itemsTotal: "Items total",
+        payment: "Payment",
+        shippingDetails: "Shipping details",
+        stateRegion: "State / Region",
+        postalCode: "ZIP / Postal code",
+        genericError:
+          "Something went wrong on our side, and your card has not been charged. Please try again in a moment.",
+        previousPaymentPending:
+          "Your previous payment is still being processed. Please wait a moment before changing your order.",
+        stripeMisconfigured: "Stripe is not configured correctly.",
+        deliveryOption: "Delivery option",
+        ratesHint: "Fill in your address and delivery options will appear here.",
+        ratesError: "We could not price this address. Please check it and try again.",
+        tryAgain: "Try again",
+        shippingOptions: "Shipping options",
+        ratesNote: "Rates come straight from the carrier — we do not add a markup.",
+        cardDetails: "Card details",
+        cardNotReady: "Card field is not ready yet. Please try again.",
+        paymentFailed: "Payment failed. Please try again.",
+        unexpectedError: "Unexpected error occurred. Please try again.",
+        noCardStored:
+          "We do not store card details. Payments are processed securely by Stripe.",
+        arrives_one: "Arrives in about {{count}} business day",
+        arrives_other: "Arrives in about {{count}} business days",
       },
 
       orders: {
@@ -400,6 +452,9 @@ const resources = {
         title: "Payment successful",
         subtitle: "Thank you. Your order has been confirmed.",
         backToCatalog: "Back to catalog",
+        orderProcessing: "Order #{{id}} is now being processed.",
+        nextSteps: "You can continue shopping or view your orders for the latest status.",
+        viewOrders: "View orders",
       },
 
       paymentCancel: {
@@ -407,6 +462,7 @@ const resources = {
         title: "Payment canceled",
         subtitle: "No worries — you can return to checkout and try again.",
         backToCheckout: "Back to checkout",
+        returnToCart: "Return to cart",
       },
 
       lumiere: {
@@ -489,6 +545,14 @@ const resources = {
         policy: "Политика",
         storyMission: "История и миссия",
         contacts: "Контакты",
+        siteHeader: "Шапка сайта",
+        goHome: "На главную",
+        languageSelector: "Выбор языка. Текущий язык: {{language}}",
+        cartEmpty: "Корзина пуста",
+        cartItems_one: "Корзина, {{count}} товар",
+        cartItems_few: "Корзина, {{count}} товара",
+        cartItems_many: "Корзина, {{count}} товаров",
+        cartItems_other: "Корзина, {{count}} товара",
       },
 
       discountModal: {
@@ -747,6 +811,21 @@ const resources = {
         reviewImageAlt: "Скриншот отзыва клиента",
       },
 
+      cart: {
+        free: "Бесплатно",
+        freeCount: "{{count}} бесплатно",
+        wasPrice: "Было {{price}}",
+        replacesWelcome:
+          "Заменяет вашу скидку «{{offer}}» на свечах, за которые положен подарок",
+        noticeOk: "Понятно",
+        someCandle: "Свеча",
+        noticeSoldOut: "Товар «{{label}}» распродан — мы убрали его из корзины.",
+        noticeLimited:
+          "Товара «{{label}}» осталось {{count}} шт. — столько мы и положили в корзину.",
+        noticeUnavailable:
+          "Товар «{{label}}» больше недоступен — мы убрали его из корзины.",
+      },
+
       checkout: {
         pageLabel: "Страница оформления заказа",
         title: "Оформление заказа",
@@ -769,6 +848,40 @@ const resources = {
         processing: "Обработка...",
         paymentReady: "Оплата готова",
         createOrderError: "Не удалось подготовить оплату. Попробуйте снова.",
+        subtitle:
+          "Проверьте товары, укажите адрес доставки и перейдите к безопасной оплате.",
+        orderCreated: "Заказ №{{id}} создан.",
+        candleFallback: "Свеча №{{id}}",
+        size: "Размер: {{size}}",
+        quantity: "Количество: {{quantity}}",
+        giftIncluded: "Подарочное оформление включено",
+        items: "Товары",
+        itemsTotal: "Сумма за товары",
+        payment: "Оплата",
+        shippingDetails: "Данные доставки",
+        stateRegion: "Штат / регион",
+        postalCode: "Почтовый индекс",
+        genericError:
+          "На нашей стороне что-то пошло не так, и деньги с карты не списаны. Попробуйте ещё раз через минуту.",
+        previousPaymentPending:
+          "Ваш предыдущий платёж ещё обрабатывается. Подождите немного, прежде чем менять заказ.",
+        stripeMisconfigured: "Stripe настроен неправильно.",
+        deliveryOption: "Способ доставки",
+        ratesHint: "Укажите адрес — здесь появятся варианты доставки.",
+        ratesError:
+          "Не удалось рассчитать доставку по этому адресу. Проверьте его и попробуйте снова.",
+        tryAgain: "Попробовать снова",
+        shippingOptions: "Варианты доставки",
+        ratesNote: "Тарифы приходят напрямую от перевозчика — мы не делаем наценку.",
+        cardDetails: "Данные карты",
+        cardNotReady: "Поле для карты ещё не загрузилось. Попробуйте снова.",
+        paymentFailed: "Оплата не прошла. Попробуйте снова.",
+        unexpectedError: "Произошла непредвиденная ошибка. Попробуйте снова.",
+        noCardStored: "Мы не храним данные карт. Платежи безопасно обрабатывает Stripe.",
+        arrives_one: "Доставка примерно за {{count}} рабочий день",
+        arrives_few: "Доставка примерно за {{count}} рабочих дня",
+        arrives_many: "Доставка примерно за {{count}} рабочих дней",
+        arrives_other: "Доставка примерно за {{count}} рабочего дня",
       },
 
       orders: {
@@ -822,6 +935,10 @@ const resources = {
         title: "Оплата прошла успешно",
         subtitle: "Спасибо. Ваш заказ подтверждён.",
         backToCatalog: "Вернуться в каталог",
+        orderProcessing: "Заказ №{{id}} уже в обработке.",
+        nextSteps:
+          "Можно продолжить покупки или открыть заказы, чтобы следить за статусом.",
+        viewOrders: "Мои заказы",
       },
 
       paymentCancel: {
@@ -829,6 +946,7 @@ const resources = {
         title: "Оплата отменена",
         subtitle: "Ничего страшного — вы можете вернуться и попробовать снова.",
         backToCheckout: "Вернуться к оплате",
+        returnToCart: "Вернуться в корзину",
       },
 
       lumiere: {
@@ -911,6 +1029,12 @@ const resources = {
         policy: "Política",
         storyMission: "Historia y misión",
         contacts: "Contactos",
+        siteHeader: "Encabezado del sitio",
+        goHome: "Ir a la página de inicio",
+        languageSelector: "Selector de idioma. Idioma actual: {{language}}",
+        cartEmpty: "Carrito, vacío",
+        cartItems_one: "Carrito, {{count}} artículo",
+        cartItems_other: "Carrito, {{count}} artículos",
       },
 
       discountModal: {
@@ -1167,6 +1291,23 @@ const resources = {
         gridLabel: "Elementos de galería",
       },
 
+      cart: {
+        free: "Gratis",
+        freeCount: "{{count}} gratis",
+        wasPrice: "Antes {{price}}",
+        replacesWelcome:
+          "Sustituye tu descuento «{{offer}}» en las velas que dan derecho al regalo",
+        noticeOk: "Entendido",
+        someCandle: "Una vela",
+        noticeSoldOut: "{{label}} se ha agotado: lo hemos quitado de tu carrito.",
+        noticeLimited_one:
+          "Solo queda {{count}} de {{label}}: lo hemos puesto en tu carrito.",
+        noticeLimited_other:
+          "Solo quedan {{count}} de {{label}}: los hemos puesto en tu carrito.",
+        noticeUnavailable:
+          "{{label}} ya no está disponible: lo hemos quitado de tu carrito.",
+      },
+
       checkout: {
         pageLabel: "Página de pago",
         title: "Realiza tu pedido",
@@ -1189,6 +1330,40 @@ const resources = {
         processing: "Procesando...",
         paymentReady: "Pago listo",
         createOrderError: "No se pudo preparar el pago. Inténtalo de nuevo.",
+        subtitle:
+          "Revisa tus artículos, introduce tus datos de envío y continúa al pago seguro.",
+        orderCreated: "Pedido n.º {{id}} creado.",
+        candleFallback: "Vela n.º {{id}}",
+        size: "Tamaño: {{size}}",
+        quantity: "Cantidad: {{quantity}}",
+        giftIncluded: "Opción de regalo incluida",
+        items: "Artículos",
+        itemsTotal: "Total de artículos",
+        payment: "Pago",
+        shippingDetails: "Datos de envío",
+        stateRegion: "Estado / región",
+        postalCode: "Código postal",
+        genericError:
+          "Algo salió mal por nuestra parte y no se ha hecho ningún cargo en tu tarjeta. Inténtalo de nuevo en un momento.",
+        previousPaymentPending:
+          "Tu pago anterior todavía se está procesando. Espera un momento antes de cambiar tu pedido.",
+        stripeMisconfigured: "Stripe no está configurado correctamente.",
+        deliveryOption: "Opción de entrega",
+        ratesHint: "Completa tu dirección y aquí aparecerán las opciones de entrega.",
+        ratesError:
+          "No pudimos calcular el envío a esta dirección. Revísala e inténtalo de nuevo.",
+        tryAgain: "Intentar de nuevo",
+        shippingOptions: "Opciones de envío",
+        ratesNote:
+          "Las tarifas vienen directamente del transportista: no añadimos ningún recargo.",
+        cardDetails: "Datos de la tarjeta",
+        cardNotReady: "El campo de la tarjeta aún no está listo. Inténtalo de nuevo.",
+        paymentFailed: "El pago no se ha completado. Inténtalo de nuevo.",
+        unexpectedError: "Se produjo un error inesperado. Inténtalo de nuevo.",
+        noCardStored:
+          "No guardamos los datos de tu tarjeta. Los pagos los procesa Stripe de forma segura.",
+        arrives_one: "Llega en aproximadamente {{count}} día hábil",
+        arrives_other: "Llega en aproximadamente {{count}} días hábiles",
       },
 
       orders: {
@@ -1242,6 +1417,9 @@ const resources = {
         title: "Pago exitoso",
         subtitle: "Gracias. Tu pedido ha sido confirmado.",
         backToCatalog: "Volver al catálogo",
+        orderProcessing: "El pedido n.º {{id}} ya se está procesando.",
+        nextSteps: "Puedes seguir comprando o ver tus pedidos para conocer su estado.",
+        viewOrders: "Ver pedidos",
       },
 
       paymentCancel: {
@@ -1250,6 +1428,7 @@ const resources = {
         subtitle:
           "No pasa nada — puedes volver al checkout e intentarlo de nuevo.",
         backToCheckout: "Volver al checkout",
+        returnToCart: "Volver al carrito",
       },
 
       lumiere: {
@@ -1332,6 +1511,12 @@ const resources = {
         policy: "Politique",
         storyMission: "Histoire et mission",
         contacts: "Contacts",
+        siteHeader: "En-tête du site",
+        goHome: "Aller à l'accueil",
+        languageSelector: "Sélecteur de langue. Langue actuelle : {{language}}",
+        cartEmpty: "Panier, vide",
+        cartItems_one: "Panier, {{count}} article",
+        cartItems_other: "Panier, {{count}} articles",
       },
 
       
@@ -1591,6 +1776,25 @@ const resources = {
         gridLabel: "Éléments de galerie",
       },
 
+      cart: {
+        free: "Offerte",
+        freeCount_one: "{{count}} offerte",
+        freeCount_other: "{{count}} offertes",
+        wasPrice: "Avant {{price}}",
+        replacesWelcome:
+          "Remplace votre remise « {{offer}} » sur les bougies qui donnent droit au cadeau",
+        noticeOk: "OK",
+        someCandle: "Une bougie",
+        noticeSoldOut:
+          "{{label}} n'est plus en stock — nous l'avons retiré de votre panier.",
+        noticeLimited_one:
+          "Il ne reste que {{count}} exemplaire de {{label}} — nous l'avons mis dans votre panier.",
+        noticeLimited_other:
+          "Il ne reste que {{count}} exemplaires de {{label}} — nous les avons mis dans votre panier.",
+        noticeUnavailable:
+          "{{label}} n'est plus disponible — nous l'avons retiré de votre panier.",
+      },
+
       checkout: {
         pageLabel: "Page de paiement",
         title: "Passer votre commande",
@@ -1614,6 +1818,41 @@ const resources = {
         paymentReady: "Paiement prêt",
         createOrderError:
           "Impossible de préparer le paiement. Veuillez réessayer.",
+        subtitle:
+          "Vérifiez vos articles, saisissez vos informations de livraison et passez au paiement sécurisé.",
+        orderCreated: "Commande n° {{id}} créée.",
+        candleFallback: "Bougie n° {{id}}",
+        size: "Taille : {{size}}",
+        quantity: "Quantité : {{quantity}}",
+        giftIncluded: "Option cadeau incluse",
+        items: "Articles",
+        itemsTotal: "Total des articles",
+        payment: "Paiement",
+        shippingDetails: "Informations de livraison",
+        stateRegion: "État / région",
+        postalCode: "Code postal",
+        genericError:
+          "Un problème est survenu de notre côté et votre carte n'a pas été débitée. Veuillez réessayer dans un instant.",
+        previousPaymentPending:
+          "Votre paiement précédent est encore en cours de traitement. Veuillez patienter un instant avant de modifier votre commande.",
+        stripeMisconfigured: "Stripe n'est pas configuré correctement.",
+        deliveryOption: "Mode de livraison",
+        ratesHint:
+          "Renseignez votre adresse et les options de livraison s'afficheront ici.",
+        ratesError:
+          "Nous n'avons pas pu calculer la livraison pour cette adresse. Vérifiez-la et réessayez.",
+        tryAgain: "Réessayer",
+        shippingOptions: "Options de livraison",
+        ratesNote:
+          "Les tarifs viennent directement du transporteur — nous n'ajoutons aucune marge.",
+        cardDetails: "Données de la carte",
+        cardNotReady: "Le champ de la carte n'est pas encore prêt. Veuillez réessayer.",
+        paymentFailed: "Le paiement a échoué. Veuillez réessayer.",
+        unexpectedError: "Une erreur inattendue s'est produite. Veuillez réessayer.",
+        noCardStored:
+          "Nous ne conservons pas les données de carte. Les paiements sont traités en toute sécurité par Stripe.",
+        arrives_one: "Livraison en {{count}} jour ouvré environ",
+        arrives_other: "Livraison en {{count}} jours ouvrés environ",
       },
 
       orders: {
@@ -1668,6 +1907,10 @@ const resources = {
         title: "Paiement réussi",
         subtitle: "Merci. Votre commande a été confirmée.",
         backToCatalog: "Retour au catalogue",
+        orderProcessing: "La commande n° {{id}} est en cours de traitement.",
+        nextSteps:
+          "Vous pouvez continuer vos achats ou consulter vos commandes pour suivre leur statut.",
+        viewOrders: "Voir les commandes",
       },
 
       paymentCancel: {
@@ -1675,6 +1918,7 @@ const resources = {
         title: "Paiement annulé",
         subtitle: "Aucun souci — vous pouvez revenir au paiement et réessayer.",
         backToCheckout: "Retour au paiement",
+        returnToCart: "Retour au panier",
       },
 
       lumiere: {

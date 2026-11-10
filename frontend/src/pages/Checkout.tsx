@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import axios from "axios";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
@@ -93,6 +94,18 @@ const STATES = [
   "Washington, D.C.",
 ];
 
+/** Example values for the address fields. English in every interface
+ *  language, like the lists above: the address ends up on a shipping
+ *  label read by a US carrier, so the examples show what gets printed. */
+const ADDRESS_EXAMPLE = {
+  fullName: "John Smith",
+  line1: "123 Madison Ave",
+  line2: "Apartment 4B",
+  city: "New York",
+  state: "California",
+  country: "United States",
+};
+
 function money(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -113,8 +126,7 @@ function getErrorMessage(error: unknown): string {
   // Reached when the server gives no reason the shopper can act on — a 500,
   // a timeout, no connection. Nothing has been charged at this step: the
   // card is only taken after the payment form appears and they press Pay.
-  const fallback =
-    "Something went wrong on our side, and your card has not been charged. Please try again in a moment.";
+  const fallback = i18n.t("checkout.genericError");
 
   if (
     typeof error !== "object" ||
@@ -246,9 +258,7 @@ async function cancelSupersededOrder(orderId: number): Promise<void> {
     await api.post(`/orders/${orderId}/cancel/`);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 409) {
-      throw new CheckoutBlockedError(
-        "Your previous payment is still being processed. Please wait a moment before changing your order."
-      );
+      throw new CheckoutBlockedError(i18n.t("checkout.previousPaymentPending"));
     }
     // 400 (already paid or cancelled), 404 (not this shopper's) or Stripe
     // trouble: the old order is settled, or the expiry job will cancel it.
@@ -293,6 +303,7 @@ const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const headingId = useId();
   const summaryId = useId();
@@ -560,18 +571,17 @@ const Checkout: React.FC = () => {
 
         <div className="checkout__backWrap">
           <Link to="/cart" className="checkout__backLink">
-            ← Go back to shopping cart
+            ← {t("checkout.backToCart")}
           </Link>
         </div>
 
         <header className="checkout__header">
           <h1 id={headingId} className="checkout__title">
-            Place your order
+            {t("checkout.title")}
           </h1>
 
           <p className="checkout__subtitle">
-            Review your items, enter your shipping details, and continue to
-            secure payment.
+            {t("checkout.subtitle")}
           </p>
         </header>
 
@@ -584,11 +594,13 @@ const Checkout: React.FC = () => {
           aria-atomic="true"
         >
           {orderId !== null && (
-            <div className="checkout__state">Order #{orderId} created.</div>
+            <div className="checkout__state">
+              {t("checkout.orderCreated", { id: orderId })}
+            </div>
           )}
 
           {clientSecret && (
-            <div className="checkout__state">Payment is ready.</div>
+            <div className="checkout__state">{t("checkout.paymentReady")}</div>
           )}
 
           {errorMsg && (
@@ -601,12 +613,14 @@ const Checkout: React.FC = () => {
         <div className="checkout__grid">
           <section className="checkout__summary" aria-labelledby={summaryId}>
             <h2 id={summaryId} className="checkout__sectionTitle">
-              Order summary
+              {t("checkout.orderSummary")}
             </h2>
 
             <ul className="checkout__items" role="list">
               {items.map((item) => {
-                const name = item.name?.trim() || `Candle #${item.candle_id}`;
+                const name =
+                  item.name?.trim() ||
+                  t("checkout.candleFallback", { id: item.candle_id });
                 const priced = pricing.line(item.variant_id);
 
                 return (
@@ -628,16 +642,18 @@ const Checkout: React.FC = () => {
                       <h3 className="checkoutItem__name">{name}</h3>
 
                       {item.size && (
-                        <p className="checkoutItem__meta">Size: {item.size}</p>
+                        <p className="checkoutItem__meta">
+                          {t("checkout.size", { size: item.size })}
+                        </p>
                       )}
 
                       <p className="checkoutItem__meta">
-                        Quantity: {item.quantity}
+                        {t("checkout.quantity", { quantity: item.quantity })}
                       </p>
 
                       {item.isGift && (
                         <p className="checkoutItem__meta">
-                          Gift option included
+                          {t("checkout.giftIncluded")}
                         </p>
                       )}
                     </div>
@@ -663,20 +679,20 @@ const Checkout: React.FC = () => {
 
             <div className="checkout__totals">
               <div className="checkout__totalRow">
-                <span>Items</span>
+                <span>{t("checkout.items")}</span>
                 <span>{itemCount}</span>
               </div>
 
               {/* The sum of the lines above, each already at what it costs —
                   so no separate discount row. */}
               <div className="checkout__totalRow">
-                <span>Items total</span>
+                <span>{t("checkout.itemsTotal")}</span>
                 <span>{itemsTotal === null ? "—" : money(itemsTotal)}</span>
               </div>
 
               <div className="checkout__totalRow">
                 <span>
-                  Shipping
+                  {t("checkout.shipping")}
                   {selectedRate && serverShipping === null && (
                     <span className="checkout__totalNote">
                       {" "}
@@ -690,12 +706,12 @@ const Checkout: React.FC = () => {
               </div>
 
               <div className="checkout__totalRow">
-                <span>Tax</span>
+                <span>{t("checkout.tax")}</span>
                 <span>{tax === null ? "—" : money(tax)}</span>
               </div>
 
               <div className="checkout__totalRow checkout__totalRow--grand">
-                <span>Total</span>
+                <span>{t("checkout.total")}</span>
                 <span>
                   {total !== null
                     ? money(total)
@@ -711,7 +727,7 @@ const Checkout: React.FC = () => {
 
           <section className="checkout__formPanel" aria-labelledby={shippingId}>
             <h2 id={shippingId} className="checkout__sectionTitle">
-              {showPayment ? "Payment" : "Shipping details"}
+              {showPayment ? t("checkout.payment") : t("checkout.shippingDetails")}
             </h2>
 
             {!showPayment ? (
@@ -728,7 +744,7 @@ const Checkout: React.FC = () => {
                     className="checkoutForm__label"
                     htmlFor="checkout-full-name"
                   >
-                    Full name
+                    {t("checkout.fullName")}
                   </label>
 
                   <input
@@ -739,7 +755,7 @@ const Checkout: React.FC = () => {
                     value={form.full_name}
                     onChange={onFieldChange("full_name")}
                     disabled={loading}
-                    placeholder="John Smith"
+                    placeholder={ADDRESS_EXAMPLE.fullName}
                   />
                 </div>
 
@@ -748,7 +764,7 @@ const Checkout: React.FC = () => {
                     className="checkoutForm__label"
                     htmlFor="checkout-address-1"
                   >
-                    Street address
+                    {t("checkout.streetAddress")}
                   </label>
 
                   <input
@@ -759,7 +775,7 @@ const Checkout: React.FC = () => {
                     value={form.address_line1}
                     onChange={onFieldChange("address_line1")}
                     disabled={loading}
-                    placeholder="123 Madison Ave"
+                    placeholder={ADDRESS_EXAMPLE.line1}
                   />
                 </div>
 
@@ -769,7 +785,7 @@ const Checkout: React.FC = () => {
                       className="checkoutForm__label"
                       htmlFor="checkout-address-2"
                     >
-                      Apt / Unit
+                      {t("checkout.apartment")}
                     </label>
 
                     <input
@@ -780,7 +796,7 @@ const Checkout: React.FC = () => {
                       value={form.address_line2}
                       onChange={onFieldChange("address_line2")}
                       disabled={loading}
-                      placeholder="Apartment 4B"
+                      placeholder={ADDRESS_EXAMPLE.line2}
                     />
                   </div>
 
@@ -789,7 +805,7 @@ const Checkout: React.FC = () => {
                       className="checkoutForm__label"
                       htmlFor="checkout-city"
                     >
-                      City
+                      {t("checkout.city")}
                     </label>
 
                     <input
@@ -800,7 +816,7 @@ const Checkout: React.FC = () => {
                       value={form.city}
                       onChange={onFieldChange("city")}
                       disabled={loading}
-                      placeholder="New York"
+                      placeholder={ADDRESS_EXAMPLE.city}
                     />
                   </div>
                 </div>
@@ -811,7 +827,7 @@ const Checkout: React.FC = () => {
                       className="checkoutForm__label"
                       htmlFor="checkout-state"
                     >
-                      State / Region
+                      {t("checkout.stateRegion")}
                     </label>
 
                     <input
@@ -823,7 +839,7 @@ const Checkout: React.FC = () => {
                       value={form.state}
                       onChange={onFieldChange("state")}
                       disabled={loading}
-                      placeholder="California"
+                      placeholder={ADDRESS_EXAMPLE.state}
                     />
                   </div>
 
@@ -832,7 +848,7 @@ const Checkout: React.FC = () => {
                       className="checkoutForm__label"
                       htmlFor="checkout-postal-code"
                     >
-                      ZIP / Postal code
+                      {t("checkout.postalCode")}
                     </label>
 
                     <input
@@ -853,7 +869,7 @@ const Checkout: React.FC = () => {
                     className="checkoutForm__label"
                     htmlFor="checkout-country"
                   >
-                    Country
+                    {t("checkout.country")}
                   </label>
 
                   <input
@@ -865,7 +881,7 @@ const Checkout: React.FC = () => {
                     value={form.country}
                     onChange={onFieldChange("country")}
                     disabled={loading}
-                    placeholder="United States"
+                    placeholder={ADDRESS_EXAMPLE.country}
                   />
                 </div>
 
@@ -883,7 +899,9 @@ const Checkout: React.FC = () => {
                   className="checkout__button"
                   disabled={loading || !canPreparePayment}
                 >
-                  {loading ? "Preparing payment..." : "Continue to payment"}
+                  {loading
+                    ? t("checkout.preparingPayment")
+                    : t("checkout.continueToPayment")}
                 </button>
               </form>
             ) : stripePromise && stripeOptions ? (
@@ -895,7 +913,7 @@ const Checkout: React.FC = () => {
               </Elements>
             ) : (
               <div className="checkout__state checkout__state--error">
-                Stripe is not configured correctly.
+                {t("checkout.stripeMisconfigured")}
               </div>
             )}
           </section>

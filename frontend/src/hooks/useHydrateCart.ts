@@ -14,9 +14,11 @@ import {
 import type { CartLine } from "../store/cartSlice";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { getAccessToken } from "../utils/token";
+import i18n from "../i18n";
 
 /** What the shopper is told about a guest line the merge changed. The
- *  name comes from the guest's own copy when the candle no longer exists. */
+ *  name comes from the guest's own copy when the candle no longer exists.
+ *  Worded in the language set at sign-in; the notice is stored as text. */
 function describeAdjustment(
   adjustment: MergeAdjustment,
   guestItems: CartLine[]
@@ -24,19 +26,19 @@ function describeAdjustment(
   const guest = guestItems.find(
     (item) => Number(item.variant_id) === adjustment.variant_id
   );
-  const name = adjustment.name || guest?.name || "A candle";
+  const name = adjustment.name || guest?.name || i18n.t("cart.someCandle");
   const size = adjustment.size || guest?.size || "";
   const label = size ? `${name} / ${size}` : name;
 
   if (adjustment.reason === "sold_out") {
-    return `${label} has sold out — we've taken it out of your cart.`;
+    return i18n.t("cart.noticeSoldOut", { label });
   }
 
   if (adjustment.reason === "limited") {
-    return `Only ${adjustment.quantity} left of ${label} — we've put ${adjustment.quantity} in your cart.`;
+    return i18n.t("cart.noticeLimited", { label, count: adjustment.quantity ?? 0 });
   }
 
-  return `${label} is no longer available — we've taken it out of your cart.`;
+  return i18n.t("cart.noticeUnavailable", { label });
 }
 
 export function useHydrateCart(): void {

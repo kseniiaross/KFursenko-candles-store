@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import api from "../api/axiosInstance";
+import i18n from "../i18n";
 import "../styles/ShippingRates.css";
 
 export type ShippingRate = {
@@ -56,13 +58,11 @@ function isQuotable(address: RateAddress): boolean {
 
 function formatEta(rate: ShippingRate): string {
   if (rate.estimated_days === null) return rate.duration_terms || "";
-  if (rate.estimated_days === 1) return "Arrives in about 1 business day";
-  return `Arrives in about ${rate.estimated_days} business days`;
+  return i18n.t("checkout.arrives", { count: rate.estimated_days });
 }
 
 function readError(error: unknown): string {
-  const fallback =
-    "We could not price this address. Please check it and try again.";
+  const fallback = i18n.t("checkout.ratesError");
 
   if (
     typeof error !== "object" ||
@@ -100,6 +100,7 @@ const ShippingRates: React.FC<Props> = ({
   disabled = false,
   onSelect,
 }) => {
+  const { t } = useTranslation();
   const [rates, setRates] = useState<ShippingRate[]>([]);
 
   /** The options last shown, to find the service the shopper had picked
@@ -201,11 +202,11 @@ const ShippingRates: React.FC<Props> = ({
 
   return (
     <div className="rates">
-      <h3 className="rates__title">Delivery option</h3>
+      <h3 className="rates__title">{t("checkout.deliveryOption")}</h3>
 
       {status === "idle" && (
         <p className="rates__hint">
-          Fill in your address and delivery options will appear here.
+          {t("checkout.ratesHint")}
         </p>
       )}
 
@@ -227,7 +228,7 @@ const ShippingRates: React.FC<Props> = ({
             className="rates__retry"
             onClick={() => void fetchRates()}
           >
-            Try again
+            {t("checkout.tryAgain")}
           </button>
         </>
       )}
@@ -237,7 +238,7 @@ const ShippingRates: React.FC<Props> = ({
           <ul
             className="rates__list"
             role="radiogroup"
-            aria-label="Shipping options"
+            aria-label={t("checkout.shippingOptions")}
           >
             {rates.map((rate) => {
               const isSelected = rate.rate_id === selectedRateId;
@@ -276,7 +277,7 @@ const ShippingRates: React.FC<Props> = ({
           </ul>
 
           <p className="rates__note">
-            Rates come straight from the carrier — we do not add a markup.
+            {t("checkout.ratesNote")}
           </p>
         </>
       )}

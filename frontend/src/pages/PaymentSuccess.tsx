@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { clearServerCart } from "../api/cart";
 import { clearCart } from "../store/cartSlice";
@@ -9,6 +10,7 @@ import { clearCheckoutOrder } from "../utils/checkoutOrder";
 import "../styles/PaymentSuccess.css";
 
 const PaymentSuccess: React.FC = () => {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
 
@@ -51,14 +53,18 @@ const PaymentSuccess: React.FC = () => {
     <main className="paymentSuccess">
       <div className="paymentSuccess__inner">
         <section className="paymentSuccess__card">
-          <p className="paymentSuccess__kicker">Payment</p>
+          <p className="paymentSuccess__kicker">{t("checkout.payment")}</p>
 
-          <h1 className="paymentSuccess__title">Payment successful</h1>
+          <h1 className="paymentSuccess__title">{t("paymentSuccess.title")}</h1>
 
           <p className="paymentSuccess__description">
-            Thank you. Your order has been confirmed successfully.
-            {orderId ? ` Order #${orderId} is now being processed.` : ""}
-            You can continue shopping or view your orders for the latest status.
+            {[
+              t("paymentSuccess.subtitle"),
+              orderId ? t("paymentSuccess.orderProcessing", { id: orderId }) : "",
+              t("paymentSuccess.nextSteps"),
+            ]
+              .filter(Boolean)
+              .join(" ")}
           </p>
 
           <div className="paymentSuccess__actions">
@@ -66,14 +72,14 @@ const PaymentSuccess: React.FC = () => {
               to="/orders"
               className="paymentSuccess__button paymentSuccess__button--primary"
             >
-              View orders
+              {t("paymentSuccess.viewOrders")}
             </Link>
 
             <Link
               to="/catalog"
               className="paymentSuccess__button paymentSuccess__button--secondary"
             >
-              Back to catalog
+              {t("paymentSuccess.backToCatalog")}
             </Link>
           </div>
         </section>

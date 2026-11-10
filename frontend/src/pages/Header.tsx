@@ -344,7 +344,11 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
         aria-expanded={isLanguageOpen}
         aria-controls={menuId}
         aria-haspopup="menu"
-        aria-label={`Language selector. Current language: ${currentLanguageCode}`}
+        aria-label={t("header.languageSelector", {
+          language:
+            LANGUAGES.find((lang) => lang.code === currentLanguageCode)?.label ??
+            currentLanguageCode,
+        })}
       >
         {t("common.language")}
       </button>
@@ -426,7 +430,11 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
       <Link
         to="/cart"
         className="header__cartLink"
-        aria-label={`Shopping cart${cartCount > 0 ? `, ${cartCount} items` : ", empty"}`}
+        aria-label={
+          cartCount > 0
+            ? t("header.cartItems", { count: cartCount })
+            : t("header.cartEmpty")
+        }
       >
         <span className="header__chipText">{t("catalog.shoppingCart")}</span>
         {cartCount > 0 && (
@@ -440,10 +448,10 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
 
   return (
     <>
-      <header className="header" aria-label="Site header">
+      <header className="header" aria-label={t("header.siteHeader")}>
         <div className="header__inner">
           <div className="header__left header__desktopLeft">
-            <Link to="/" className="header__logoLink" aria-label="Go to home page">
+            <Link to="/" className="header__logoLink" aria-label={t("header.goHome")}>
               <img className="header__logoImg" src={logo} alt="KFursenko Candles" />
             </Link>
 
@@ -465,7 +473,7 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
           </div>
 
           <div className="header__mobileLogo">
-            <Link to="/" className="header__logoLink" aria-label="Go to home page">
+            <Link to="/" className="header__logoLink" aria-label={t("header.goHome")}>
               <img className="header__logoImg" src={logo} alt="KFursenko Candles" />
             </Link>
           </div>

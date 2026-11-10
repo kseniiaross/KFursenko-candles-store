@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CardElement,
   useElements,
@@ -16,6 +17,7 @@ const CheckoutPaymentBlock: React.FC<CheckoutPaymentBlockProps> = ({
   orderId,
   clientSecret,
 }) => {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
 
@@ -30,7 +32,7 @@ const CheckoutPaymentBlock: React.FC<CheckoutPaymentBlockProps> = ({
     const cardElement = elements.getElement(CardElement);
 
     if (!cardElement) {
-      setPaymentError("Card field is not ready yet. Please try again.");
+      setPaymentError(t("checkout.cardNotReady"));
       return;
     }
 
@@ -49,7 +51,7 @@ const CheckoutPaymentBlock: React.FC<CheckoutPaymentBlockProps> = ({
 
       if (result.error) {
         setPaymentError(
-          result.error.message ?? "Payment failed. Please try again."
+          result.error.message ?? t("checkout.paymentFailed")
         );
         return;
       }
@@ -61,7 +63,7 @@ const CheckoutPaymentBlock: React.FC<CheckoutPaymentBlockProps> = ({
       }
     } catch (err) {
       console.error("Stripe error:", err);
-      setPaymentError("Unexpected error occurred. Please try again.");
+      setPaymentError(t("checkout.unexpectedError"));
     } finally {
       setPaying(false);
     }
@@ -70,7 +72,7 @@ const CheckoutPaymentBlock: React.FC<CheckoutPaymentBlockProps> = ({
   return (
     <div className={`checkoutPay ${paying ? "is-loading" : ""}`}>
       <div className="checkoutPay__elementWrap">
-        <label className="checkoutPay__label">Card details</label>
+        <label className="checkoutPay__label">{t("checkout.cardDetails")}</label>
 
         <div className="checkoutPay__cardBox">
           <CardElement
@@ -111,12 +113,14 @@ const CheckoutPaymentBlock: React.FC<CheckoutPaymentBlockProps> = ({
         className="checkout__button"
         onClick={onPay}
         disabled={isDisabled}
+        // While paying the button holds only a spinner; this is what's read.
+        aria-label={paying ? t("checkout.processing") : undefined}
       >
-        {paying ? <span className="checkoutPay__spinner" /> : "Pay now"}
+        {paying ? <span className="checkoutPay__spinner" /> : t("checkout.payNow")}
       </button>
 
       <p className="checkoutPay__note">
-        We do not store card details. Payments are processed securely by Stripe.
+        {t("checkout.noCardStored")}
       </p>
     </div>
   );

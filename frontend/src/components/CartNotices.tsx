@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { dismissCartNotices } from "../store/cartSlice";
@@ -9,6 +10,7 @@ import "../styles/CartNotices.css";
  *  switched off, or was lowered to what's left. Shown on the cart and at
  *  checkout until dismissed, so the shopper isn't surprised by the total. */
 const CartNotices: React.FC = () => {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const notices = useAppSelector((state) => state.cart.notices);
 
@@ -29,7 +31,7 @@ const CartNotices: React.FC = () => {
         className="cartNotices__dismiss"
         onClick={() => dispatch(dismissCartNotices())}
       >
-        OK
+        {t("cart.noticeOk")}
       </button>
     </div>
   );

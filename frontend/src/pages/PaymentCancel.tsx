@@ -1,9 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import "../styles/PaymentCancel.css";
 
 const PaymentCancel: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <main className="paymentCancel" aria-labelledby="payment-cancel-title">
       <div className="paymentCancel__inner">
@@ -11,18 +14,17 @@ const PaymentCancel: React.FC = () => {
           className="paymentCancel__card"
           aria-describedby="payment-cancel-description"
         >
-          <p className="paymentCancel__kicker">Payment</p>
+          <p className="paymentCancel__kicker">{t("checkout.payment")}</p>
 
           <h1 id="payment-cancel-title" className="paymentCancel__title">
-            Payment canceled
+            {t("paymentCancel.title")}
           </h1>
 
           <p
             id="payment-cancel-description"
             className="paymentCancel__description"
           >
-            No worries — your payment was not completed. You can return to checkout
-            and try again whenever you are ready.
+            {t("paymentCancel.subtitle")}
           </p>
 
           <div className="paymentCancel__actions">
@@ -30,14 +32,14 @@ const PaymentCancel: React.FC = () => {
               to="/checkout"
               className="paymentCancel__button paymentCancel__button--primary"
             >
-              Back to checkout
+              {t("paymentCancel.backToCheckout")}
             </Link>
 
             <Link
               to="/cart"
               className="paymentCancel__button paymentCancel__button--secondary"
             >
-              Return to cart
+              {t("paymentCancel.returnToCart")}
             </Link>
           </div>
         </section>

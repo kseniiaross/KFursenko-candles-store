@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import "../styles/Price.css";
 
@@ -32,6 +33,7 @@ const Price: React.FC<Props> = ({
   size = "sm",
   free = false,
 }) => {
+  const { t } = useTranslation();
   const regular = toNumber(price);
   const sale = toNumber(discountPrice);
 
@@ -40,10 +42,13 @@ const Price: React.FC<Props> = ({
   if (free) {
     return (
       <span className={`price price--${size} price--sale`}>
-        <s className="price__was" aria-label={`Was ${money(regular)}`}>
+        <s
+          className="price__was"
+          aria-label={t("cart.wasPrice", { price: money(regular) })}
+        >
           {money(regular)}
         </s>
-        <span className="price__now">Free</span>
+        <span className="price__now">{t("cart.free")}</span>
       </span>
     );
   }
@@ -58,7 +63,10 @@ const Price: React.FC<Props> = ({
 
   return (
     <span className={`price price--${size} price--sale`}>
-      <s className="price__was" aria-label={`Was ${money(regular)}`}>
+      <s
+        className="price__was"
+        aria-label={t("cart.wasPrice", { price: money(regular) })}
+      >
         {money(regular)}
       </s>
       <span className="price__now">{money(sale)}</span>

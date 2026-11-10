@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import Price from "./Price";
 
@@ -33,11 +34,12 @@ const LinePrice: React.FC<Props> = ({
   discountLabel,
   replacesLabel = "",
 }) => {
+  const { t } = useTranslation();
   const free = Math.max(0, freeQuantity);
 
   let marker = "";
-  if (free > 0 && free >= quantity) marker = "Free";
-  else if (free > 0) marker = `${free} free`;
+  if (free > 0 && free >= quantity) marker = t("cart.free");
+  else if (free > 0) marker = t("cart.freeCount", { count: free });
   else if (Number(lineTotalAfter) < Number(lineTotal)) marker = discountLabel;
 
   return (
@@ -52,7 +54,7 @@ const LinePrice: React.FC<Props> = ({
       )}
       {free > 0 && replacesLabel && (
         <span className="linePrice__note">
-          Replaces your {replacesLabel} on the candles that earn it
+          {t("cart.replacesWelcome", { offer: replacesLabel })}
         </span>
       )}
     </span>
