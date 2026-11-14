@@ -58,7 +58,7 @@ jobs:
         run: pytest -q
 
   frontend:
-    name: Frontend (types, lint, build)
+    name: Frontend (types, lint, tests, build)
     runs-on: ubuntu-latest
 
     defaults:
@@ -82,6 +82,9 @@ jobs:
 
       - name: Lint
         run: npx eslint .
+
+      - name: Tests
+        run: npm test
 
       - name: Production build
         run: npm run build
