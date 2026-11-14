@@ -30,6 +30,14 @@ export type ProfileResponse = {
   first_name: string;
   last_name: string;
   is_staff?: boolean;
+  // The saved delivery address. Blank strings where the shopper left a
+  // field empty.
+  address_line1?: string;
+  apartment?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
 };
 
 export async function register(

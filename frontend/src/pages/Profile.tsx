@@ -47,22 +47,12 @@ type NominatimResult = {
 const API_PROFILE_URL = "/accounts/profile/";
 const API_DELETE_ACCOUNT_URL = "/accounts/delete-account/";
 
-export const PROFILE_STORAGE_KEY = "profile_shipping_data";
-
 function safeString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
 function isValidEmail(value: string): boolean {
   return /\S+@\S+\.\S+/.test(value);
-}
-
-function saveProfileToStorage(form: ProfileFormState): void {
-  try {
-    sessionStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(form));
-  } catch {
-    // ignore
-  }
 }
 
 // ─── Nominatim address autocomplete hook ───
@@ -211,7 +201,6 @@ const Profile: React.FC = () => {
 
         setForm(loaded);
         setAddressQuery(safeString(data.address_line1));
-        saveProfileToStorage(loaded);
       } catch {
         if (!cancelled) setSaveErr("We could not load your profile right now.");
       } finally {
@@ -359,7 +348,6 @@ const Profile: React.FC = () => {
         country: form.country.trim(),
       });
 
-      saveProfileToStorage(form);
       window.dispatchEvent(new Event("auth-changed"));
       setSaveMsg("Profile updated successfully.");
       setFieldErrors({});
@@ -378,7 +366,6 @@ const Profile: React.FC = () => {
     try {
       await api.post(API_DELETE_ACCOUNT_URL, { confirm: true });
       localStorage.clear();
-      sessionStorage.removeItem(PROFILE_STORAGE_KEY);
       navigate("/", { replace: true });
     } catch {
       setDeleteError(

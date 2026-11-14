@@ -7,6 +7,7 @@ import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale } from "@stripe/stripe-js";
 
 import api from "../api/axiosInstance";
+import { getProfile, type ProfileResponse } from "../api/auth";
 import CartNotices from "../components/CartNotices";
 import CheckoutPaymentBlock from "../components/CheckoutPaymentBlock";
 import LinePrice from "../components/LinePrice";
@@ -18,7 +19,6 @@ import {
   loadCheckoutOrder,
   saveCheckoutOrder,
 } from "../utils/checkoutOrder";
-import { PROFILE_STORAGE_KEY } from "./Profile";
 import i18n from "../i18n";
 
 import "../styles/Checkout.css";
@@ -42,17 +42,6 @@ type ShippingForm = {
   state: string;
   postal_code: string;
   country: string;
-};
-
-type SavedProfile = {
-  firstName?: string;
-  lastName?: string;
-  addressLine1?: string;
-  apartment?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  country?: string;
 };
 
 const COUNTRIES = [
@@ -113,13 +102,44 @@ function money(value: number): string {
   }).format(value);
 }
 
-function loadProfileFromStorage(): SavedProfile | null {
-  try {
-    const raw = sessionStorage.getItem(PROFILE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
+const EMPTY_SHIPPING_FORM: ShippingForm = {
+  full_name: "",
+  address_line1: "",
+  address_line2: "",
+  city: "",
+  state: "",
+  postal_code: "",
+  country: "United States",
+};
+
+/** The saved address over the form, field by field. A field the shopper has
+ *  already changed keeps what they typed; every field stays editable. */
+function prefillFromProfile(
+  current: ShippingForm,
+  profile: ProfileResponse
+): ShippingForm {
+  const saved: ShippingForm = {
+    full_name: [profile.first_name, profile.last_name]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(" "),
+    address_line1: profile.address_line1?.trim() ?? "",
+    address_line2: profile.apartment?.trim() ?? "",
+    city: profile.city?.trim() ?? "",
+    state: profile.state?.trim() ?? "",
+    postal_code: profile.postal_code?.trim() ?? "",
+    country: profile.country?.trim() ?? "",
+  };
+
+  const next = { ...current };
+
+  for (const field of Object.keys(saved) as (keyof ShippingForm)[]) {
+    if (saved[field] && current[field] === EMPTY_SHIPPING_FORM[field]) {
+      next[field] = saved[field];
+    }
   }
+
+  return next;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -334,21 +354,31 @@ const Checkout: React.FC = () => {
    *  server-side — a percentage sent from here would be forgeable. */
   const [prepared, setPrepared] = useState<PreparedOrder | null>(null);
 
-  const savedProfile = useMemo(() => loadProfileFromStorage(), []);
+  const userId = useAppSelector((state) => state.auth?.user?.id ?? null);
 
-  const [form, setForm] = useState<ShippingForm>({
-    full_name: savedProfile
-      ? [savedProfile.firstName, savedProfile.lastName]
-          .filter(Boolean)
-          .join(" ")
-      : "",
-    address_line1: savedProfile?.addressLine1 ?? "",
-    address_line2: savedProfile?.apartment ?? "",
-    city: savedProfile?.city ?? "",
-    state: savedProfile?.state ?? "",
-    postal_code: savedProfile?.postalCode ?? "",
-    country: savedProfile?.country ?? "United States",
-  });
+  const [form, setForm] = useState<ShippingForm>(EMPTY_SHIPPING_FORM);
+
+  // The signed-in shopper's saved address, asked for here every time rather
+  // than read from a copy in the browser: a copy outlives sign-out and shows
+  // the next account someone else's address. Never written back.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    let active = true;
+
+    getProfile()
+      .then((profile) => {
+        if (!active) return;
+        setForm((current) => prefillFromProfile(current, profile));
+      })
+      .catch(() => {
+        // No saved address to offer; the shopper fills the form in.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isLoggedIn, userId]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -379,7 +409,6 @@ const Checkout: React.FC = () => {
       })),
     [items]
   );
-  const userId = useAppSelector((state) => state.auth?.user?.id ?? null);
   const pricing = usePricePreview(previewLines, `user:${userId ?? "?"}`);
   const preview = pricing.preview;
 
