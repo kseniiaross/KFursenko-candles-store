@@ -71,6 +71,7 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 ### Quality & Tooling (Frontend)
 - **ESLint**, with **eslint-plugin-i18next** erroring on hardcoded strings in the translated files, so a new untranslated label fails CI
 - **TypeScript** — `tsc --noEmit` type checking
+- **Vitest** + **Testing Library** — component tests on jsdom, run in CI
 
 </td>
 </tr>
@@ -103,6 +104,7 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 
 - Guest cart in localStorage that merges into the account cart at sign-in, line by line, and reports what it changed: a sold-out candle removed, a quantity lowered to what's left — shown to the shopper rather than silently dropped
 - Cart requests run one at a time, in order, so a slow early response can't overwrite a later one when the shopper clicks fast
+- A signed-in shopper's delivery form is filled from their own account, every field still editable — no copy of it is kept in the browser
 - All pricing computed server-side; the client never sends a price
 - Stock is reserved when the order is created and released if it isn't paid for; a scheduled job expires abandoned orders every 15 minutes
 - `SELECT FOR UPDATE` row locking on the order and on stock, scoped so Postgres will accept it
@@ -192,6 +194,7 @@ Testing here isn't a checkbox — it's how the most serious bug in this codebase
 |---|---|---|---|
 | **Backend** | pytest on **PostgreSQL** | 542 tests — orders & lifecycle, Stripe webhooks/refunds/incidents, the pricing engine, shipping quotes & parcels, cart limits & merge, catalog, offers, and the assistant's prices, offers, limits and signed history | ✅ passing |
 | **Assistant, against the live model** | pytest, opt-in | 4 tests run with `LUMIERE_LIVE=1`: a planted discount is refused, the real offers are named, and the sign-up discount is explained as the engine actually applies it. Reported as a pass rate over repeated asks rather than a single green tick | ✅ 27/27 asks |
+| **Frontend** | Vitest + Testing Library on jsdom | The checkout address: that it comes from the signed-in shopper's own account, that nothing of a previous account survives a sign-out in the same tab, and that a field already typed in isn't overwritten | ✅ passing |
 | **Type checking** | `tsc --noEmit` | Whole frontend | ✅ 0 errors |
 | **Lint** | ESLint, plus `i18next/no-literal-string` on the translated files | Whole frontend | ✅ 0 errors |
 
@@ -208,6 +211,7 @@ The suite now creates and drops its own database in the Docker Compose Postgres 
 - **The pricing engine, as a unit and end to end:** campaign vs reward vs sign-up discount precedence, free-unit assignment and tie-breaking, line-level totals and labels, and the rule that the storefront price equals the charged price for every basket shape tested.
 - **Shipping correctness:** parcel packing by weight and box size, re-quoting an order against its own lines, refusing a rate token from a different quote, quantity caps, and the flat-rate fallback when the carrier is unreachable.
 - **Cart correctness in both modes:** guest and authenticated, per-line merge at sign-in with adjustments reported, quantity caps shared with order creation, and concurrent adds from two sessions.
+- **The checkout address, in a real browser DOM:** that it is fetched from the signed-in shopper's own account, that none of a previous account's details survive a sign-out in the same tab, and that a field the shopper has already typed in is not overwritten when the profile arrives.
 - **The assistant's boundaries:** that its prices come from the pricing engine, that the offers it describes match the public endpoint, that the studio's private notes never reach a product response, and that a reply bearing a wrong signature never reaches the model.
 - **Error statuses:** every endpoint probed with empty, oversized, wrong-typed and hostile input — asserting a 400 or 404 with a message the shopper can act on, never a 500 and never anything naming a file, a query or a key.
 
@@ -220,6 +224,7 @@ A few examples from [`docs/AUDIT.md`](./docs/AUDIT.md) and [`docs/CHANGELOG.md`]
 - **One request could kill a server worker.** The shipping-rates endpoint had no cap on quantity and called `int()` on unvalidated input. A quantity of 10⁹ made the parcel builder construct ~140 million dictionaries — an out-of-memory kill from a single unauthenticated request. Now validated and capped against the same limit order creation uses, so the two can't drift apart.
 - **A paid order could be silently dropped.** If checkout replaced a PaymentIntent — which it does when Stripe can't be reached — a payment on the old intent matched no order: money taken, order left pending, nothing recorded, and the order later expired by the cleanup job while the shopper's tab said "Payment successful". Now the first matching payment pays the order and the other intent is cancelled.
 - **Signing in could empty your cart.** The merge only ran on a page reload, not at sign-in, and the guest copy was cleared before the merge succeeded. One unavailable line refused the whole merge, and the frontend then deleted the guest cart without a word. Now it merges what it can, says what it changed, and clears the guest copy only after the server confirms.
+- **One shopper's home address could appear in another's checkout.** To prefill the delivery form, the saved address was kept in the browser tab's own storage, and signing out never cleared it. On a shared computer the next person to sign in found the previous shopper's name and street address already filled in, and an order they didn't correct would have shipped there. It also only worked if the shopper had opened their profile page first in that same tab, so the "your address is saved" promise on the sign-in page was false for everyone else. Fixed by removing the shared copy altogether rather than clearing it on sign-out: a sign-out path that forgets is a one-line regression away, while a copy that doesn't exist can't leak. The frontend had no test runner at all until this bug, which is how it got one.
 - **Rate limits were worth less than they claimed.** Throttle counters lived in each gunicorn worker's memory, so the effective limit was the configured one multiplied by the number of workers, and every deploy reset it. Moved to a table all workers share.
 - **The checkout was in English in every language.** The site switched between four languages, but the page where money changes hands had its labels, buttons and delivery options written straight into the components: a Russian shopper saw a Russian header above an English form. Found by measuring the page at the same width in each language and getting identical numbers to the pixel — a result that should have been impossible. An ESLint rule now errors on a literal string in the translated files, so the next one fails CI instead of reaching a customer.
 - **The assistant turned away sales by simplifying a rule.** Asked whether the sign-up discount worked with buy-two-get-three, it answered that the two don't combine — true only of the candles that pay toward the free one, and discouraging for everything else in the basket. The offer context now carries the engine's own rule, checked by a live test.
@@ -245,6 +250,7 @@ Deliberately open, and documented rather than hidden:
 - **Tracking** — Shippo tracking webhooks aren't connected; tracking numbers are entered from the admin
 - **Staging** — there is no second environment yet; changes are verified against a throwaway clone of the production catalog locally
 - **Translation is partial** — the shopping path is in four languages; the content and policy pages, and candle names and descriptions, are English in all of them. The ESLint rule covers the translated files, so the gap can't widen quietly
+- **Frontend test coverage is narrow** — the suite exists and runs in CI, but it covers the checkout address rather than the whole interface. It was built for the bug below it, and grows when the next one needs it
 - **No confirmation email** — customers get no automatic order confirmation; the owner sends them by hand, and tracking emails come from Shippo
 - **The assistant's history isn't stored server-side** — signatures stop a forged reply reaching the model, but the conversation still lives in the browser. Storing it would mean a retention period, a cleanup job and a line in the privacy policy; the cheaper defence was chosen deliberately, and the trade-off is written down rather than discovered later
 
@@ -258,6 +264,7 @@ The audit and the fixes were done with AI assistance — Claude for review, Clau
 - **Options before decisions.** Where a change had a product consequence — which offer wins on a candle, whether a payment on a stale intent is accepted or refunded — the alternatives were laid out with the prices each produces, in a table, before one was chosen. One option was rejected because it made a basket cost **more** after adding a free candle.
 - **A random system is measured, not spot-checked.** For the assistant, one good answer isn't evidence: the model-facing tests repeat each ask and report how many passed. One rewrite of the offer rules was caught overshooting in the opposite direction this way, promising the discount on candles that don't get it.
 - **A dead feature is removed, not left to rot.** A scent quiz shipped that never recommended anything: its scoring function was never called and its results were fixed copy. It came out entirely — pages, styles, routes, links and translations — rather than being quietly left in the menu.
+- **Fix the class, not the case.** Where a bug came from state that had to be remembered and cleared, the state was removed instead: a copy that doesn't exist can't be forgotten by the next code path that touches it.
 - **Browser verification for what tests can't prove:** overlay behaviour, the sign-in merge, the live Stripe payment form, keyboard focus in both themes, pixel comparison between builds.
 - **Product and policy decisions stayed human:** card payments only (no Klarna or Link), refunds initiated in Stripe rather than the admin, offer precedence by kind, and the 24-hour cancellation window.
 
@@ -302,6 +309,7 @@ LUMIERE_LIVE=1 pytest lumiere/test_offers_context.py
 cd frontend
 npx tsc --noEmit -p tsconfig.app.json   # type check
 npm run lint                 # ESLint, including the hardcoded-string rule
+npm test                     # Vitest component tests
 npm run build                # production build
 ```
 
