@@ -13,7 +13,8 @@ from .serializers import (LumiereReplyInSerializer, LumiereReplyOutSerializer,
                           LumiereSearchOutSerializer)
 from .services import (ai_search_candles, build_store_context,
                        call_openai_reply, conversation_id, get_candle_by_slug,
-                       search_candles, sign_reply, verified_history)
+                       mentions_a_placed_order, search_candles, sign_reply,
+                       verified_history)
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,12 @@ class LumiereReplyView(APIView):
         else:
             suggestions = search_candles(text, limit=6, locale=locale)
 
-        store_context = build_store_context(suggestions)
+        # The shopper's own turns are theirs either way, signed or not, and
+        # this can only take an offer away, never add one.
+        shopper_turns = [text] + [m["text"] for m in history if m["role"] == "user"]
+        store_context = build_store_context(
+            suggestions, include_sign_up=not mentions_a_placed_order(shopper_turns)
+        )
 
         try:
             answer_text = call_openai_reply(
@@ -103,7 +109,7 @@ class LumiereReplyView(APIView):
             answer_text = (
                 "Sorry, something went wrong. Please try again."
                 if locale == "en"
-                else "Извини, что-то пошло не так. Попробуй ещё раз."
+                else "Извините, что-то пошло не так. Попробуйте ещё раз."
                 if locale == "ru"
                 else "Lo siento, algo salió mal. Por favor, inténtalo de nuevo."
                 if locale == "es"
