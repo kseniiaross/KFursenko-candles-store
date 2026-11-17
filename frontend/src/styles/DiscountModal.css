@@ -103,34 +103,11 @@
 /* TERMS */
 
 .discountModal__terms {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 8px;
+  margin: 8px 0 0;
   text-align: left;
-  cursor: pointer;
-}
-
-.discountModal__checkbox {
-  flex: 0 0 auto;
-  width: 17px;
-  height: 17px;
-  margin: 2px 0 0;
-  accent-color: #111111;
-  cursor: pointer;
-}
-
-.discountModal__termsText {
   font-size: 0.72rem;
   line-height: 1.5;
   opacity: 0.7;
-}
-
-.discountModal__error {
-  margin: 0;
-  font-size: 0.75rem;
-  text-align: left;
-  color: #b73a3a;
 }
 
 /* CTA */
@@ -170,11 +147,6 @@
 
 .discountModal__close:focus-visible,
 .discountModal__cta:focus-visible,
-.discountModal__checkbox:focus-visible {
-  outline: 2px solid #111111;
-  outline-offset: 3px;
-}
-
 .discountModal__cta:focus-visible {
   outline-color: #ffffff;
   outline-offset: -5px;

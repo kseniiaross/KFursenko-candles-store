@@ -279,6 +279,11 @@ const resources = {
         haveAccount: "Already have an account?",
         welcomePerk:
           "10% off your first order — automatic, no code needed.",
+        termsConsent: "I understand how this discount works.",
+        termsRequired:
+          "Please tick the box to confirm you understand how the discount works.",
+        termsChanged:
+          "The discount terms have changed since this page opened. Please read them below and tick the box again.",
         errors: {
           network: "Network error. Please try again.",
           invalidForm: "Please check your information and try again.",
@@ -801,6 +806,11 @@ const resources = {
         haveAccount: "Уже есть аккаунт?",
         welcomePerk:
           "10% на первый заказ — автоматически, без промокода.",
+        termsConsent: "Я понимаю, как работает эта скидка.",
+        termsRequired:
+          "Отметьте, пожалуйста, что вы понимаете, как работает скидка.",
+        termsChanged:
+          "Условия скидки изменились, пока страница была открыта. Прочитайте их ниже и отметьте снова.",
         errors: {
           network: "Ошибка сети. Попробуйте снова.",
           invalidForm: "Проверьте введённые данные и попробуйте снова.",
@@ -1333,6 +1343,11 @@ const resources = {
         haveAccount: "¿Ya tienes cuenta?",
         welcomePerk:
           "10% en tu primer pedido — automático, sin código.",
+        termsConsent: "Entiendo cómo funciona este descuento.",
+        termsRequired:
+          "Marca la casilla para confirmar que entiendes cómo funciona el descuento.",
+        termsChanged:
+          "Las condiciones del descuento han cambiado desde que abriste esta página. Léelas abajo y vuelve a marcar la casilla.",
         errors: {
           network: "Error de red. Inténtalo de nuevo.",
           invalidForm: "Revisa tu información e inténtalo de nuevo.",
@@ -1859,6 +1874,11 @@ const resources = {
         haveAccount: "Vous avez déjà un compte ?",
         welcomePerk:
           "10% sur la première commande — automatique, sans code.",
+        termsConsent: "Je comprends comment fonctionne cette remise.",
+        termsRequired:
+          "Veuillez cocher la case pour confirmer que vous comprenez comment fonctionne la remise.",
+        termsChanged:
+          "Les conditions de la remise ont changé depuis l'ouverture de cette page. Lisez-les ci-dessous et cochez à nouveau la case.",
         errors: {
           network: "Erreur réseau. Veuillez réessayer.",
           invalidForm: "Vérifiez vos informations et réessayez.",

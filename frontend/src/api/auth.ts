@@ -12,7 +12,25 @@ export type RegisterPayload = {
   first_name: string;
   last_name: string;
   phone_number?: string;
+  /** The version of the terms the page showed and the shopper accepted. */
+  terms_version?: string;
+  locale?: string;
 };
+
+/** The sign-up discount's terms as the server renders them now. */
+export type Terms = {
+  version: string;
+  locale: string;
+  text: string;
+};
+
+/** null when no sign-up discount is running: nothing to accept. */
+export async function getTerms(locale: string): Promise<Terms | null> {
+  const response = await api.get<{ terms: Terms | null }>("/accounts/terms/", {
+    params: { locale },
+  });
+  return response.data.terms;
+}
 
 export type TokenPayload = {
   email: string;

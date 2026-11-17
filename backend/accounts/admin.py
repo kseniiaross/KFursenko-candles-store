@@ -2,7 +2,23 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
+from .models import TermsAcceptance
+
 User = get_user_model()
+
+
+class TermsAcceptanceInline(admin.TabularInline):
+    """The record of what the account agreed to: read-only, so it stays
+    the record."""
+
+    model = TermsAcceptance
+    extra = 0
+    can_delete = False
+    fields = ("accepted_at", "version", "locale", "text")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(User)
@@ -77,3 +93,4 @@ class UserAdmin(DjangoUserAdmin):
     )
 
     readonly_fields = ("created_at", "updated_at", "last_login")
+    inlines = (TermsAcceptanceInline,)

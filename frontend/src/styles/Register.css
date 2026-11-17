@@ -294,6 +294,12 @@
     padding-top: 11px;
     padding-bottom: 11px;
   }
+
+  /* Phone and email share a row, so the terms the shopper accepts fit
+     above the button on a 768px-tall laptop screen. */
+  .register__field--pair {
+    grid-column: auto;
+  }
 }
 
 /* =====================================================
@@ -361,4 +367,44 @@
   .register__cta {
     transition: none;
   }
+}
+/* The sign-up discount's terms: the consent line is the checkbox's label,
+   the paragraph its description. */
+.register__terms {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.register__termsRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.register__termsCheckbox {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #111111;
+  cursor: pointer;
+}
+
+.register__termsCheckbox:focus-visible {
+  outline: 2px solid #111111;
+  outline-offset: 3px;
+}
+
+.register__termsLabel {
+  font-size: 0.86rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.register__termsText {
+  margin: 0 0 0 28px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  opacity: 0.7;
 }

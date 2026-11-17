@@ -57,3 +57,22 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class TermsAcceptance(models.Model):
+    """A new account's record of accepting the sign-up discount's terms:
+    who, when, and the exact words shown (accounts/terms.py)."""
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="terms_acceptances"
+    )
+    version = models.CharField(max_length=64)
+    locale = models.CharField(max_length=8)
+    text = models.TextField()
+    accepted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-accepted_at",)
+
+    def __str__(self):
+        return f"{self.user} accepted {self.version} on {self.accepted_at:%Y-%m-%d %H:%M}"

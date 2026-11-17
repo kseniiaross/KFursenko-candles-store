@@ -61,12 +61,8 @@ const DiscountModal: React.FC = () => {
 
   const [isOpen, setIsOpen] = useState(false);
   const [offer, setOffer] = useState<WelcomeOffer | null>(null);
-  const [accepted, setAccepted] = useState(false);
-  const [error, setError] = useState("");
 
   const titleId = useId();
-  const termsId = useId();
-  const errorId = useId();
 
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -167,12 +163,9 @@ const DiscountModal: React.FC = () => {
   const percent = offer.discount_percent;
   const days = offer.days_after_signup;
 
+  // The modal sells the offer; Register takes the consent, for every new
+  // account whichever way it came in. Nobody ticks twice.
   const onClaim = (): void => {
-    if (!accepted) {
-      setError(t("discountModal.termsRequired"));
-      return;
-    }
-
     writeMemory({ dismissedAt: Date.now() });
     setIsOpen(false);
     navigate("/register");
@@ -224,31 +217,11 @@ const DiscountModal: React.FC = () => {
 
           <p className="discountModal__sub">{t("discountModal.sub")}</p>
 
-          <label className="discountModal__terms" htmlFor={termsId}>
-            <input
-              id={termsId}
-              type="checkbox"
-              className="discountModal__checkbox"
-              checked={accepted}
-              onChange={(event) => {
-                setAccepted(event.target.checked);
-                setError("");
-              }}
-              aria-describedby={error ? errorId : undefined}
-            />
-
-            <span className="discountModal__termsText">
-              {days
-                ? t("discountModal.terms", { percent, days })
-                : t("discountModal.termsNoLimit", { percent })}
-            </span>
-          </label>
-
-          {error ? (
-            <p id={errorId} className="discountModal__error" role="alert">
-              {error}
-            </p>
-          ) : null}
+          <p className="discountModal__terms">
+            {days
+              ? t("discountModal.terms", { percent, days })
+              : t("discountModal.termsNoLimit", { percent })}
+          </p>
 
           <button
             type="button"

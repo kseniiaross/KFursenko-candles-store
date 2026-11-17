@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { useTranslation } from "react-i18next";
@@ -7,7 +7,7 @@ import { useAppDispatch } from "../store/hooks";
 import { setCredentials } from "../store/authSlice";
 import { notifyAuthChanged } from "../utils/token";
 
-import { registerThenLoginWithProfile } from "../api/auth";
+import { getTerms, registerThenLoginWithProfile, type Terms } from "../api/auth";
 
 import registerImage from "../assets/images/register.webp";
 
@@ -29,8 +29,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+/** The server's answer when the terms the page sent aren't the current
+ *  ones, or none were sent: the current terms, to show and ask again. */
+function readTermsConflict(
+  error: unknown
+): { code: string; terms: Terms } | null {
+  if (!isAxiosError(error) || error.response?.status !== 409) return null;
+
+  const data = error.response.data;
+  if (!isRecord(data) || !isRecord(data.terms)) return null;
+
+  const { version, locale, text } = data.terms;
+  if (
+    typeof version !== "string" ||
+    typeof locale !== "string" ||
+    typeof text !== "string"
+  ) {
+    return null;
+  }
+
+  return { code: String(data.code ?? ""), terms: { version, locale, text } };
+}
+
 const Register: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage ?? i18n.language;
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,6 +71,42 @@ const Register: React.FC = () => {
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // The sign-up discount's terms, as the server renders them now. Every new
+  // account accepts them (accounts/views.py). null while loading, if the
+  // request failed, or when no discount runs; the server then answers the
+  // submit with the terms to show, so the shopper is never stuck.
+  const [terms, setTerms] = useState<Terms | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsMessage, setTermsMessage] = useState<string | null>(null);
+  const termsRef = useRef<HTMLInputElement | null>(null);
+  // Bumped when the server asks for the terms again. The box is disabled
+  // until the submit settles, so it is focused after, not in the catch.
+  const [askAgain, setAskAgain] = useState(0);
+
+  useEffect(() => {
+    if (askAgain && !submitting) termsRef.current?.focus();
+  }, [askAgain, submitting]);
+
+  const shownVersion = useRef<string | undefined>(undefined);
+  shownVersion.current = terms?.version;
+
+  useEffect(() => {
+    let active = true;
+
+    getTerms(locale)
+      .then((current) => {
+        if (!active) return;
+        // Other words than the ones ticked, after a change of language: ask again.
+        if (current?.version !== shownVersion.current) setTermsAccepted(false);
+        setTerms(current);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [locale]);
+
   const nextParam = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const rawNext = params.get("next");
@@ -62,6 +121,8 @@ const Register: React.FC = () => {
   const emailErrorId = "register-email-error";
   const passwordErrorId = "register-password-error";
   const serverErrorId = "register-server-error";
+  const termsTextId = "register-terms-text";
+  const termsMessageId = "register-terms-message";
 
   const getRegisterErrorMessage = (error: unknown): string => {
     if (!isAxiosError(error)) {
@@ -143,7 +204,10 @@ const Register: React.FC = () => {
 
     setFieldError(errors);
 
-    return Object.keys(errors).length === 0;
+    const termsOk = !terms || termsAccepted;
+    setTermsMessage(termsOk ? null : t("register.termsRequired"));
+
+    return Object.keys(errors).length === 0 && termsOk;
   };
 
   const handleFieldChange =
@@ -181,6 +245,8 @@ const Register: React.FC = () => {
         phone_number: form.phone_number.trim(),
         email: form.email.trim(),
         password: form.password,
+        terms_version: terms && termsAccepted ? terms.version : undefined,
+        locale,
       });
 
       const access = String(tokens.access || "").trim();
@@ -203,6 +269,20 @@ const Register: React.FC = () => {
       notifyAuthChanged();
       navigate(nextParam ?? "/", { replace: true });
     } catch (error: unknown) {
+      const conflict = readTermsConflict(error);
+
+      if (conflict) {
+        setTerms(conflict.terms);
+        setTermsAccepted(false);
+        setTermsMessage(
+          conflict.code === "terms_outdated"
+            ? t("register.termsChanged")
+            : t("register.termsRequired")
+        );
+        setAskAgain((count) => count + 1);
+        return;
+      }
+
       setServerError(getRegisterErrorMessage(error));
     } finally {
       setSubmitting(false);
@@ -298,7 +378,7 @@ const Register: React.FC = () => {
                 ) : null}
               </div>
 
-              <div className="register__field register__field--full">
+              <div className="register__field register__field--full register__field--pair">
                 <label className="register__label" htmlFor="reg_phone">
                   {t("register.phone")}
                 </label>
@@ -329,7 +409,7 @@ const Register: React.FC = () => {
                 ) : null}
               </div>
 
-              <div className="register__field register__field--full">
+              <div className="register__field register__field--full register__field--pair">
                 <label className="register__label" htmlFor="reg_email">
                   {t("register.email")}
                 </label>
@@ -387,6 +467,49 @@ const Register: React.FC = () => {
                 ) : null}
               </div>
             </div>
+
+            {terms ? (
+              <div className="register__terms">
+                <div className="register__termsRow">
+                  <input
+                    ref={termsRef}
+                    id="reg_terms"
+                    type="checkbox"
+                    className="register__termsCheckbox"
+                    checked={termsAccepted}
+                    onChange={(event) => {
+                      setTermsAccepted(event.target.checked);
+                      setTermsMessage(null);
+                    }}
+                    disabled={submitting}
+                    aria-invalid={Boolean(termsMessage)}
+                    aria-describedby={
+                      termsMessage
+                        ? `${termsTextId} ${termsMessageId}`
+                        : termsTextId
+                    }
+                  />
+
+                  <label className="register__termsLabel" htmlFor="reg_terms">
+                    {t("register.termsConsent")}
+                  </label>
+                </div>
+
+                <p id={termsTextId} className="register__termsText">
+                  {terms.text}
+                </p>
+
+                {termsMessage ? (
+                  <p
+                    id={termsMessageId}
+                    className="register__message register__message--error"
+                    role="alert"
+                  >
+                    {termsMessage}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <button
               type="submit"
