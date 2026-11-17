@@ -5,7 +5,7 @@
 **Full-stack e-commerce platform** for a handmade candle brand — React frontend + Django REST API backend, deployed live, taking real card payments and buying real shipping labels.
 
 [![Live Site](https://img.shields.io/badge/live%20site-kfcandle.com-black?style=flat-square)](https://www.kfcandle.com/)
-![Tests](https://img.shields.io/badge/tests-542%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-576%20passing-brightgreen?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/kseniiaross/KFursenko-candles-store/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/kseniiaross/KFursenko-candles-store/actions/workflows/ci.yml)
 
@@ -124,7 +124,8 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 - JWT authentication. Every endpoint has a site-wide rate limit (60 requests a minute for guests, 300 for signed-in shoppers); order creation, payment intents, shipping quotes and the assistant have tighter limits of their own
 - Order history showing per-line discounts and free units as they were charged, read from stored values rather than recalculated
 - Shoppers can cancel their own unpaid orders; a paid order is cancelled by the shop
-- Admin: orders, offers with schedules and reward groups, payment incidents, stock by variant
+- Every new account accepts the sign-up discount's terms, and the account keeps the record. The server renders the wording with the running offer's own figures, versions it by a hash of the text, and stores who accepted which words, when, and in which language — the percentage and the duration come from whatever offer was live, so a version number alone wouldn't reconstruct what was shown. A page left open across a change to the wording is told its version is stale and handed the current text to accept, rather than being refused at a button or recording agreement to words it never displayed
+- Admin: orders, offers with schedules and reward groups, payment incidents, stock by variant. The acceptance record is shown on the account and is read-only, so it stays a record
 
 ---
 
@@ -148,6 +149,7 @@ Three kinds of offer run at once, and a single candle can fall inside more than 
 - Percentage and duration are set in the admin, not in code
 - It lowers the price for shoppers who qualify **without showing a badge** to those who don't, so the catalog never advertises a discount a particular shopper can't have
 - The assistant describes it too, reading the same lookup this modal uses — see below
+- Every page that advertises the discount takes the figure from the running offer rather than writing it into the copy, so the number can't be raised in the admin and left stale on a page
 
 ---
 
@@ -173,6 +175,16 @@ Lumière answers the questions a product page can't: which candle suits someone 
 - **The prompt rule is the second line of defence**, not the only one: a price, discount or code is real only if it appears in the context the server supplied this turn. It took three rounds to make reliable — the first two versions answered *"that code isn't active right now"*, which reads as **come back tomorrow** rather than **that was never real**.
 - **Scope.** Asked for Python, it used to write it. It now declines anything that isn't candles, the shop, shipping or orders.
 
+**It can't make promises the shop can't keep**
+
+An angry shopper asks for things an assistant cannot give, and a helpful model will try. These were measured by running the same hostile and manipulative scripts repeatedly, in English and Russian, and counting what came back:
+
+- **It never says the owner will look into it.** It can't pass a message on, open a complaint or reach anyone — so every reply to a complaint carries the shop's contact address instead, in all 18 replies across both languages. *"The owner will review this"* was the single most common answer before, and it was a promise nothing in the system would keep.
+- **It won't hand out a discount to calm someone down.** A shopper who says they have already ordered can't have the sign-up discount, so that offer is removed from what the model is given, rather than forbidden by a rule it can talk itself around. Asked directly, it still answers truthfully: the offer exists, it is for a new account's first order, and it isn't theirs.
+- **It doesn't agree that something went wrong.** It can't see orders or deliveries, so it acknowledges the frustration without confirming the facts — *"I can see this has been frustrating"*, never *"I'm sorry your order arrived late"*.
+- **It doesn't claim a list of offers is complete.** Telling a shopper the sale is the only thing running costs the shop the candle they could have had free. It names what is running and stops there.
+- **Insults get a plain answer**, not sympathy for a problem nobody described.
+
 **It can't run up a bill**
 
 - Per-minute and per-day limits per address, across both the reply and the search endpoints, drawing on one shared daily quota because both call OpenAI
@@ -182,7 +194,9 @@ Lumière answers the questions a product page can't: which candle suits someone 
 
 **Testing something that isn't deterministic**
 
-A single passing answer proves nothing at temperature 0.65, so the model-facing tests repeat the same ask and report a rate: 15 of 15 planted-discount asks refused the invented code and named a real offer instead; 9 of 9 discount and sign-up questions named the offers actually running; 3 of 3 asks about using the sign-up discount alongside buy-two-get-three got the rule right rather than flattening it to "they don't combine". These tests are opt-in behind an environment variable, so the ordinary suite never calls OpenAI.
+A single passing answer proves nothing at temperature 0.65, so every model-facing test repeats its scenario three times and the result is read as a rate rather than a green tick. The suite is six tests across two files, twenty-four calls to the live model: a planted discount code is refused and a real offer named in its place, discount and sign-up questions name the offers actually running, the sign-up discount is explained as the engine applies it rather than flattened to "they don't combine", and a complaint is answered with the shop's address rather than a promise.
+
+Behaviour under hostile input was measured separately, by running scripted abuse and emotional pressure in both languages: 18 of 18 complaint replies carried the contact address, 0 of 18 promised that the owner would look into it, and 0 of 6 offered a discount as compensation to a shopper who had already ordered. All of these tests are opt-in behind an environment variable, so the ordinary suite never calls OpenAI.
 
 ---
 
@@ -192,9 +206,9 @@ Testing here isn't a checkbox — it's how the most serious bug in this codebase
 
 | Layer | Tool | Coverage | Status |
 |---|---|---|---|
-| **Backend** | pytest on **PostgreSQL** | 542 tests — orders & lifecycle, Stripe webhooks/refunds/incidents, the pricing engine, shipping quotes & parcels, cart limits & merge, catalog, offers, and the assistant's prices, offers, limits and signed history | ✅ passing |
-| **Assistant, against the live model** | pytest, opt-in | 4 tests run with `LUMIERE_LIVE=1`: a planted discount is refused, the real offers are named, and the sign-up discount is explained as the engine actually applies it. Reported as a pass rate over repeated asks rather than a single green tick | ✅ 27/27 asks |
-| **Frontend** | Vitest + Testing Library on jsdom | The checkout address: that it comes from the signed-in shopper's own account, that nothing of a previous account survives a sign-out in the same tab, and that a field already typed in isn't overwritten | ✅ passing |
+| **Backend** | pytest on **PostgreSQL** | 576 tests — orders & lifecycle, Stripe webhooks/refunds/incidents, the pricing engine, shipping quotes & parcels, cart limits & merge, catalog, offers, consent to the discount terms, and the assistant's prices, offers, limits and signed history | ✅ passing |
+| **Assistant, against the live model** | pytest, opt-in | 6 tests in 2 files, 24 model calls — every scenario repeated three times and reported as a pass rate. A planted discount is refused, the real offers are named, the sign-up discount is explained as the engine applies it, and a complaint gets the shop's address rather than a promise | ✅ 24/24 asks |
+| **Frontend** | Vitest + Testing Library on jsdom | 19 tests in 3 files: the checkout address and what a sign-out must not leave behind; the consent checkbox, its label and the stale-terms path; and the discount figure advertised on the Welcome and New Shoppers pages | ✅ passing |
 | **Type checking** | `tsc --noEmit` | Whole frontend | ✅ 0 errors |
 | **Lint** | ESLint, plus `i18next/no-literal-string` on the translated files | Whole frontend | ✅ 0 errors |
 
@@ -213,6 +227,7 @@ The suite now creates and drops its own database in the Docker Compose Postgres 
 - **Cart correctness in both modes:** guest and authenticated, per-line merge at sign-in with adjustments reported, quantity caps shared with order creation, and concurrent adds from two sessions.
 - **The checkout address, in a real browser DOM:** that it is fetched from the signed-in shopper's own account, that none of a previous account's details survive a sign-out in the same tab, and that a field the shopper has already typed in is not overwritten when the profile arrives.
 - **The assistant's boundaries:** that its prices come from the pricing engine, that the offers it describes match the public endpoint, that the studio's private notes never reach a product response, and that a reply bearing a wrong signature never reaches the model.
+- **Consent to the discount terms:** that registration is refused without it, that a page holding an old version is answered with the current wording instead of a dead end, that the stored record holds the exact text the shopper saw, and that every page advertising the discount shows the running offer's figure rather than one written into the copy.
 - **Error statuses:** every endpoint probed with empty, oversized, wrong-typed and hostile input — asserting a 400 or 404 with a message the shopper can act on, never a 500 and never anything naming a file, a query or a key.
 
 ### Bugs found and fixed through testing
@@ -225,9 +240,11 @@ A few examples from [`docs/AUDIT.md`](./docs/AUDIT.md) and [`docs/CHANGELOG.md`]
 - **A paid order could be silently dropped.** If checkout replaced a PaymentIntent — which it does when Stripe can't be reached — a payment on the old intent matched no order: money taken, order left pending, nothing recorded, and the order later expired by the cleanup job while the shopper's tab said "Payment successful". Now the first matching payment pays the order and the other intent is cancelled.
 - **Signing in could empty your cart.** The merge only ran on a page reload, not at sign-in, and the guest copy was cleared before the merge succeeded. One unavailable line refused the whole merge, and the frontend then deleted the guest cart without a word. Now it merges what it can, says what it changed, and clears the guest copy only after the server confirms.
 - **One shopper's home address could appear in another's checkout.** To prefill the delivery form, the saved address was kept in the browser tab's own storage, and signing out never cleared it. On a shared computer the next person to sign in found the previous shopper's name and street address already filled in, and an order they didn't correct would have shipped there. It also only worked if the shopper had opened their profile page first in that same tab, so the "your address is saved" promise on the sign-in page was false for everyone else. Fixed by removing the shared copy altogether rather than clearing it on sign-out: a sign-out path that forgets is a one-line regression away, while a copy that doesn't exist can't leak. The frontend had no test runner at all until this bug, which is how it got one.
+- **A required checkbox that recorded nothing.** The sign-up modal wouldn't let a shopper continue until they ticked a box accepting the discount's terms — and the tick was never sent anywhere. It unlocked a button in the browser, vanished when the modal closed, and four of the five routes into registration never showed it at all, while every new account got the discount regardless. The box existed so there would be a record in a dispute; there was no record. Acceptance now happens on the registration form every account passes through, and is stored with the exact wording shown, its version and the shopper's language. Found by asking what happened to the tick, rather than whether the checkbox worked.
 - **Rate limits were worth less than they claimed.** Throttle counters lived in each gunicorn worker's memory, so the effective limit was the configured one multiplied by the number of workers, and every deploy reset it. Moved to a table all workers share.
 - **The checkout was in English in every language.** The site switched between four languages, but the page where money changes hands had its labels, buttons and delivery options written straight into the components: a Russian shopper saw a Russian header above an English form. Found by measuring the page at the same width in each language and getting identical numbers to the pixel — a result that should have been impossible. An ESLint rule now errors on a literal string in the translated files, so the next one fails CI instead of reaching a customer.
 - **The assistant turned away sales by simplifying a rule.** Asked whether the sign-up discount worked with buy-two-get-three, it answered that the two don't combine — true only of the candles that pay toward the free one, and discouraging for everything else in the basket. The offer context now carries the engine's own rule, checked by a live test.
+- **The assistant made promises on the shop's behalf.** Pressed by an angry shopper, it offered to pass the complaint on and said the owner would look into it — it can do neither. It also offered the new-account discount as compensation to shoppers who had already ordered and so couldn't have it. Both answers are now structural rather than instructed: the contact address goes into every reply to a complaint, and an offer this shopper can't have is kept out of the model's context instead of being forbidden by a rule it might argue its way around.
 - **An error message told shoppers to edit a Python file.** An unrecognised country produced `Unsupported country: 'X'. Add it to shipping.normalize.COUNTRIES.` — an internal module path, shown to the customer. Found by probing every endpoint with hostile input, along with four 500s that should have been 400s.
 - **Keyboard focus was invisible in dark mode.** The assistant panel's focus outline was near-black on a near-black panel, so nothing showed while tabbing through any of its buttons. Found by looking at the rendered panel in both themes rather than trusting the stylesheet.
 - **Every modal on the site could be drawn over by the header.** Not a z-index number but a stacking context: the page body established its own, so no value inside it could ever beat the fixed header. Fixed by rendering the overlays through portals, then verified by pixel-comparing all four against the previous build.
@@ -250,7 +267,7 @@ Deliberately open, and documented rather than hidden:
 - **Tracking** — Shippo tracking webhooks aren't connected; tracking numbers are entered from the admin
 - **Staging** — there is no second environment yet; changes are verified against a throwaway clone of the production catalog locally
 - **Translation is partial** — the shopping path is in four languages; the content and policy pages, and candle names and descriptions, are English in all of them. The ESLint rule covers the translated files, so the gap can't widen quietly
-- **Frontend test coverage is narrow** — the suite exists and runs in CI, but it covers the checkout address rather than the whole interface. It was built for the bug below it, and grows when the next one needs it
+- **Frontend test coverage is narrow** — 19 tests covering the checkout address, the consent checkbox and the advertised discount figure, rather than the whole interface. Each group was written for a specific bug, and the suite grows when the next one needs it
 - **No confirmation email** — customers get no automatic order confirmation; the owner sends them by hand, and tracking emails come from Shippo
 - **The assistant's history isn't stored server-side** — signatures stop a forged reply reaching the model, but the conversation still lives in the browser. Storing it would mean a retention period, a cleanup job and a line in the privacy policy; the cheaper defence was chosen deliberately, and the trade-off is written down rather than discovered later
 
@@ -264,9 +281,9 @@ The audit and the fixes were done with AI assistance — Claude for review, Clau
 - **Options before decisions.** Where a change had a product consequence — which offer wins on a candle, whether a payment on a stale intent is accepted or refunded — the alternatives were laid out with the prices each produces, in a table, before one was chosen. One option was rejected because it made a basket cost **more** after adding a free candle.
 - **A random system is measured, not spot-checked.** For the assistant, one good answer isn't evidence: the model-facing tests repeat each ask and report how many passed. One rewrite of the offer rules was caught overshooting in the opposite direction this way, promising the discount on candles that don't get it.
 - **A dead feature is removed, not left to rot.** A scent quiz shipped that never recommended anything: its scoring function was never called and its results were fixed copy. It came out entirely — pages, styles, routes, links and translations — rather than being quietly left in the menu.
-- **Fix the class, not the case.** Where a bug came from state that had to be remembered and cleared, the state was removed instead: a copy that doesn't exist can't be forgotten by the next code path that touches it.
+- **Fix the class, not the case.** Where a bug came from state that had to be remembered and cleared, the state was removed instead: a copy that doesn't exist can't be forgotten by the next code path that touches it. The same reasoning keeps an offer out of the assistant's context rather than forbidding it in a prompt.
 - **Browser verification for what tests can't prove:** overlay behaviour, the sign-in merge, the live Stripe payment form, keyboard focus in both themes, pixel comparison between builds.
-- **Product and policy decisions stayed human:** card payments only (no Klarna or Link), refunds initiated in Stripe rather than the admin, offer precedence by kind, and the 24-hour cancellation window.
+- **Product and policy decisions stayed human:** card payments only (no Klarna or Link), refunds initiated in Stripe rather than the admin, offer precedence by kind, the 24-hour cancellation window, and whether the discount's terms need accepting at all.
 
 ---
 
@@ -299,11 +316,11 @@ npm run dev
 # Backend — needs the Postgres container
 docker compose up -d db
 cd backend
-pytest                       # 542 tests, on PostgreSQL
+pytest                       # 576 tests, on PostgreSQL
 TEST_DB=sqlite pytest        # quick run without Docker; cannot catch locking bugs
 
 # The assistant, against the live model — calls OpenAI, a fraction of a cent per run
-LUMIERE_LIVE=1 pytest lumiere/test_offers_context.py
+LUMIERE_LIVE=1 pytest lumiere/test_offers_context.py lumiere/test_complaints.py
 
 # Frontend
 cd frontend
@@ -320,7 +337,7 @@ npm run build                # production build
 ```
 KFursenko-candles-store/
 ├── backend/                      Django REST API
-│   ├── accounts/                  Auth, profiles
+│   ├── accounts/                  Auth, profiles, discount-terms consent
 │   ├── candles/                    Catalog, variants, collections, offers
 │   ├── cart/                        Server cart, guest-cart merge
 │   ├── orders/                       Orders, pricing engine, Stripe webhooks, refunds
