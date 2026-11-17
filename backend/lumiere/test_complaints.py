@@ -146,3 +146,30 @@ class TestLiveReturningShopper:
                 text,
                 re.I,
             )
+
+
+# Saying the list is complete: "only the 15%", "no other offers".
+CLAIMS_COMPLETE = re.compile(
+    r"единственн|других\s+(?:акций|предложений|скидок)\s+нет|нет\s+(?:других|иных)"
+    r"|больше\s+(?:акций|предложений|скидок|ничего)\s+нет"
+    r"|только\s+(?:\d|эт|одн|две|два|осенн|скидк|акци|предложени|распродаж)",
+    re.I,
+)
+
+
+@live
+@pytest.mark.django_db
+class TestLiveEveryOfferAfterAComplaint:
+    def test_russian_names_both_offers_and_never_says_that_is_all(self, shop, api_client, live_model):
+        turns = [
+            "Заказ пришёл на неделю позже, я потратила целый час. Хочу скидку в качестве компенсации.",
+            "какие у вас сейчас акции?",
+        ]
+
+        for _ in range(3):
+            text = _converse(api_client, turns, locale="ru")[-1]
+            print("\n[ru, which offers]", text)
+
+            assert re.search(r"15\s?%", text), "the Autumn Sale"
+            assert re.search(r"трет|фитил|B2G3", text, re.I), "buy two, get a third free"
+            assert not CLAIMS_COMPLETE.search(text)
