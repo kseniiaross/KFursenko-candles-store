@@ -1,12 +1,15 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
+import { useWelcomePercent } from "../../hooks/useWelcomePercent";
 import { useAppSelector } from "../../store/hooks";
 
 import "../../styles/offers/NewShoppers.css";
 
 const NewShoppers: React.FC = () => {
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
+  // From the running offer, as Register's terms; no offer, no figure.
+  const percent = useWelcomePercent();
 
   return (
     <main className="newShoppers" aria-labelledby="new-shoppers-title">
@@ -15,12 +18,15 @@ const NewShoppers: React.FC = () => {
           <p className="newShoppers__kicker">Offers</p>
 
           <h1 id="new-shoppers-title" className="newShoppers__title">
-            10% off your first order
+            {percent !== null
+              ? `${percent}% off your first order`
+              : "A welcome discount on your first order"}
           </h1>
 
           <p className="newShoppers__lead">
-            Create an account and your first order comes with 10% off. Nothing
-            to remember, nothing to type in — the price simply drops when you
+            Create an account and your first order comes with{" "}
+            {percent !== null ? `${percent}% off` : "a discount"}. Nothing to
+            remember, nothing to type in — the price simply drops when you
             reach checkout.
           </p>
         </header>

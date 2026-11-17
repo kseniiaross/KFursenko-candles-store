@@ -22,6 +22,8 @@ export type Terms = {
   version: string;
   locale: string;
   text: string;
+  /** The discount the terms describe, for the line above the form. */
+  percent: number;
 };
 
 /** null when no sign-up discount is running: nothing to accept. */

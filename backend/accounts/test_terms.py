@@ -69,6 +69,7 @@ class TestTermsEndpoint:
         assert terms["text"].startswith("Зарегистрируйтесь — и скидка 10% ")
         assert "Действует 60 дн. после регистрации." in terms["text"]
         assert "{{" not in terms["text"]
+        assert terms["percent"] == 10
 
     def test_an_offer_without_a_time_limit_says_none(self, api_client, welcome):
         welcome.new_shopper_days_active = 0

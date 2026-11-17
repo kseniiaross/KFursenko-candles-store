@@ -39,16 +39,20 @@ function readTermsConflict(
   const data = error.response.data;
   if (!isRecord(data) || !isRecord(data.terms)) return null;
 
-  const { version, locale, text } = data.terms;
+  const { version, locale, text, percent } = data.terms;
   if (
     typeof version !== "string" ||
     typeof locale !== "string" ||
-    typeof text !== "string"
+    typeof text !== "string" ||
+    typeof percent !== "number"
   ) {
     return null;
   }
 
-  return { code: String(data.code ?? ""), terms: { version, locale, text } };
+  return {
+    code: String(data.code ?? ""),
+    terms: { version, locale, text, percent },
+  };
 }
 
 const Register: React.FC = () => {
@@ -313,8 +317,14 @@ const Register: React.FC = () => {
           </header>
 
           {/* The discount is worked out server-side at checkout, so this is
-              a statement of fact rather than a code the visitor must keep. */}
-          <p className="register__perk">{t("register.welcomePerk")}</p>
+              a statement of fact rather than a code the visitor must keep.
+              Its figure comes with the terms, from the running offer; with
+              no offer running there is no line. */}
+          {terms ? (
+            <p className="register__perk">
+              {t("register.welcomePerk", { percent: terms.percent })}
+            </p>
+          ) : null}
 
           <form className="register__form" onSubmit={onSubmit} noValidate>
             <div className="register__grid">

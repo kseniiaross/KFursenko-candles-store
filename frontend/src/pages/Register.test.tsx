@@ -25,11 +25,13 @@ const TERMS_V1 = {
   version: "v1",
   locale: "en",
   text: "Create an account and 10% comes off your first order automatically at checkout — no code needed.",
+  percent: 10,
 };
 const TERMS_V2 = {
   version: "v2",
   locale: "en",
   text: "Create an account and 15% comes off your first order automatically at checkout — no code needed.",
+  percent: 15,
 };
 
 /** What the server is running now; a test can change it under the page. */
@@ -140,6 +142,14 @@ describe("Register: accepting the sign-up discount's terms", () => {
     expect(box).toHaveProperty("checked", true);
   });
 
+  it("the line above the form names the running offer's figure", async () => {
+    server.terms = TERMS_V2;
+    renderRegister();
+
+    expect(await screen.findByText("15% off your first order — automatic, no code needed.")).toBeTruthy();
+    expect(screen.queryByText(/^10% off your first order/)).toBeNull();
+  });
+
   it("won't create the account until the box is ticked", async () => {
     renderRegister();
     await screen.findByRole("checkbox", { name: CONSENT });
@@ -175,6 +185,8 @@ describe("Register: accepting the sign-up discount's terms", () => {
     expect(await screen.findByText(/The discount terms have changed/)).toBeTruthy();
     expect(screen.getByText(TERMS_V2.text)).toBeTruthy();
     expect(screen.queryByText(TERMS_V1.text)).toBeNull();
+    // The line above the form follows the terms.
+    expect(screen.getByText(/^15% off your first order/)).toBeTruthy();
     const box = screen.getByRole("checkbox", { name: CONSENT });
     expect(box).toHaveProperty("checked", false);
     expect(document.activeElement).toBe(box);
@@ -218,6 +230,7 @@ describe("Register: accepting the sign-up discount's terms", () => {
 
     expect(await screen.findByText("Home page")).toBeTruthy();
     expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByText(/off your first order/)).toBeNull();
     expect(server.registrations[0].terms_version).toBeUndefined();
   });
 });

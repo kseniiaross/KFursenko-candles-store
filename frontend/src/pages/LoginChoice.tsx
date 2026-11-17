@@ -2,6 +2,8 @@ import React, { useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+import { useWelcomePercent } from "../hooks/useWelcomePercent";
+
 import loginImage from "../assets/images/login_choice.webp";
 
 import "../styles/LoginChoice.css";
@@ -13,6 +15,8 @@ function isSafePath(path: string | null): path is string {
 const LoginChoice: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
+  // From the running offer, as Register's terms; no offer, no figure.
+  const percent = useWelcomePercent();
 
   const nextParam = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -25,11 +29,15 @@ const LoginChoice: React.FC = () => {
   /** Answers the question the visitor is actually weighing here: what do
    *  I get for signing up? An empty page answered nothing. */
   const reasons = [
-    {
-      key: "discount",
-      title: t("loginChoice.perkDiscountTitle"),
-      text: t("loginChoice.perkDiscountText"),
-    },
+    ...(percent !== null
+      ? [
+          {
+            key: "discount",
+            title: t("loginChoice.perkDiscountTitle", { percent }),
+            text: t("loginChoice.perkDiscountText"),
+          },
+        ]
+      : []),
     {
       key: "checkout",
       title: t("loginChoice.perkCheckoutTitle"),
@@ -61,7 +69,9 @@ const LoginChoice: React.FC = () => {
             </h1>
 
             <p id="login-choice-subtitle" className="loginChoice__subtitle">
-              {t("loginChoice.subtitle")}
+              {percent !== null
+                ? t("loginChoice.subtitle", { percent })
+                : t("loginChoice.subtitleNoFigure")}
             </p>
           </header>
 

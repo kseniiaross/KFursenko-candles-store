@@ -92,10 +92,11 @@ const resources = {
         loginChoice: {
         pageLabel: "Login choice page",
         title: "Welcome",
-        subtitle: "Sign in, or create an account and start with 10% off.",
+        subtitle: "Sign in, or create an account and start with {{percent}}% off.",
+        subtitleNoFigure: "Sign in, or create an account.",
         login: "Log in",
         register: "Create account",
-        perkDiscountTitle: "10% off your first order",
+        perkDiscountTitle: "{{percent}}% off your first order",
         perkDiscountText: "Applied automatically at checkout — no code needed",
         perkCheckoutTitle: "Faster checkout, every time",
         perkCheckoutText: "Your address is saved and orders are easy to track",
@@ -278,7 +279,7 @@ const resources = {
         creating: "Creating account...",
         haveAccount: "Already have an account?",
         welcomePerk:
-          "10% off your first order — automatic, no code needed.",
+          "{{percent}}% off your first order — automatic, no code needed.",
         termsConsent: "I understand how this discount works.",
         termsRequired:
           "Please tick the box to confirm you understand how the discount works.",
@@ -618,10 +619,11 @@ const resources = {
         pageLabel: "Страница выбора входа",
         title: "Добро пожаловать",
         subtitle:
-          "Войдите или создайте аккаунт — и начните со скидкой 10%.",
+          "Войдите или создайте аккаунт — и начните со скидкой {{percent}}%.",
+        subtitleNoFigure: "Войдите или создайте аккаунт.",
         login: "Войти",
         register: "Создать аккаунт",
-        perkDiscountTitle: "10% на первый заказ",
+        perkDiscountTitle: "{{percent}}% на первый заказ",
         perkDiscountText: "Применится при оформлении, без промокода",
         perkCheckoutTitle: "Быстрое оформление",
         perkCheckoutText: "Адрес сохранён, заказы легко отслеживать",
@@ -805,7 +807,7 @@ const resources = {
         creating: "Создание аккаунта...",
         haveAccount: "Уже есть аккаунт?",
         welcomePerk:
-          "10% на первый заказ — автоматически, без промокода.",
+          "{{percent}}% на первый заказ — автоматически, без промокода.",
         termsConsent: "Я понимаю, как работает эта скидка.",
         termsRequired:
           "Отметьте, пожалуйста, что вы понимаете, как работает скидка.",
@@ -1145,10 +1147,11 @@ const resources = {
         loginChoice: {
         pageLabel: "Página de acceso",
         title: "Bienvenido",
-        subtitle: "Inicia sesión o crea una cuenta y empieza con un 10% menos.",
+        subtitle: "Inicia sesión o crea una cuenta y empieza con un {{percent}}% menos.",
+        subtitleNoFigure: "Inicia sesión o crea una cuenta.",
         login: "Iniciar sesión",
         register: "Crear cuenta",
-        perkDiscountTitle: "10% en tu primer pedido",
+        perkDiscountTitle: "{{percent}}% en tu primer pedido",
         perkDiscountText: "Se aplica al pagar, sin código",
         perkCheckoutTitle: "Pago más rápido",
         perkCheckoutText: "Tu dirección se guarda y sigues tus pedidos",
@@ -1342,7 +1345,7 @@ const resources = {
         creating: "Creando cuenta...",
         haveAccount: "¿Ya tienes cuenta?",
         welcomePerk:
-          "10% en tu primer pedido — automático, sin código.",
+          "{{percent}}% en tu primer pedido — automático, sin código.",
         termsConsent: "Entiendo cómo funciona este descuento.",
         termsRequired:
           "Marca la casilla para confirmar que entiendes cómo funciona el descuento.",
@@ -1674,10 +1677,11 @@ const resources = {
         loginChoice: {
         pageLabel: "Page de connexion",
         title: "Bienvenue",
-        subtitle: "Connectez-vous ou créez un compte et démarrez avec 10% de remise.",
+        subtitle: "Connectez-vous ou créez un compte et démarrez avec {{percent}}% de remise.",
+        subtitleNoFigure: "Connectez-vous ou créez un compte.",
         login: "Connexion",
         register: "Créer un compte",
-        perkDiscountTitle: "10% sur votre première commande",
+        perkDiscountTitle: "{{percent}}% sur votre première commande",
         perkDiscountText: "Appliqué au paiement, sans code",
         perkCheckoutTitle: "Paiement plus rapide",
         perkCheckoutText: "Votre adresse est enregistrée, vos commandes suivies",
@@ -1873,7 +1877,7 @@ const resources = {
         creating: "Création du compte...",
         haveAccount: "Vous avez déjà un compte ?",
         welcomePerk:
-          "10% sur la première commande — automatique, sans code.",
+          "{{percent}}% sur la première commande — automatique, sans code.",
         termsConsent: "Je comprends comment fonctionne cette remise.",
         termsRequired:
           "Veuillez cocher la case pour confirmer que vous comprenez comment fonctionne la remise.",

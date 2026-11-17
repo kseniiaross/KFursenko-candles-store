@@ -40,6 +40,9 @@ class Terms(TypedDict):
     version: str
     locale: str
     text: str
+    # For Register's line about the discount, so it never names another
+    # figure than the terms. Not part of the record: the text already says it.
+    percent: int
 
 
 def normalize_locale(value: Optional[str]) -> str:
@@ -69,4 +72,5 @@ def current_terms(locale: Optional[str]) -> Optional[Terms]:
         "version": hashlib.sha256(text.encode("utf-8")).hexdigest()[:16],
         "locale": locale,
         "text": text,
+        "percent": offer.discount_percent,
     }

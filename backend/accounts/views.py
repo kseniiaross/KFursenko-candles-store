@@ -54,7 +54,12 @@ class RegisterAPIView(generics.CreateAPIView):
             user = serializer.save()
 
             if terms:
-                TermsAcceptance.objects.create(user=user, **terms)
+                TermsAcceptance.objects.create(
+                    user=user,
+                    version=terms["version"],
+                    locale=terms["locale"],
+                    text=terms["text"],
+                )
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
