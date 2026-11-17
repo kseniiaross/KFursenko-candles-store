@@ -109,7 +109,7 @@ const Support: React.FC = () => {
                 as possible and include all relevant details in your message.
                 <br />
                 Contact email:{" "}
-                <a href={`mailto:${SUPPORT_EMAIL}`}>
+                <a className="cc-link" href={`mailto:${SUPPORT_EMAIL}`}>
                     {SUPPORT_EMAIL}
                 </a>
                 </p>
