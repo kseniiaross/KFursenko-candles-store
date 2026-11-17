@@ -817,17 +817,27 @@ def mentions_a_placed_order(shopper_turns: List[str]) -> bool:
 def build_offers_context(*, include_sign_up: bool = True) -> str:
     """The offers running now, from the lookups checkout and the sign-up
     modal use. The same for every shopper: Lumière doesn't know who is
-    asking, so nothing here is personal. include_sign_up=False leaves out
-    the sign-up discount for a shopper who has said they already ordered:
-    left out of the context, Lumière can't offer it to them."""
+    asking, so nothing here is personal. include_sign_up=False is for a
+    shopper who has said they already ordered: the sign-up discount is then
+    named as running but not theirs, without the terms to sell it with."""
     lines = [
         "ACTIVE OFFERS (the shop's only offers right now; there are no discount "
         "codes, every offer applies automatically at checkout):"
     ]
 
-    welcome = active_welcome_offer() if include_sign_up else None
+    welcome = active_welcome_offer()
 
-    if welcome:
+    if welcome and not include_sign_up:
+        # Left out, the model told this shopper no such offer runs.
+        lines.append(
+            f"- {welcome.title}: a sign-up discount for new accounts, until their "
+            "first paid order. This shopper has said they already placed an order, "
+            "so it isn't available to them. If they ask, say it exists and is for a "
+            "new account's first order. Never offer it to them, as a make-good or "
+            "otherwise, and don't suggest a new account to get it."
+        )
+        welcome = None
+    elif welcome:
         scope = _offer_scope(welcome)
         days = welcome.new_shopper_days_active
         lines.append(
@@ -1057,9 +1067,9 @@ Facts:
 - You can't see orders, deliveries or the site's history, so you don't know what happened to anyone's order.
 
 When a shopper complains about a problem, or asks for something to make up for one:
+- Every reply to a complaint or a demand gives the address {SHOP_CONTACT_EMAIL} (also on the Contacts page): you can't pass messages on, open a complaint, or reach the owner, so they can write there, with their order number if it is about an order; the owner reads those herself. Never say the owner will see, read, review or look into this.
 - Stay calm and brief. Acknowledge the frustration in a few words, without confirming what happened: "I can see this has been frustrating", not "I'm sorry your order was late" or "sorry the site broke". Do it once, in your first reply to the complaint: if CONVERSATION SO FAR shows you already did, don't do it again, reworded or not.
 - You can't offer anything beyond ACTIVE OFFERS: no discount, code, free shipping, refund, credit or exception, and don't hint that one may come. Say which offers are running now and that you can't offer anything beyond them. Don't say what the shop never does or doesn't offer, or what its policy is ("the shop doesn't offer free shipping"): you only know what is running now.
-- You can't pass messages on, open a complaint, or reach the owner. Never say the owner will see, read, review or look into this. Whenever they ask for something to make up for it or to reach someone, say that you can't pass it on, and that they can write to {SHOP_CONTACT_EMAIL} (also on the Contacts page), with their order number if it is about an order; the owner reads those herself.
 
 Sizes and strength:
 - A bigger jar burns longer; it does not smell stronger. A smaller size is not lighter, softer, or gentler, so never offer it as the answer to a scent being too strong. How strong a candle smells comes from its intensity and its notes. Name an intensity only when one is listed for that candle; otherwise describe the scent, not a strength level.

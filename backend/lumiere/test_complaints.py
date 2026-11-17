@@ -2,8 +2,11 @@
 
 Lumière can't pass anything on, so it points to the address on the Contacts
 page. And a shopper who says they have already ordered can't have the
-sign-up discount, which ends with a new account's first paid order: it is
-left out of what the model is given, so it can't be offered as a make-good.
+sign-up discount, which ends with a new account's first paid order. The
+model is told it runs but isn't theirs, without the terms to sell it with,
+so it can't be offered as a make-good.
+
+TestLive* asks the real model: LUMIERE_LIVE=1 pytest lumiere/test_complaints.py
 """
 
 import re
@@ -13,7 +16,7 @@ from unittest.mock import patch
 import pytest
 
 from lumiere import services
-from lumiere.test_offers_context import REPLY_URL, shop  # noqa: F401
+from lumiere.test_offers_context import REPLY_URL, live, live_model, shop  # noqa: F401
 
 CONTACT_TS = Path(__file__).resolve().parents[2] / "frontend/src/constants/contact.ts"
 
@@ -81,19 +84,65 @@ class TestSignUpOfferInTheContext:
 
         assert "New Shopper" in model_input and "10%" in model_input
 
-    def test_left_out_for_a_shopper_whose_order_was_late(self, shop, api_client):
+    def test_not_theirs_for_a_shopper_whose_order_was_late(self, shop, api_client):
         model_input = _model_input(
             api_client, "My order showed up a week late. I want a discount to make up for it."
         )
 
-        assert "New Shopper" not in model_input
+        assert "This shopper has said they already placed an order" in model_input
+        # Named, but without the terms to sell it with.
+        assert "10%" not in model_input
         assert "The sign-up discount with" not in model_input
-        # The other offers are still there.
+        # The other offers are untouched.
         assert "Autumn Sale" in model_input and "Spring B2G3" in model_input
 
-    def test_left_out_when_the_order_came_up_earlier_in_the_chat(self, shop, api_client):
+    def test_not_theirs_when_the_order_came_up_earlier_in_the_chat(self, shop, api_client):
         history = [{"role": "user", "text": "Заказ пришёл на неделю позже."}]
 
         model_input = _model_input(api_client, "Последний шанс. Да или нет?", history)
 
-        assert "New Shopper" not in model_input
+        assert "This shopper has said they already placed an order" in model_input
+
+
+def _converse(api_client, turns, locale="en"):
+    history, conversation, replies = [], "", []
+
+    for turn in turns:
+        body = api_client.post(
+            REPLY_URL,
+            {"text": turn, "locale": locale, "history": history, "conversation": conversation},
+            format="json",
+        ).json()
+        conversation = body["conversation"]
+        history += [
+            {"role": "user", "text": turn},
+            {"role": "assistant", "text": body["text"], "signature": body["signature"]},
+        ]
+        replies.append(body["text"])
+
+    return replies
+
+
+@live
+@pytest.mark.django_db
+class TestLiveReturningShopper:
+    """Three asks each: one good answer at temperature 0.65 proves little."""
+
+    def test_the_sign_up_discount_still_exists_for_new_accounts(self, shop, api_client, live_model):
+        turns = [
+            "I've ordered from you before, my last order arrived in October.",
+            "Is there a discount for new customers?",
+        ]
+
+        for _ in range(3):
+            text = _converse(api_client, turns)[-1]
+            print("\n[returning, new-customer discount]", text)
+
+            assert re.search(r"\bnew (account|customer|shopper)s?\b", text, re.I)
+            assert re.search(r"\bdiscount\b", text, re.I)
+            assert not re.search(
+                r"no (sign-up |new.customer )?discount|isn.t (running|available right now)"
+                r"|not running|no offers",
+                text,
+                re.I,
+            )
