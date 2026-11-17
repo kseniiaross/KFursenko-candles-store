@@ -15,6 +15,16 @@
   background: none;
   border: none;
   box-shadow: none;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Once the page scrolls under it. The top of every page is unchanged; only
+   the background and the menu's own hairline appear, so nothing moves. */
+.header--scrolled {
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
 }
 
 .header__inner {
@@ -684,6 +694,7 @@
    ===================================================== */
 
 @media (prefers-reduced-motion: reduce) {
+  .header,
   .header__logoImg,
   .header__navTextButton::after,
   .header__navTextButton--link::after,

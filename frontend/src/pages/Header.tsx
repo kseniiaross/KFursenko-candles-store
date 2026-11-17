@@ -168,6 +168,20 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
     closeMenu();
   }, [closeMenu]);
 
+  // The bar is see-through at the top of a page, over each page's own
+  // opening. Once the page moves under it, it needs a background, or the
+  // menu and the cart collide with whatever scrolls behind them.
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const update = (): void => setIsScrolled(window.scrollY > 0);
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+
+    return () => window.removeEventListener("scroll", update);
+  }, []);
+
   useEffect(() => {
     if (!isAccountOpen) return;
 
@@ -448,7 +462,10 @@ const Header: React.FC<HeaderProps> = ({ firstName, isLoggedIn, onLogout }) => {
 
   return (
     <>
-      <header className="header" aria-label={t("header.siteHeader")}>
+      <header
+        className={`header${isScrolled ? " header--scrolled" : ""}`}
+        aria-label={t("header.siteHeader")}
+      >
         <div className="header__inner">
           <div className="header__left header__desktopLeft">
             <Link to="/" className="header__logoLink" aria-label={t("header.goHome")}>
