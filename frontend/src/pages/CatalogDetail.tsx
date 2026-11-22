@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { getCandleBySlug, getCollectionScentsBySlug } from "../api/candles";
@@ -83,6 +83,9 @@ const CatalogDetail: React.FC = () => {
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth?.isLoggedIn));
 
   const [item, setItem] = useState<Candle | null>(null);
+  // The slug whose load failed: missing, or the server didn't answer.
+  // Kept with its slug, so going to another product starts loading again.
+  const [failedSlug, setFailedSlug] = useState("");
   const [variant, setVariant] = useState<CandleVariant | null>(null);
   const [scents, setScents] = useState<Candle[]>([]);
   const [adding, setAdding] = useState(false);
@@ -117,6 +120,7 @@ const CatalogDetail: React.FC = () => {
         if (!active) return;
 
         setItem(data);
+        setFailedSlug("");
 
         const activeVariants = (data.variants ?? []).filter((v) => v.is_active);
 
@@ -145,6 +149,7 @@ const CatalogDetail: React.FC = () => {
         setItem(null);
         setVariant(null);
         setScents([]);
+        setFailedSlug(slug);
       }
     }
 
@@ -291,7 +296,32 @@ const CatalogDetail: React.FC = () => {
     return () => observer.disconnect();
   }, [item?.slug, item?.image]);
 
-  if (!item) return null;
+  // Never a blank page: a line while the candle loads, and a way back
+  // when it doesn't exist or can't be loaded.
+  if (!item) {
+    const failed = failedSlug !== "" && failedSlug === slug;
+
+    return (
+      <main className="catalogDetail" aria-label={t("catalogDetail.pageLabel")}>
+        <div className="catalogDetail__state">
+          {failed ? (
+            <>
+              <h1 className="catalogDetail__stateTitle">
+                {t("catalogDetail.unavailable")}
+              </h1>
+              <Link to="/catalog" className="catalogDetail__stateLink">
+                {t("catalogDetail.backToCatalog")}
+              </Link>
+            </>
+          ) : (
+            <p className="catalogDetail__stateLoading" role="status">
+              {t("catalogDetail.loading")}
+            </p>
+          )}
+        </div>
+      </main>
+    );
+  }
 
   const activePhoto = shownPhoto.slug === item.slug ? shownPhoto.index : 0;
   const descOpen = descOpenFor === item.slug;

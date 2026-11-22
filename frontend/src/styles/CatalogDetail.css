@@ -13,6 +13,42 @@
   margin: 0;
 }
 
+/* While the candle loads, or when it can't be shown: never an empty page. */
+.catalogDetail__state {
+  max-width: 760px;
+  margin: 48px auto 0;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.catalogDetail__stateTitle {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 400;
+}
+
+.catalogDetail__stateLoading {
+  margin: 0;
+  font-size: 1rem;
+  color: #555555;
+}
+
+.catalogDetail__stateLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 18px;
+  min-height: 46px;
+  padding: 0 20px;
+  text-decoration: none;
+  color: var(--app-text);
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 /* Photos scroll, the buying panel does not — hence align-items: start,
    which is what lets position: sticky work in the second column.
 

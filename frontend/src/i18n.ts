@@ -218,8 +218,7 @@ const resources = {
       catalogDetail: {
         pageLabel: "Product details page",
         loading: "Loading product...",
-        loadError: "Failed to load this product.",
-        notFound: "Product not found.",
+        unavailable: "This candle isn't available.",
         backToCatalog: "Back to catalog",
         productImages: "Product images",
         thumbnails: "Product image thumbnails",
@@ -748,8 +747,7 @@ const resources = {
       catalogDetail: {
         pageLabel: "Страница товара",
         loading: "Загрузка товара...",
-        loadError: "Не удалось загрузить товар.",
-        notFound: "Товар не найден.",
+        unavailable: "Эта свеча недоступна.",
         backToCatalog: "Назад в каталог",
         productImages: "Изображения товара",
         thumbnails: "Миниатюры изображений товара",
@@ -1278,8 +1276,7 @@ const resources = {
       catalogDetail: {
         pageLabel: "Página del producto",
         loading: "Cargando producto...",
-        loadError: "No se pudo cargar este producto.",
-        notFound: "Producto no encontrado.",
+        unavailable: "Esta vela no está disponible.",
         backToCatalog: "Volver al catálogo",
         productImages: "Imágenes del producto",
         thumbnails: "Miniaturas del producto",
@@ -1810,8 +1807,7 @@ const resources = {
       catalogDetail: {
         pageLabel: "Page produit",
         loading: "Chargement du produit...",
-        loadError: "Impossible de charger ce produit.",
-        notFound: "Produit introuvable.",
+        unavailable: "Cette bougie n'est pas disponible.",
         backToCatalog: "Retour au catalogue",
         productImages: "Images du produit",
         thumbnails: "Miniatures du produit",
