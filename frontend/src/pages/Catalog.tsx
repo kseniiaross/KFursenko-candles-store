@@ -399,7 +399,7 @@ const Catalog: React.FC = () => {
                     setAiMode(false);
                   }
                 }}
-                placeholder="Try: I want something cozy for reading at night"
+                placeholder={t("catalog.searchPlaceholder")}
                 autoComplete="off"
               />
             </div>
@@ -444,7 +444,7 @@ const Catalog: React.FC = () => {
                 className="catalog__aiButton"
                 disabled={!searchInput.trim() || aiLoading}
               >
-                {aiLoading ? "Thinking..." : "Lumière AI Search"}
+                {aiLoading ? t("catalog.aiThinking") : t("catalog.aiSearch")}
               </button>
 
               <button
@@ -618,7 +618,7 @@ const Catalog: React.FC = () => {
                             />
                           ) : (
                             <span className="catalogCard__priceHint">
-                              Select size
+                              {t("catalog.selectSize")}
                             </span>
                           )}
                         </div>
