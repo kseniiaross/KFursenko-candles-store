@@ -16,10 +16,10 @@ type Props = {
   freeQuantity: number;
   /** The offer that applied to this line, if any. */
   discountLabel: string;
-  /** On a free line: the welcome offer it replaced on the lines that paid
-   *  for it. The total can go up when the free candle goes in, so the cart
-   *  says why. */
-  replacesLabel?: string;
+  /** On a line that paid for a free candle: the welcome offer it gave up.
+   *  That line is at full price while others have the discount, so it
+   *  says why; the free line needs no note, it says "Free". */
+  gaveUpLabel?: string;
 };
 
 /** One order line's price as a shop shows it: what this line costs, with
@@ -32,7 +32,7 @@ const LinePrice: React.FC<Props> = ({
   quantity,
   freeQuantity,
   discountLabel,
-  replacesLabel = "",
+  gaveUpLabel = "",
 }) => {
   const { t } = useTranslation();
   const free = Math.max(0, freeQuantity);
@@ -52,9 +52,9 @@ const LinePrice: React.FC<Props> = ({
           {marker}
         </span>
       )}
-      {free > 0 && replacesLabel && (
+      {gaveUpLabel && (
         <span className="linePrice__note">
-          {t("cart.replacesWelcome", { offer: replacesLabel })}
+          {t("cart.paysForFreeCandle", { offer: gaveUpLabel })}
         </span>
       )}
     </span>

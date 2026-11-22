@@ -19,8 +19,8 @@
   color: #b73a3a;
 }
 
-/* Under a free line: where the welcome discount went. Quieter than the
-   marker, and allowed to wrap. */
+/* Under a line that paid for a free candle: why it is at full price.
+   Quieter than the marker, and allowed to wrap. */
 .linePrice__note {
   max-width: 220px;
   /* Its own, not the price column's: checkout keeps prices on one line

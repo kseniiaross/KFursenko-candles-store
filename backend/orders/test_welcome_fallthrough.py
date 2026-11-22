@@ -1,6 +1,7 @@
 """The welcome discount lands on every line the campaigns left with nothing —
 except a line that paid for someone's free candle, whose reward is the free
-candle. The free line then says which welcome offer it replaced.
+candle. Each paying line then says which welcome offer it gave up; the free
+line says nothing more than that it is free.
 
 Set up as production is: buy two 11.3 oz, the free one is an 8 oz. The 11.3
 oz candles are the offer's campaign; the 8 oz are reward candles no campaign
@@ -75,7 +76,7 @@ def _lines(basket):
 
 
 def _cart(user, basket):
-    """What the cart shows: {variant_id: (pays, label, free, replaces)} and
+    """What the cart shows: {variant_id: (pays, label, free, gave_up)} and
     the total. Checked against the stored order and the preview endpoint,
     which must say the same."""
     priced = price_basket(user=user, lines=_lines(basket))
@@ -84,7 +85,7 @@ def _cart(user, basket):
             line.line_total - line.discount_amount,
             line.discount_label,
             line.free_quantity,
-            line.replaces_label,
+            line.gave_up_label,
         )
         for line in priced.lines
     }
@@ -110,7 +111,7 @@ def _cart(user, basket):
         format="json",
     ).json()
     assert Decimal(preview["items_total"]) == priced.items_total
-    assert {l["variant_id"]: l["replaces_label"] for l in preview["lines"]} == {
+    assert {l["variant_id"]: l["gave_up_label"] for l in preview["lines"]} == {
         vid: line[3] for vid, line in lines.items()
     }
 
@@ -150,8 +151,9 @@ class TestTheCartMockUps:
 
         lines, total = _cart(user, [(mango, 2), (small, 1)])
 
-        assert lines[mango.id] == (Decimal("43.98"), "", 0, "")
-        assert lines[small.id] == (Decimal("0.00"), "Buy Two Get Three", 1, "Welcome 10%")
+        # The two that pay say what they gave up; the free one only that it's free.
+        assert lines[mango.id] == (Decimal("43.98"), "", 0, "Welcome 10%")
+        assert lines[small.id] == (Decimal("0.00"), "Buy Two Get Three", 1, "")
         assert total == Decimal("43.98")
 
     def test_three_on_one_line_all_lose_it(self, shop, user):
@@ -161,7 +163,8 @@ class TestTheCartMockUps:
 
         lines, total = _cart(user, [(mango, 3), (small, 1)])
 
-        assert lines[mango.id] == (Decimal("65.97"), "", 0, "")
+        assert lines[mango.id] == (Decimal("65.97"), "", 0, "Welcome 10%")
+        assert lines[small.id][3] == ""
         assert total == Decimal("65.97")
 
 
@@ -175,9 +178,10 @@ class TestWhoPays:
 
         lines, total = _cart(user, [(mango, 1), (matcha, 1), (tidal, 1), (small, 1)])
 
-        assert lines[mango.id][:2] == (Decimal("19.79"), "Welcome 10%")
-        assert lines[matcha.id][:2] == (Decimal("21.99"), "")
-        assert lines[tidal.id][:2] == (Decimal("21.99"), "")
+        assert lines[mango.id] == (Decimal("19.79"), "Welcome 10%", 0, "")
+        assert lines[matcha.id] == (Decimal("21.99"), "", 0, "Welcome 10%")
+        assert lines[tidal.id] == (Decimal("21.99"), "", 0, "Welcome 10%")
+        assert lines[small.id][3] == ""
         assert total == Decimal("63.77")
 
     def test_dearer_units_pay_first(self, shop, user):
@@ -192,17 +196,38 @@ class TestWhoPays:
 
         lines, _ = _cart(user, [(dear, 1), (mango, 1), (matcha, 1), (small, 1)])
 
-        assert lines[dear.id][1] == ""
-        assert lines[matcha.id][1] == ""
-        assert lines[mango.id][1] == "Welcome 10%"
+        assert lines[dear.id][1::2] == ("", "Welcome 10%")
+        assert lines[matcha.id][1::2] == ("", "Welcome 10%")
+        assert lines[mango.id][1::2] == ("Welcome 10%", "")
 
-    def test_a_returning_shopper_sees_no_replaced_note(self, shop, returning):
+    def test_a_returning_shopper_gave_nothing_up(self, shop, returning):
+        """No welcome offer to lose, so nothing is marked."""
         mango, small = shop["big"][0], shop["small"][0]
 
         lines, total = _cart(returning, [(mango, 2), (small, 1)])
 
+        assert lines[mango.id] == (Decimal("43.98"), "", 0, "")
         assert lines[small.id] == (Decimal("0.00"), "Buy Two Get Three", 1, "")
         assert total == Decimal("43.98")
+
+    def test_a_guest_gave_nothing_up(self, shop):
+        """Guests never get the welcome offer (checkout needs an account)."""
+        from django.contrib.auth.models import AnonymousUser
+
+        mango, small = shop["big"][0], shop["small"][0]
+
+        priced = price_basket(user=AnonymousUser(), lines=_lines([(mango, 2), (small, 1)]))
+
+        assert [line.gave_up_label for line in priced.lines] == ["", ""]
+
+    def test_nothing_is_marked_without_a_free_candle(self, shop, user):
+        """Two 11.3 oz and no 8 oz: nothing paid for anything, both keep 10%."""
+        mango, matcha, _ = shop["big"]
+
+        lines, _ = _cart(user, [(mango, 1), (matcha, 1)])
+
+        assert lines[mango.id] == (Decimal("19.79"), "Welcome 10%", 0, "")
+        assert lines[matcha.id] == (Decimal("19.79"), "Welcome 10%", 0, "")
 
 
 @pytest.mark.django_db
@@ -216,7 +241,7 @@ class TestOtherCampaigns:
 
         lines, _ = _cart(user, [(mango, 1)])
 
-        assert lines[mango.id][:2] == (Decimal("19.79"), "Spooky Season Offer")
+        assert lines[mango.id] == (Decimal("19.79"), "Spooky Season Offer", 0, "")
 
     def test_an_offer_without_a_reward_group_follows_the_same_rule(self, shop, user, category):
         """Mango, Matcha, Tidal 8 oz in one offer, plus Lemon: Tidal is free,
@@ -237,11 +262,44 @@ class TestOtherCampaigns:
 
         lines, total = _cart(user, [(v, 1) for v in variants])
 
-        assert lines[tidal.id] == (Decimal("0.00"), "Spring", 1, "Welcome 10%")
-        assert lines[mango.id][:2] == (Decimal("18.49"), "")
-        assert lines[matcha.id][:2] == (Decimal("18.49"), "")
-        assert lines[lemon.id][:2] == (Decimal("13.50"), "Welcome 10%")
+        assert lines[tidal.id] == (Decimal("0.00"), "Spring", 1, "")
+        assert lines[mango.id] == (Decimal("18.49"), "", 0, "Welcome 10%")
+        assert lines[matcha.id] == (Decimal("18.49"), "", 0, "Welcome 10%")
+        assert lines[lemon.id] == (Decimal("13.50"), "Welcome 10%", 0, "")
         assert total == Decimal("50.48")
+
+    def test_three_of_one_candle_on_one_line_two_paying_one_free(self, shop, user, category):
+        """An offer without a reward group: three of the same candle on one
+        line, one free and two paying for it. The line is free and paid for
+        at once, and it gave the welcome offer up."""
+        spring = Offer.objects.create(title="Spring", kind=Offer.Kind.B1G2, priority=1)
+        candle = Candle.objects.create(category=category, name="Mango", stock_qty=9)
+        spring.candles.add(candle)
+        mango = CandleVariant.objects.create(
+            candle=candle, size="8 oz", price="18.49", stock_qty=9, is_active=True
+        )
+
+        lines, total = _cart(user, [(mango, 3)])
+
+        assert lines[mango.id] == (Decimal("36.98"), "Spring", 1, "Welcome 10%")
+        assert total == Decimal("36.98")
+
+    def test_a_candle_in_a_percentage_campaign_gave_nothing_up(self, shop, user):
+        """Its campaign price stands, welcome or not, and it pays for no free
+        candle: a basket with a free candle elsewhere doesn't mark it."""
+        mango, matcha, tidal = shop["big"]
+        small = shop["small"][0]
+        spooky = Offer.objects.create(
+            title="Spooky Season Offer", kind=Offer.Kind.HOLIDAY, discount_percent=10, priority=5
+        )
+        spooky.candles.add(tidal.candle)
+
+        lines, _ = _cart(user, [(mango, 1), (matcha, 1), (tidal, 1), (small, 1)])
+
+        assert lines[tidal.id] == (Decimal("19.79"), "Spooky Season Offer", 0, "")
+        assert lines[mango.id][3] == "Welcome 10%"
+        assert lines[matcha.id][3] == "Welcome 10%"
+        assert lines[small.id][3] == ""
 
 
 @pytest.mark.django_db

@@ -33,9 +33,10 @@ class LineDiscount:
     # exactly that many at the line's unit price — the line shows "Free" or
     # "1 free", and the stored discount says the same thing.
     free_quantity: int = 0
-    # On a free line: the welcome offer the lines that paid for it would
-    # otherwise have had, so the cart can say where it went. Not stored.
-    replaces: str = ""
+    # On a line whose units paid for a free candle: the welcome offer it
+    # would otherwise have had, so the cart can say why it pays full price.
+    # Set only where the welcome discount really applied. Not stored.
+    gave_up: str = ""
 
 
 def _round(value: Decimal) -> Decimal:
@@ -575,15 +576,20 @@ def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
     # Lands on every line the campaigns left with nothing. A line that has
     # a discount keeps it; stacking would hand out twenty percent on a
     # single item, or a free unit and ten percent on one line. A line that
-    # paid for a free candle gets the free candle instead: the free line
-    # notes the welcome offer it replaced.
+    # paid for a free candle gets the free candle instead, and is marked
+    # with the welcome offer it gave up: the shopper looking at a candle at
+    # full price is the one asking why.
     if welcome_offer and welcome_offer.discount_percent:
         percent = Decimal(welcome_offer.discount_percent)
         all_payers = set().union(*paid_for.values())
-        replaced: set = set()
+        gave_up: set = set()
 
         for line in enriched:
-            if line["variant_id"] in discounts:
+            found = discounts.get(line["variant_id"])
+
+            # A campaign's own discount stays, and the welcome offer was
+            # never going to land there: nothing given up.
+            if found and not found.free_quantity:
                 continue
 
             if not offer_applies_to(welcome_offer, line["candle"]):
@@ -595,10 +601,13 @@ def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
             if amount <= 0:
                 continue
 
+            # Also a line holding its own free unit and the two that pay
+            # for it (three of one candle, an offer without a reward group).
             if line["variant_id"] in all_payers:
-                replaced |= {
-                    offer for offer, ids in paid_for.items() if line["variant_id"] in ids
-                }
+                gave_up.add(line["variant_id"])
+                continue
+
+            if found:
                 continue
 
             discounts[line["variant_id"]] = LineDiscount(
@@ -608,23 +617,16 @@ def compute_line_discounts(*, user, lines, offers=None, welcome_offer=_RESOLVE):
             if welcome_offer.title not in applied_labels:
                 applied_labels.append(welcome_offer.title)
 
-        for line in enriched:
-            found = discounts.get(line["variant_id"])
-
-            if not (found and found.free_quantity):
-                continue
-
-            # A free unit always comes from the line's own buy-two-get-three
-            # offer: its campaign, or for a reward-only candle its reward offer.
-            offer = line["campaign"] if line["campaign"] in paid_for else line["reward_offer"]
-
-            if offer in replaced:
-                discounts[line["variant_id"]] = LineDiscount(
-                    amount=found.amount,
-                    label=found.label,
-                    free_quantity=found.free_quantity,
-                    replaces=welcome_offer.title,
-                )
+        # A paying line with no discount of its own gets an entry that
+        # costs nothing, only to carry the mark.
+        for variant_id in gave_up:
+            found = discounts.get(variant_id)
+            discounts[variant_id] = LineDiscount(
+                amount=found.amount if found else Decimal("0.00"),
+                label=found.label if found else "",
+                free_quantity=found.free_quantity if found else 0,
+                gave_up=welcome_offer.title,
+            )
 
     summary_label = " + ".join(applied_labels)
 
@@ -652,8 +654,8 @@ class PricedLine:
     # most one promotion, so line_total - discount_amount is always what the
     # line costs — the figure the cart shows and the order stores.
     free_quantity: int
-    # See LineDiscount.replaces.
-    replaces_label: str = ""
+    # See LineDiscount.gave_up.
+    gave_up_label: str = ""
 
 
 @dataclass(frozen=True)
@@ -694,7 +696,7 @@ def price_basket(*, user, lines, offers=None, welcome_offer=_RESOLVE) -> BasketP
                 discount_amount=found.amount if found else Decimal("0.00"),
                 discount_label=found.label if found else "",
                 free_quantity=found.free_quantity if found else 0,
-                replaces_label=found.replaces if found else "",
+                gave_up_label=found.gave_up if found else "",
             )
         )
 

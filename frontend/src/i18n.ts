@@ -382,7 +382,7 @@ const resources = {
         free: "Free",
         freeCount: "{{count}} free",
         wasPrice: "Was {{price}}",
-        replacesWelcome: "Replaces your {{offer}} on the candles that earn it",
+        paysForFreeCandle: "Earns your free candle instead of {{offer}}",
         noticeOk: "OK",
         someCandle: "A candle",
         noticeSoldOut: "{{label}} has sold out — we've taken it out of your cart.",
@@ -909,8 +909,7 @@ const resources = {
         free: "Бесплатно",
         freeCount: "{{count}} бесплатно",
         wasPrice: "Было {{price}}",
-        replacesWelcome:
-          "Заменяет вашу скидку «{{offer}}» на свечах, за которые положен подарок",
+        paysForFreeCandle: "Даёт бесплатную свечу вместо скидки «{{offer}}»",
         noticeOk: "Понятно",
         someCandle: "Свеча",
         noticeSoldOut: "Товар «{{label}}» распродан — мы убрали его из корзины.",
@@ -1436,8 +1435,7 @@ const resources = {
         free: "Gratis",
         freeCount: "{{count}} gratis",
         wasPrice: "Antes {{price}}",
-        replacesWelcome:
-          "Sustituye tu descuento «{{offer}}» en las velas que dan derecho al regalo",
+        paysForFreeCandle: "Te da la vela gratis en lugar del descuento «{{offer}}»",
         noticeOk: "Entendido",
         someCandle: "Una vela",
         noticeSoldOut: "{{label}} se ha agotado: lo hemos quitado de tu carrito.",
@@ -1969,8 +1967,7 @@ const resources = {
         freeCount_one: "{{count}} offerte",
         freeCount_other: "{{count}} offertes",
         wasPrice: "Avant {{price}}",
-        replacesWelcome:
-          "Remplace votre remise « {{offer}} » sur les bougies qui donnent droit au cadeau",
+        paysForFreeCandle: "Fait gagner la bougie offerte, à la place de la remise « {{offer}} »",
         noticeOk: "OK",
         someCandle: "Une bougie",
         noticeSoldOut:
