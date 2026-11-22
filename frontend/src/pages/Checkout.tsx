@@ -510,10 +510,13 @@ const Checkout: React.FC = () => {
         ? Number(selectedRate.amount)
         : null;
 
+  // Read on every render (t changes with the language, so a switch renders
+  // the page again), and a dependency below: the card field follows a
+  // language change made on the payment step, through elements.update.
+  const currentLanguage = i18n.language?.split("-")[0];
+
   const stripeOptions = useMemo(() => {
     if (!clientSecret) return undefined;
-
-    const currentLanguage = i18n.language?.split("-")[0];
 
     const stripeLocale: StripeElementLocale =
       currentLanguage === "ru" ||
@@ -529,7 +532,7 @@ const Checkout: React.FC = () => {
         theme: "stripe" as const,
       },
     };
-  }, [clientSecret]);
+  }, [clientSecret, currentLanguage]);
 
   const createOrderAndIntent = async (): Promise<void> => {
     if (!canPreparePayment || loading) return;
