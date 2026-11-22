@@ -35,6 +35,7 @@ export default defineConfig([
       'src/components/CartNotices.tsx',
       'src/pages/offers/PromoBuy2Get3.tsx',
       'src/components/SizeModal.tsx',
+      'src/pages/Catalog.tsx',
     ],
     plugins: { i18next },
     rules: {
