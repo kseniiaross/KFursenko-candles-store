@@ -172,9 +172,15 @@ Lumière answers the questions a product page can't: which candle suits someone 
 
 **It searches a catalogue it can't translate**
 
-The candles' names and descriptions are English, so matching a shopper's words against them only works in English: a Russian typing *ваниль* matches nothing, and a whole sentence matches nothing in any language. The catalogue search asks the model instead. It reads the question in whichever of the four languages it was asked, picks from the candles actually in stock, and answers in the language the shop is set to.
+The candles' names and descriptions are English, and no translated copy of them exists. Matching a shopper's words against that text therefore only works in English: a Russian typing *ваниль* matches nothing, and a whole sentence matches nothing in any language.
 
-It also says what it did. Asked for a pineapple candle, it answers that there isn't one and offers the tropical candle there is — and the page shows that sentence, with a line on each card saying why it was picked, because without it an honest answer looks like a wrong result.
+So the catalogue search doesn't match words. It hands the model the candles actually in stock and the question as the shopper wrote it, and asks which ones fit. The model reads all four languages, so the search works in four languages over a catalogue that exists in one — not by translating the catalogue, but by understanding the question. What it says about its picks is shown above the results, with a line on each card saying why that candle is there, because an answer without its reasoning looks like a wrong result.
+
+**It won't invent a candle to avoid saying no**
+
+Asked for a pineapple candle, it used to offer Mango Island as "reminiscent of pineapple". It isn't — the model said so to avoid refusing. A shopper who buys a mango candle expecting pineapple sends it back, so the refusal is cheaper than the sale. The search prompt now carries the rule the assistant already follows about discounts: say what is, don't invent what isn't. It names what the shop doesn't have before offering the closest thing as the closest thing, measured at 12 of 12 asks across the four languages.
+
+That rule is kept two ways: a live test that asks the real model, and a check that runs in CI on every push and fails if the rule is ever tidied out of the prompt — so the measurement can't quietly stop being true.
 
 **It can't be talked into things**
 
