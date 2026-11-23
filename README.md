@@ -5,7 +5,7 @@
 **Full-stack e-commerce platform** for a handmade candle brand — React frontend + Django REST API backend, deployed live, taking real card payments and buying real shipping labels.
 
 [![Live Site](https://img.shields.io/badge/live%20site-kfcandle.com-black?style=flat-square)](https://www.kfcandle.com/)
-![Tests](https://img.shields.io/badge/tests-576%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-580%20passing-brightgreen?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/kseniiaross/KFursenko-candles-store/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/kseniiaross/KFursenko-candles-store/actions/workflows/ci.yml)
 
@@ -206,9 +206,9 @@ Testing here isn't a checkbox — it's how the most serious bug in this codebase
 
 | Layer | Tool | Coverage | Status |
 |---|---|---|---|
-| **Backend** | pytest on **PostgreSQL** | 576 tests — orders & lifecycle, Stripe webhooks/refunds/incidents, the pricing engine, shipping quotes & parcels, cart limits & merge, catalog, offers, consent to the discount terms, and the assistant's prices, offers, limits and signed history | ✅ passing |
+| **Backend** | pytest on **PostgreSQL** | 580 tests — orders & lifecycle, Stripe webhooks/refunds/incidents, the pricing engine, shipping quotes & parcels, cart limits & merge, catalog, offers, consent to the discount terms, and the assistant's prices, offers, limits and signed history | ✅ passing |
 | **Assistant, against the live model** | pytest, opt-in | 6 tests in 2 files, 24 model calls — every scenario repeated three times and reported as a pass rate. A planted discount is refused, the real offers are named, the sign-up discount is explained as the engine applies it, and a complaint gets the shop's address rather than a promise | ✅ 24/24 asks |
-| **Frontend** | Vitest + Testing Library on jsdom | 19 tests in 3 files: the checkout address and what a sign-out must not leave behind; the consent checkbox, its label and the stale-terms path; and the discount figure advertised on the Welcome and New Shoppers pages | ✅ passing |
+| **Frontend** | Vitest + Testing Library on jsdom | 56 tests in 8 files: the checkout address and what a sign-out must not leave behind; the consent checkbox, its label and the stale-terms path; the discount figure advertised on the Welcome and New Shoppers pages; which line carries the free-candle note; a product page that is never blank, loading or unavailable; and the cart, the offer pop-up and the product page in all four languages, error states included | ✅ passing |
 | **Type checking** | `tsc --noEmit` | Whole frontend | ✅ 0 errors |
 | **Lint** | ESLint, plus `i18next/no-literal-string` on the translated files | Whole frontend | ✅ 0 errors |
 
@@ -267,7 +267,7 @@ Deliberately open, and documented rather than hidden:
 - **Tracking** — Shippo tracking webhooks aren't connected; tracking numbers are entered from the admin
 - **Staging** — there is no second environment yet; changes are verified against a throwaway clone of the production catalog locally
 - **Translation is partial** — the shopping path is in four languages; the account pages (orders and profile), the content and policy pages, candle names, descriptions and category names, and the server's own refusal messages on the shopping path are English in all of them, so a shopper who hits a stock problem reads it in English. The ESLint rule errors on literal text in the markup of the translated files, so the gap can't widen quietly there
-- **Frontend test coverage is narrow** — 19 tests covering the checkout address, the consent checkbox and the advertised discount figure, rather than the whole interface. Each group was written for a specific bug, and the suite grows when the next one needs it
+- **Frontend test coverage is narrow** — 56 tests covering the checkout address, the consent checkbox, the advertised discount figure, the free-candle note, the product page's empty states and the shopping path's translations, rather than the whole interface. Each group was written for a specific bug, and the suite grows when the next one needs it
 - **No confirmation email** — customers get no automatic order confirmation; the owner sends them by hand, and tracking emails come from Shippo
 - **The assistant's history isn't stored server-side** — signatures stop a forged reply reaching the model, but the conversation still lives in the browser. Storing it would mean a retention period, a cleanup job and a line in the privacy policy; the cheaper defence was chosen deliberately, and the trade-off is written down rather than discovered later
 
@@ -316,7 +316,7 @@ npm run dev
 # Backend — needs the Postgres container
 docker compose up -d db
 cd backend
-pytest                       # 576 tests, on PostgreSQL
+pytest                       # 580 tests, on PostgreSQL
 TEST_DB=sqlite pytest        # quick run without Docker; cannot catch locking bugs
 
 # The assistant, against the live model — calls OpenAI, a fraction of a cent per run
