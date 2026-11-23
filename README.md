@@ -178,7 +178,7 @@ So the catalogue search doesn't match words. It hands the model the candles actu
 
 **It won't invent a candle to avoid saying no**
 
-Asked for a pineapple candle, it used to offer Mango Island as "reminiscent of pineapple". It isn't — the model said so to avoid refusing. A shopper who buys a mango candle expecting pineapple sends it back, so the refusal is cheaper than the sale. The search prompt now carries the rule the assistant already follows about discounts: say what is, don't invent what isn't. It names what the shop doesn't have before offering the closest thing as the closest thing, measured at 12 of 12 asks across the four languages.
+Asked for a pineapple candle, it used to offer Mango Island as "reminiscent of pineapple". It isn't — the model said so to avoid refusing. A shopper who buys a mango candle expecting pineapple sends it back, so the refusal is cheaper than the sale. The search prompt now carries the rule the assistant already follows about discounts: say what is, don't invent what isn't. It names what the shop doesn't have before offering the closest thing as the closest thing. Every one of twelve asks across the four languages opened by saying the shop has none; in two of the twenty-four per-card lines the comparison still leaned on the resemblance.
 
 That rule is kept two ways: a live test that asks the real model, and a check that runs in CI on every push and fails if the rule is ever tidied out of the prompt — so the measurement can't quietly stop being true.
 
