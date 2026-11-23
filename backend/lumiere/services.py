@@ -540,6 +540,7 @@ Rules:
 - product_ids length: 0 to {limit}.
 - Prefer in-stock products.
 - Prefer stronger intent matches over bestsellers.
+- If no candle is what the customer asked for (a scent, note or kind the catalog doesn't have), the first sentence of text says plainly that the shop has no such candle; then offer the closest as the closest, and never say or suggest it smells of, contains or resembles what was asked for unless its catalog data says so — in text or reasons.
 - text should be 2-4 sentences.
 - reasons should be short and specific.
 - Reply in locale: {safe_locale}.

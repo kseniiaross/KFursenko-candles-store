@@ -174,7 +174,7 @@ Lumière answers the questions a product page can't: which candle suits someone 
 
 The candles' names and descriptions are English, so matching a shopper's words against them only works in English: a Russian typing *ваниль* matches nothing, and a whole sentence matches nothing in any language. The catalogue search asks the model instead. It reads the question in whichever of the four languages it was asked, picks from the candles actually in stock, and answers in the language the shop is set to.
 
-It also says what it did. Asked for a pineapple candle, of which there is none, it offers the tropical candle there is and says why it is the closest — and the page shows that explanation above the results, with a line on each card saying why it was picked, because without it a mango candle looks like a wrong result.
+It also says what it did. Asked for a pineapple candle, it answers that there isn't one and offers the tropical candle there is — and the page shows that sentence, with a line on each card saying why it was picked, because without it an honest answer looks like a wrong result.
 
 **It can't be talked into things**
 
