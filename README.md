@@ -91,7 +91,7 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 - Every displayed price comes from the same engine the checkout charges with — the catalog card, the size picker, the product page, the cart, the assistant and the stored order all call one function
 - Offer badges driven entirely from the admin, including a personal sign-up discount that lowers the price without showing a badge to shoppers who don't qualify
 - Lumière, an in-page AI assistant that prices from the same engine as the checkout and knows the offers actually running — see [The Assistant](#the-assistant)
-- Four interface languages across the shopping path — catalogue, product page, cart, checkout and account. The content and policy pages are English only, deliberately
+- Four interface languages across the shopping path — catalogue, product page, cart and checkout. The content and policy pages are English only, deliberately
 
 **Shipping**
 
@@ -266,7 +266,7 @@ Deliberately open, and documented rather than hidden:
 - **Labels** — purchased through Shippo but not archived to Cloudinary
 - **Tracking** — Shippo tracking webhooks aren't connected; tracking numbers are entered from the admin
 - **Staging** — there is no second environment yet; changes are verified against a throwaway clone of the production catalog locally
-- **Translation is partial** — the shopping path is in four languages; the content and policy pages, and candle names and descriptions, are English in all of them. The ESLint rule covers the translated files, so the gap can't widen quietly
+- **Translation is partial** — the shopping path is in four languages; the account pages (orders and profile), the content and policy pages, candle names, descriptions and category names, and the server's own refusal messages on the shopping path are English in all of them, so a shopper who hits a stock problem reads it in English. The ESLint rule errors on literal text in the markup of the translated files, so the gap can't widen quietly there
 - **Frontend test coverage is narrow** — 19 tests covering the checkout address, the consent checkbox and the advertised discount figure, rather than the whole interface. Each group was written for a specific bug, and the suite grows when the next one needs it
 - **No confirmation email** — customers get no automatic order confirmation; the owner sends them by hand, and tracking emails come from Shippo
 - **The assistant's history isn't stored server-side** — signatures stop a forged reply reaching the model, but the conversation still lives in the browser. Storing it would mean a retention period, a cleanup job and a line in the privacy policy; the cheaper defence was chosen deliberately, and the trade-off is written down rather than discovered later

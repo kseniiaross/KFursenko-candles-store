@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 
 import { deleteCartItem, getMyCart, patchCartItem, readCartError } from "../api/cart";
@@ -25,6 +26,7 @@ const money = (value: number): string =>
 const Cart: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   const items = useAppSelector((state) => state.cart.items);
   const isLoggedIn = useAppSelector((state) => Boolean(state.auth.isLoggedIn));
@@ -187,21 +189,19 @@ const Cart: React.FC = () => {
     <main className="cart">
       <div className="cart__inner">
         <header className="cart__header">
-          <h1 className="cart__title">SHOPPING CART</h1>
+          <h1 className="cart__title">{t("cart.title")}</h1>
 
-          <p className="cart__subtitle">
-            Review your selected candles before checkout
-          </p>
+          <p className="cart__subtitle">{t("cart.subtitle")}</p>
         </header>
 
         <CartNotices />
 
         {items.length === 0 ? (
           <div className="cart__empty">
-            <p>Your cart is empty</p>
+            <p>{t("cart.empty")}</p>
 
             <Link to="/catalog" className="cart__emptyLink">
-              Continue Shopping
+              {t("cart.continueShopping")}
             </Link>
           </div>
         ) : (
@@ -211,7 +211,7 @@ const Cart: React.FC = () => {
                 const variantId = Number(item.variant_id);
                 const itemId = item.item_id;
                 const quantity = Math.max(1, Number(item.quantity) || 1);
-                const name = item.name?.trim() || `Candle #${item.candle_id}`;
+                const name = item.name?.trim() || t("cart.unnamedCandle", { id: item.candle_id });
                 const priced = pricing.line(variantId);
                 const unavailable = Boolean(
                   preview?.unavailable.includes(variantId)
@@ -250,18 +250,20 @@ const Cart: React.FC = () => {
                           <h2 className="cartItem__name">{name}</h2>
 
                           {item.size && (
-                            <p className="cartItem__meta">Size: {item.size}</p>
+                            <p className="cartItem__meta">
+                              {t("cart.size", { size: item.size })}
+                            </p>
                           )}
 
                           {unavailable && (
                             <p className="cartItem__unavailable" role="note">
-                              No longer available — remove it to check out.
+                              {t("cart.noLongerAvailable")}
                             </p>
                           )}
 
                           {soldOut && (
                             <p className="cartItem__unavailable" role="note">
-                              Sold out — remove it to check out.
+                              {t("cart.soldOut")}
                             </p>
                           )}
 
@@ -285,13 +287,11 @@ const Cart: React.FC = () => {
                               }}
                             />
 
-                            <span>
-                              It&apos;s a gift — complimentary gift wrapping
-                            </span>
+                            <span>{t("cart.giftOption")}</span>
                           </label>
 
                           {item.isGift && (
-                            <p className="cartItem__meta">Gift wrapping: Free</p>
+                            <p className="cartItem__meta">{t("cart.giftWrappingFree")}</p>
                           )}
                         </div>
 
@@ -303,14 +303,14 @@ const Cart: React.FC = () => {
                             void handleRemove(variantId, itemId);
                           }}
                         >
-                          Remove
+                          {t("cart.remove")}
                         </button>
                       </div>
 
                       <div className="cartItem__bottomRow">
                         <div className="cartItem__priceBlock">
                           <span className="cartItem__priceLabel">
-                            Unit Price
+                            {t("cart.unitPrice")}
                           </span>
 
                           <span className="cartItem__price">
@@ -355,7 +355,7 @@ const Cart: React.FC = () => {
                         </div>
 
                         <div className="cartItem__lineTotalBlock">
-                          <span className="cartItem__priceLabel">Total</span>
+                          <span className="cartItem__priceLabel">{t("cart.total")}</span>
 
                           <span
                             className={`cartItem__lineTotal${
@@ -389,21 +389,21 @@ const Cart: React.FC = () => {
                 aria-busy={pricing.updating}
               >
                 <div className="cart__summaryRow">
-                  <span className="cart__summaryLabel">Items</span>
+                  <span className="cart__summaryLabel">{t("cart.items")}</span>
                   <span className="cart__summaryValue">{totalItems}</span>
                 </div>
 
                 {hasGiftItems && (
                   <div className="cart__summaryRow">
-                    <span className="cart__summaryLabel">Gift wrapping</span>
-                    <span className="cart__summaryValue">Free</span>
+                    <span className="cart__summaryLabel">{t("cart.giftWrapping")}</span>
+                    <span className="cart__summaryValue">{t("cart.giftWrappingValue")}</span>
                   </div>
                 )}
 
                 {/* No discount row: each line already says what it costs,
                     so the total is just their sum. */}
                 <div className="cart__summaryRow cart__summaryRow--total">
-                  <span className="cart__summaryLabel">Total</span>
+                  <span className="cart__summaryLabel">{t("cart.total")}</span>
                   <span className="cart__summaryValue">
                     {amount(preview?.items_total)}
                   </span>
@@ -411,8 +411,8 @@ const Cart: React.FC = () => {
 
                 <p className="cart__summaryNote">
                   {pricing.failed
-                    ? "Prices couldn't be updated just now. Checkout will show the final amount."
-                    : "Shipping and tax are added at checkout."}
+                    ? t("cart.pricesFailed")
+                    : t("cart.shippingAtCheckout")}
                 </p>
               </div>
         
@@ -423,7 +423,7 @@ const Cart: React.FC = () => {
                 disabled={!items.length}
                 onClick={handleCheckout}
               >
-                CHECK OUT
+                {t("cart.checkOut")}
               </button>
             </section>
           </>

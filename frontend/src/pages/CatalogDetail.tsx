@@ -540,7 +540,7 @@ const CatalogDetail: React.FC = () => {
                 }}
                 disabled={!variant || adding}
               >
-                {adding ? "Adding..." : t("catalogDetail.addToCart")}
+                {adding ? t("cart.adding") : t("catalogDetail.addToCart")}
               </button>
 
               <div className="catalogDetail__details">
@@ -655,13 +655,13 @@ const CatalogDetail: React.FC = () => {
             className="catalogDetail__zoom"
             role="dialog"
             aria-modal="true"
-            aria-label={`Large image of ${item.name}`}
+            aria-label={t("catalogDetail.largeImage", { name: item.name })}
           >
             <button
               type="button"
               className="catalogDetail__zoomBackdrop"
               onClick={() => setZoomImg("")}
-              aria-label="Close image preview"
+              aria-label={t("catalogDetail.closePreview")}
             />
 
             <div className="catalogDetail__zoomContent">
@@ -669,7 +669,7 @@ const CatalogDetail: React.FC = () => {
                 type="button"
                 className="catalogDetail__zoomClose"
                 onClick={() => setZoomImg("")}
-                aria-label="Close image preview"
+                aria-label={t("catalogDetail.closePreview")}
               >
                 ×
               </button>

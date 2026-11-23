@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import i18n from "../i18n";
 import api from "./axiosInstance";
 import type { CartLine } from "../store/cartSlice";
 
@@ -15,9 +16,9 @@ function inOrder<T>(request: () => Promise<T>): Promise<T> {
 }
 
 /** The server's reason for refusing a cart change, in words the shopper
- *  can act on, or a general one when it gave none. */
+ *  can act on, or a general one, in their language, when it gave none. */
 export function readCartError(error: unknown): string {
-  const fallback = "We couldn't update your cart. Please try again.";
+  const fallback = i18n.t("cart.updateFailed");
 
   if (!axios.isAxiosError(error)) return fallback;
 

@@ -36,6 +36,9 @@ export default defineConfig([
       'src/pages/offers/PromoBuy2Get3.tsx',
       'src/components/SizeModal.tsx',
       'src/pages/Catalog.tsx',
+      'src/pages/Cart.tsx',
+      'src/pages/CatalogDetail.tsx',
+      'src/components/OfferModal.tsx',
     ],
     plugins: { i18next },
     rules: {

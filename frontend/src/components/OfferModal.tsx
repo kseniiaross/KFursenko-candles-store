@@ -243,7 +243,7 @@ const OfferModal: React.FC = () => {
           type="button"
           className="offerModal__backdrop"
           onClick={close}
-          aria-label="Close"
+          aria-label={t("offerModal.close")}
         />
 
         <div
@@ -258,7 +258,7 @@ const OfferModal: React.FC = () => {
             type="button"
             className="offerModal__close"
             onClick={close}
-            aria-label="Close"
+            aria-label={t("offerModal.close")}
           >
             ×
           </button>
@@ -270,23 +270,14 @@ const OfferModal: React.FC = () => {
 
             <h2 id={titleId} className="offerModal__title">
               {promotion.reward_group
-                ? "Add one of these and it's free"
-                : "One more and the third is free"}
+                ? t("offerModal.titleReward")
+                : t("offerModal.titlePlain")}
             </h2>
 
             <p className="offerModal__lead">
-              {promotion.reward_group ? (
-                <>
-                  Your basket has earned a free candle. Pick one of these and it
-                  costs nothing — the discount is applied at checkout.
-                </>
-              ) : (
-                <>
-                  You have {promotion.in_cart} candles from this offer in your
-                  basket. Add one more and the cheapest of the three costs
-                  nothing — the discount is applied at checkout.
-                </>
-              )}
+              {promotion.reward_group
+                ? t("offerModal.leadReward")
+                : t("offerModal.leadPlain", { count: promotion.in_cart })}
             </p>
           </header>
 
@@ -329,10 +320,10 @@ const OfferModal: React.FC = () => {
 
                     <span className="offerCard__action">
                       {adding === suggestion.variant_id
-                        ? "Adding…"
+                        ? t("cart.adding")
                         : held > 0
-                          ? "Add another"
-                          : "Add"}
+                          ? t("offerModal.addAnother")
+                          : t("offerModal.add")}
                     </span>
                   </button>
                 </li>
@@ -349,11 +340,11 @@ const OfferModal: React.FC = () => {
                 navigate(promotion.offer_path);
               }}
             >
-              See all candles in this offer
+              {t("offerModal.seeAll")}
             </button>
 
             <button type="button" className="offerModal__skip" onClick={close}>
-              No thanks
+              {t("offerModal.noThanks")}
             </button>
           </footer>
 
