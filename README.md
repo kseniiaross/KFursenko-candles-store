@@ -91,6 +91,7 @@ This isn't a tutorial clone. It's a deployed shop with the awkwardness that come
 - Every displayed price comes from the same engine the checkout charges with — the catalog card, the size picker, the product page, the cart, the assistant and the stored order all call one function
 - Offer badges driven entirely from the admin, including a personal sign-up discount that lowers the price without showing a badge to shoppers who don't qualify
 - Lumière, an in-page AI assistant that prices from the same engine as the checkout and knows the offers actually running — see [The Assistant](#the-assistant)
+- Catalogue search in plain language, in any of the four interface languages, answered by the model from the candles actually in stock — see [The Assistant](#the-assistant)
 - Four interface languages across the shopping path — catalogue, product page, cart and checkout. The content and policy pages are English only, deliberately
 
 **Shipping**
@@ -168,6 +169,12 @@ Lumière answers the questions a product page can't: which candle suits someone 
 - **It states the rules as precisely as the engine does.** Asked how the sign-up discount works alongside buy-two-get-three, it used to answer that the two don't combine. That is simpler than the truth and it costs sales, so the context now spells out the engine's actual rule — only the lines paying toward a free candle give the discount up — and a live test checks the answer.
 - **Nothing is personal.** It describes the sign-up discount as what a new account gets, never as this shopper's price, and it doesn't know who it is talking to.
 - **A hidden admin field** holds the studio's own notes on each scent — what it pairs with, who it suits, how it differs from its neighbour — shared across every size of the same candle. The assistant advises from it in its own words. The field is excluded from the public API, with a test that fails if it ever appears in a product response.
+
+**It searches a catalogue it can't translate**
+
+The candles' names and descriptions are English, so matching a shopper's words against them only works in English: a Russian typing *ваниль* matches nothing, and a whole sentence matches nothing in any language. The catalogue search asks the model instead. It reads the question in whichever of the four languages it was asked, picks from the candles actually in stock, and answers in the language the shop is set to.
+
+It also says what it did. Asked for a pineapple candle, of which there is none, it offers the tropical candle there is and says why it is the closest — and the page shows that explanation above the results, with a line on each card saying why it was picked, because without it a mango candle looks like a wrong result.
 
 **It can't be talked into things**
 

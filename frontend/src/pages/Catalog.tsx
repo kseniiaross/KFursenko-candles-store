@@ -89,6 +89,13 @@ const Catalog: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiMode, setAiMode] = useState(false);
+  /** What Lumière said about its picks, in the shopper's language. Without
+   *  it an honest answer ("there's no pineapple candle, here is the
+   *  tropical one") looks like a wrong result. */
+  const [aiAnswer, setAiAnswer] = useState<{
+    text: string;
+    reasons: Record<number, string>;
+  } | null>(null);
   const q = searchParams.get("q") ?? "";
   const categoryParam = searchParams.get("category") ?? "";
   const [searchInput, setSearchInput] = useState(q);
@@ -303,6 +310,7 @@ const Catalog: React.FC = () => {
       setAiLoading(true);
       setLoading(true);
       setError("");
+      setAiAnswer(null);
       setVisibleCount(ITEMS_PER_BATCH);
       setWarmedCards(new Set());
 
@@ -315,6 +323,24 @@ const Catalog: React.FC = () => {
       const suggestionIds = aiResponse.suggestions.map(
         (item) => item.id
       );
+
+      // When the model is unavailable the server matches catalog fields and
+      // gives every candle the same reason, which says nothing per card.
+      const reasons = aiResponse.suggestions
+        .map((item) => item.match_reason?.trim() ?? "")
+        .filter(Boolean);
+      const sayable = new Set(reasons).size > 1 || reasons.length === 1;
+
+      setAiAnswer({
+        text: aiResponse.text?.trim() ?? "",
+        reasons: sayable
+          ? Object.fromEntries(
+              aiResponse.suggestions
+                .filter((item) => item.match_reason?.trim())
+                .map((item) => [item.id, item.match_reason!.trim()])
+            )
+          : {},
+      });
 
       if (suggestionIds.length === 0) {
         setCandles([]);
@@ -336,7 +362,7 @@ const Catalog: React.FC = () => {
       setCandles(aiCandles);
       setAiMode(true);
     } catch {
-      setError("Lumière AI Search could not complete. Please try again.");
+      setError(t("catalog.aiError"));
     } finally {
       setAiLoading(false);
       setLoading(false);
@@ -356,6 +382,13 @@ const Catalog: React.FC = () => {
   };
 
   const isEmpty = !loading && !error && candles.length === 0;
+
+  // The typed match only finds words that are in a candle's name or
+  // description, which are English: a sentence, or any word in another
+  // language, finds nothing. That is when Lumière is the next step, not
+  // the end of the road.
+  const typedMiss = isEmpty && !aiMode && q.trim() !== "";
+  const aiText = aiMode && !loading && !error ? aiAnswer?.text ?? "" : "";
 
   return (
     <main className="catalog" aria-labelledby="catalog-title">
@@ -461,8 +494,27 @@ const Catalog: React.FC = () => {
 
         {/* An empty result used to render nothing at all, which looked
             identical to a broken page. */}
-        {isEmpty && (
-          <p className="catalog__empty">{t("catalog.noResults")}</p>
+        {aiText && <p className="catalog__aiAnswer">{aiText}</p>}
+
+        {typedMiss ? (
+          <div className="catalog__askLumiere">
+            <p className="catalog__empty">{t("catalog.askLumiere")}</p>
+            <button
+              type="button"
+              className="catalog__aiButton catalog__askLumiereButton"
+              onClick={() => {
+                void runAiSearch();
+              }}
+              disabled={!searchInput.trim() || aiLoading}
+            >
+              {t("catalog.aiSearch")}
+            </button>
+          </div>
+        ) : (
+          isEmpty &&
+          !aiText && (
+            <p className="catalog__empty">{t("catalog.noResults")}</p>
+          )
         )}
 
         {error && !loading && (
@@ -525,6 +577,10 @@ const Catalog: React.FC = () => {
                   getLowestActiveVariant(product);
 
                 const isPriorityImage = index === 0;
+
+                const aiReason = aiMode
+                  ? aiAnswer?.reasons[product.id] ?? ""
+                  : "";
 
                 return (
                   <article
@@ -623,6 +679,10 @@ const Catalog: React.FC = () => {
                           )}
                         </div>
                       </div>
+
+                      {aiReason && (
+                        <p className="catalogCard__aiReason">{aiReason}</p>
+                      )}
 
                       <div className="catalogCard__actions">
                         {showSoldOut ? (

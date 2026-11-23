@@ -163,6 +163,41 @@
   margin-top: 18px;
 }
 
+/* Lumière's answer above its picks, in the shopper's language. */
+.catalog__aiAnswer {
+  max-width: 760px;
+  margin: 22px 0 0;
+  color: #111111;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+/* A typed search that found nothing: Lumière is the next step. */
+.catalog__askLumiere {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 22px;
+}
+
+.catalog__askLumiere .catalog__empty {
+  margin: 0;
+}
+
+.catalog__askLumiereButton {
+  width: auto;
+  padding: 0 18px;
+}
+
+/* Why Lumière picked this candle. */
+.catalogCard__aiReason {
+  margin: 0;
+  color: rgba(17, 17, 17, 0.68);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .catalogCard {
   display: flex;
   flex-direction: column;
